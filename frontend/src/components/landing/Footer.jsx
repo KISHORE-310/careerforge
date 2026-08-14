@@ -1,115 +1,86 @@
 import { Mail } from "lucide-react";
+import { Link } from "react-router-dom";
 
 function Footer() {
   return (
     <footer
       id="contact"
-      className="bg-black border-t border-gray-800 text-white py-16 px-8"
+      className="bg-[#050505] border-t border-[#d4af37]/15 text-stone-300 py-12 px-6"
     >
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-6xl mx-auto space-y-10">
+        <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-8">
+          {/* Brand */}
+          <div className="space-y-3">
+            <Link to="/" className="text-lg font-normal text-white inline-block">
+              Career<span className="text-[#d4af37]">Forge</span>
+            </Link>
 
-        <div className="grid md:grid-cols-4 gap-10">
-
-          {/* Logo */}
-          <div>
-            <h2 className="text-3xl font-bold">
-              Career<span className="text-blue-500">Forge</span>
-            </h2>
-
-            <p className="text-gray-400 mt-5 leading-8">
-              AI-powered career platform helping students become
-              job-ready through resume analysis, personalized
-              learning roadmaps, projects, and interview preparation.
+            <p className="text-xs text-stone-400 leading-relaxed font-light">
+              Career intelligence and preparation platform for software engineers.
             </p>
           </div>
 
-          {/* Quick Links */}
-          <div>
-            <h3 className="font-bold text-xl mb-5">
-              Quick Links
-            </h3>
+          {/* Quick Navigation */}
+          <div className="space-y-3">
+            <h4 className="text-xs uppercase tracking-widest text-[#d4af37] font-light">
+              Navigation
+            </h4>
 
-            <div className="space-y-3">
-
-              <a
-                href="#home"
-                className="block text-gray-400 hover:text-white transition"
-              >
-                Home
+            <div className="space-y-2 text-xs font-light">
+              <a href="#home" className="block text-stone-400 hover:text-[#d4af37] transition">
+                Overview
               </a>
-
-              <a
-                href="#features"
-                className="block text-gray-400 hover:text-white transition"
-              >
+              <a href="#features" className="block text-stone-400 hover:text-[#d4af37] transition">
                 Features
               </a>
-
-              <a
-                href="#how-it-works"
-                className="block text-gray-400 hover:text-white transition"
-              >
-                How It Works
+              <a href="#how-it-works" className="block text-stone-400 hover:text-[#d4af37] transition">
+                Methodology
               </a>
-
-              <a
-                href="#faq"
-                className="block text-gray-400 hover:text-white transition"
-              >
+              <a href="#faq" className="block text-stone-400 hover:text-[#d4af37] transition">
                 FAQ
               </a>
+            </div>
+          </div>
 
+          {/* Application */}
+          <div className="space-y-3">
+            <h4 className="text-xs uppercase tracking-widest text-[#d4af37] font-light">
+              Modules
+            </h4>
+
+            <div className="space-y-2 text-xs font-light">
+              <Link to="/dashboard" className="block text-stone-400 hover:text-[#d4af37] transition">
+                Dashboard
+              </Link>
+              <Link to="/resume" className="block text-stone-400 hover:text-[#d4af37] transition">
+                Resume Analyzer
+              </Link>
+              <Link to="/dsa" className="block text-stone-400 hover:text-[#d4af37] transition">
+                DSA Tracker
+              </Link>
+              <Link to="/roadmap" className="block text-stone-400 hover:text-[#d4af37] transition">
+                Role Roadmaps
+              </Link>
             </div>
           </div>
 
           {/* Contact */}
-          <div>
-            <h3 className="font-bold text-xl mb-5">
+          <div className="space-y-3">
+            <h4 className="text-xs uppercase tracking-widest text-[#d4af37] font-light">
               Contact
-            </h3>
+            </h4>
 
-            <div className="flex items-center gap-3 text-gray-400">
-
-              <Mail size={18} />
-
-              <span>
-                kishorerdy.1210@gmail.com
-              </span>
-
+            <div className="flex items-center gap-2 text-xs text-stone-400 font-light">
+              <Mail size={14} className="text-[#d4af37]" />
+              <span>kishorerdy.1210@gmail.com</span>
             </div>
           </div>
-
-          {/* Connect */}
-          <div>
-            <h3 className="font-bold text-xl mb-5">
-              Connect
-            </h3>
-
-            <div className="space-y-3">
-
-              <a
-                href="#"
-                className="block text-gray-400 hover:text-white transition"
-              >
-                GitHub
-              </a>
-
-              <a
-                href="#"
-                className="block text-gray-400 hover:text-white transition"
-              >
-                LinkedIn
-              </a>
-
-            </div>
-          </div>
-
         </div>
 
-        <div className="border-t border-gray-800 mt-14 pt-8 text-center text-gray-500">
-          © 2026 CareerForge. Empowering students with AI-driven career guidance.
+        <div className="border-t border-stone-900 pt-6 flex flex-col sm:flex-row justify-between items-center gap-3 text-xs text-stone-500 font-light">
+          <p>© {new Date().getFullYear()} CareerForge. All rights reserved.</p>
+          <p>Built with precision for engineering careers.</p>
         </div>
-
       </div>
     </footer>
   );

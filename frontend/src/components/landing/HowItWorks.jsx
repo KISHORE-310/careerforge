@@ -2,84 +2,81 @@ import {
   Upload,
   Brain,
   Map,
-  Rocket,
+  CheckCircle2,
 } from "lucide-react";
 
 function HowItWorks() {
   const steps = [
     {
-      icon: <Upload size={42} className="text-blue-500" />,
-      title: "Upload Resume",
-      description:
-        "Upload your resume securely and let CareerForge understand your current skills.",
+      num: "01",
+      icon: <Upload size={18} className="text-[#d4af37]" />,
+      title: "Upload & Parse",
+      description: "Submit your engineering resume for instant structural and keyword extraction.",
     },
     {
-      icon: <Brain size={42} className="text-blue-500" />,
-      title: "AI Analysis",
-      description:
-        "Our AI analyzes your resume, identifies missing skills, and measures your readiness.",
+      num: "02",
+      icon: <Brain size={18} className="text-[#d4af37]" />,
+      title: "ATS & Gap Analysis",
+      description: "Match profile against target tech roles and identify missing proficiencies.",
     },
     {
-      icon: <Map size={42} className="text-blue-500" />,
-      title: "Personalized Roadmap",
-      description:
-        "Receive a step-by-step learning roadmap tailored to your dream role.",
+      num: "03",
+      icon: <Map size={18} className="text-[#d4af37]" />,
+      title: "6-Week Roadmap",
+      description: "Follow customized weekly milestones tailored to close your specific gaps.",
     },
     {
-      icon: <Rocket size={42} className="text-blue-500" />,
-      title: "Become Job Ready",
-      description:
-        "Complete projects, prepare for interviews, and confidently apply for jobs.",
+      num: "04",
+      icon: <CheckCircle2 size={18} className="text-[#d4af37]" />,
+      title: "DSA & Interview Prep",
+      description: "Practice key problem patterns with progress tracking and revision notes.",
     },
   ];
 
   return (
-    <section
-      id="how-it-works"
-      className="bg-[#030712] text-white py-28 px-8"
-    >
-      <div className="max-w-7xl mx-auto">
-
+    <section id="how-it-works" className="bg-[#070707] text-stone-200 py-20 px-6 border-t border-stone-900">
+      <div className="max-w-6xl mx-auto space-y-12">
         {/* Heading */}
-        <div className="text-center">
-          <p className="text-blue-500 uppercase tracking-[6px] font-semibold">
-            HOW IT WORKS
+        <div className="text-center space-y-3">
+          <p className="text-xs uppercase tracking-widest text-[#d4af37] font-light">
+            Methodology
           </p>
 
-          <h2 className="text-5xl md:text-6xl font-bold mt-5">
-            Your Journey To
-            <br />
-            A Tech Career
+          <h2 className="text-2xl sm:text-3xl font-light tracking-tight text-white">
+            How CareerForge Operates
           </h2>
 
-          <p className="text-gray-400 text-lg max-w-3xl mx-auto mt-8 leading-8">
-            CareerForge guides you from resume analysis to becoming
-            interview-ready through a personalized AI-powered journey.
+          <p className="text-xs sm:text-sm text-stone-400 max-w-lg mx-auto leading-relaxed font-light">
+            A structured four-step methodology to transition from skill assessment to interview readiness.
           </p>
         </div>
 
         {/* Steps */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 mt-20">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {steps.map((step, index) => (
             <div
               key={index}
-              className="group bg-gray-900 border border-gray-800 rounded-3xl p-8 text-center transition-all duration-300 hover:-translate-y-3 hover:border-blue-500 hover:shadow-[0_0_40px_rgba(37,99,235,0.25)]"
+              className="bg-[#0e0e0e] border border-[#d4af37]/15 rounded-xl p-5 space-y-3 relative hover:border-[#d4af37]/40 hover:bg-[#121212] transition duration-200"
             >
-              <div className="flex justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                {step.icon}
+              <div className="flex items-center justify-between">
+                <div className="w-8 h-8 rounded-lg bg-[#d4af37]/10 border border-[#d4af37]/20 flex items-center justify-center">
+                  {step.icon}
+                </div>
+                <span className="text-xs font-mono text-[#d4af37]/60 tracking-wider">
+                  {step.num}
+                </span>
               </div>
 
-              <h3 className="text-2xl font-bold">
+              <h3 className="text-sm font-normal text-stone-100">
                 {step.title}
               </h3>
 
-              <p className="text-gray-400 mt-5 leading-8">
+              <p className="text-xs text-stone-400 leading-relaxed font-light">
                 {step.description}
               </p>
             </div>
           ))}
         </div>
-
       </div>
     </section>
   );

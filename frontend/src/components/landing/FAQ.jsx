@@ -4,95 +4,73 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 function FAQ() {
   const faqs = [
     {
-      question: "What is CareerForge?",
+      question: "How does the ATS keyword evaluation work?",
       answer:
-        "CareerForge is an AI-powered career development platform that helps students analyze resumes, identify skill gaps, follow personalized learning roadmaps, build projects, and prepare for interviews.",
+        "CareerForge parses your resume text and compares extracted skill tokens against role-specific requirements, calculating matching percentages and identifying critical missing qualifications.",
     },
     {
-      question: "Is CareerForge free to use?",
+      question: "Which technical engineering roles are supported?",
       answer:
-        "Yes. The core features will be free for students. Premium AI features may be introduced in the future.",
+        "Standard tracks include Backend, Frontend, Full Stack, Data Science, Machine Learning, DevOps, Cloud Architecture, Mobile Development, and Cybersecurity.",
     },
     {
-      question: "Which careers are supported?",
+      question: "How are the custom 6-week roadmaps structured?",
       answer:
-        "CareerForge is designed to support Software Engineering, Data Science, AI/ML, Cybersecurity, Cloud Computing, DevOps, Full Stack Development, and many more technology careers.",
+        "Roadmaps deliver weekly topics covering fundamental language concepts, database architecture, framework implementations, cloud infrastructure, and capstone project deployment.",
     },
     {
-      question: "Can beginners use CareerForge?",
+      question: "Can I save my DSA preparation progress?",
       answer:
-        "Absolutely. Whether you're just starting or preparing for placements, CareerForge creates a roadmap based on your current skill level.",
-    },
-    {
-      question: "How does the AI help me?",
-      answer:
-        "The AI analyzes your resume, detects missing skills, recommends learning resources, suggests projects, and helps prepare you for interviews.",
+        "Yes. Authenticated users have their problem statuses (Completed, In Progress, Bookmarked) and personal code notes securely saved in the database.",
     },
   ];
 
   const [openIndex, setOpenIndex] = useState(0);
 
   return (
-    <section
-      id="faq"
-      className="bg-black text-white py-28 px-8"
-    >
-      <div className="max-w-5xl mx-auto">
-
-        <div className="text-center">
-
-          <p className="text-blue-500 uppercase tracking-[6px] font-semibold">
+    <section id="faq" className="bg-[#0a0a0a] text-stone-200 py-20 px-6 border-t border-stone-900">
+      <div className="max-w-3xl mx-auto space-y-12">
+        <div className="text-center space-y-3">
+          <p className="text-xs uppercase tracking-widest text-[#d4af37] font-light">
             FAQ
           </p>
 
-          <h2 className="text-5xl md:text-6xl font-bold mt-5">
+          <h2 className="text-2xl sm:text-3xl font-light tracking-tight text-white">
             Frequently Asked Questions
           </h2>
 
-          <p className="text-gray-400 mt-8 text-lg leading-8">
-            Everything you need to know before getting started with CareerForge.
+          <p className="text-xs sm:text-sm text-stone-400 max-w-md mx-auto leading-relaxed font-light">
+            Answers to common questions regarding CareerForge capabilities and architecture.
           </p>
-
         </div>
 
-        <div className="mt-20 space-y-5">
-
+        <div className="space-y-3">
           {faqs.map((faq, index) => (
             <div
               key={index}
-              className="rounded-2xl border border-gray-800 bg-gray-900"
+              className="rounded-xl border border-[#d4af37]/15 bg-[#0e0e0e] overflow-hidden transition"
             >
-
               <button
-                onClick={() =>
-                  setOpenIndex(openIndex === index ? -1 : index)
-                }
-                className="w-full flex justify-between items-center p-6 text-left"
+                onClick={() => setOpenIndex(openIndex === index ? -1 : index)}
+                className="w-full flex justify-between items-center py-4 px-5 text-left hover:bg-[#131313] transition"
               >
-
-                <span className="text-xl font-semibold">
+                <span className="text-xs sm:text-sm font-normal text-stone-100">
                   {faq.question}
                 </span>
 
-                {openIndex === index ? (
-                  <ChevronUp />
-                ) : (
-                  <ChevronDown />
-                )}
-
+                <span className="text-[#d4af37] shrink-0 ml-3">
+                  {openIndex === index ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                </span>
               </button>
 
               {openIndex === index && (
-                <div className="px-6 pb-6 text-gray-400 leading-8">
+                <div className="px-5 pb-4 text-xs text-stone-400 leading-relaxed border-t border-stone-800/60 pt-3 font-light">
                   {faq.answer}
                 </div>
               )}
-
             </div>
           ))}
-
         </div>
-
       </div>
     </section>
   );

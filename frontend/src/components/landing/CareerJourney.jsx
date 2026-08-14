@@ -10,96 +10,78 @@ import {
 function CareerJourney() {
   const steps = [
     {
-      icon: <Target size={40} className="text-blue-500" />,
-      title: "Choose Your Career",
-      description:
-        "Select your dream career path like Software Engineering, AI/ML, Data Science, Cybersecurity, Cloud, DevOps, and more.",
+      icon: <Target size={18} className="text-[#d4af37]" />,
+      title: "Define Target Engineering Role",
+      description: "Select from specialized tracks like Backend, Frontend, Cloud, AI/ML, or DevOps.",
     },
     {
-      icon: <FileSearch size={40} className="text-blue-500" />,
-      title: "Analyze Your Resume",
-      description:
-        "Upload your resume and receive AI-powered feedback, ATS score, and personalized recommendations.",
+      icon: <FileSearch size={18} className="text-[#d4af37]" />,
+      title: "Evaluate Resume & Keyword Fit",
+      description: "Identify missing ATS keywords and quantify structural gaps against requirements.",
     },
     {
-      icon: <BookOpen size={40} className="text-blue-500" />,
-      title: "Learn Missing Skills",
-      description:
-        "Follow a customized roadmap with curated courses, documentation, and practice resources.",
+      icon: <BookOpen size={18} className="text-[#d4af37]" />,
+      title: "Execute Weekly Milestones",
+      description: "Follow customized schedules targeting high-frequency industry technologies.",
     },
     {
-      icon: <FolderGit2 size={40} className="text-blue-500" />,
-      title: "Build Real Projects",
-      description:
-        "Create portfolio-worthy projects that strengthen your resume and GitHub profile.",
+      icon: <FolderGit2 size={18} className="text-[#d4af37]" />,
+      title: "Build Production-Grade Projects",
+      description: "Implement practical full-stack projects showcasing clean code and architecture.",
     },
     {
-      icon: <MessagesSquare size={40} className="text-blue-500" />,
-      title: "Ace Interviews",
-      description:
-        "Prepare with AI-generated interview questions, coding challenges, and mock interviews.",
+      icon: <MessagesSquare size={18} className="text-[#d4af37]" />,
+      title: "Master DSA Patterns",
+      description: "Solve problem archetypes, track revision notes, and prepare for live screens.",
     },
     {
-      icon: <Trophy size={40} className="text-blue-500" />,
-      title: "Land Your Dream Career",
-      description:
-        "Track your progress, improve continuously, and become job-ready with confidence.",
+      icon: <Trophy size={18} className="text-[#d4af37]" />,
+      title: "Track Interview Readiness",
+      description: "Reach 85%+ readiness on your composite score before applying to top companies.",
     },
   ];
 
   return (
-    <section
-      id="career-journey"
-      className="bg-black text-white py-28 px-8"
-    >
-      <div className="max-w-7xl mx-auto">
-
+    <section id="curriculum" className="bg-[#070707] text-stone-200 py-20 px-6 border-t border-stone-900">
+      <div className="max-w-4xl mx-auto space-y-12">
         {/* Heading */}
-        <div className="text-center">
-
-          <p className="text-blue-500 uppercase tracking-[6px] font-semibold">
-            CAREER JOURNEY
+        <div className="text-center space-y-3">
+          <p className="text-xs uppercase tracking-widest text-[#d4af37] font-light">
+            Career Progression
           </p>
 
-          <h2 className="text-5xl md:text-6xl font-bold mt-5">
-            Your Journey To
-            <br />
-            A Successful Career
+          <h2 className="text-2xl sm:text-3xl font-light tracking-tight text-white">
+            End-to-End Preparation Lifecycle
           </h2>
 
-          <p className="text-gray-400 text-lg max-w-3xl mx-auto mt-8 leading-8">
-            CareerForge guides you through every stage of your learning journey,
-            from identifying your goals to becoming industry-ready.
+          <p className="text-xs sm:text-sm text-stone-400 max-w-lg mx-auto leading-relaxed font-light">
+            A continuous progression designed to take engineers from self-assessment to interview readiness.
           </p>
-
         </div>
 
-        {/* Timeline */}
-        <div className="mt-20 space-y-8">
-
+        {/* List */}
+        <div className="grid sm:grid-cols-2 gap-4">
           {steps.map((step, index) => (
             <div
               key={index}
-              className="group flex items-start gap-6 bg-gray-900 border border-gray-800 rounded-3xl p-8 hover:border-blue-500 hover:shadow-[0_0_40px_rgba(37,99,235,0.2)] transition-all duration-300"
+              className="bg-[#0d0d0d] border border-[#d4af37]/15 rounded-xl p-4 flex items-start gap-3.5 hover:border-[#d4af37]/40 hover:bg-[#121212] transition"
             >
-              <div className="flex-shrink-0 w-16 h-16 rounded-2xl bg-blue-500/10 flex items-center justify-center group-hover:scale-110 transition">
+              <div className="w-8 h-8 rounded-lg bg-[#d4af37]/10 border border-[#d4af37]/20 flex items-center justify-center shrink-0 mt-0.5">
                 {step.icon}
               </div>
 
-              <div>
-                <h3 className="text-2xl font-bold">
-                  {index + 1}. {step.title}
+              <div className="space-y-1">
+                <h3 className="text-xs font-medium text-stone-100 tracking-tight">
+                  <span className="text-[#d4af37] font-mono mr-1.5">{index + 1}.</span>
+                  {step.title}
                 </h3>
-
-                <p className="text-gray-400 mt-3 leading-8">
+                <p className="text-xs text-stone-400 font-light leading-relaxed">
                   {step.description}
                 </p>
               </div>
             </div>
           ))}
-
         </div>
-
       </div>
     </section>
   );

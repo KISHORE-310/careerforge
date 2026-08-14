@@ -1,7 +1,6 @@
 import { useState } from "react";
 
 import DashboardLayout from "../components/dashboard/DashboardLayout";
-
 import DashboardHero from "../components/dashboard/DashboardHero";
 import DashboardStats from "../components/dashboard/DashboardStats";
 import UploadCard from "../components/dashboard/UploadCard";
@@ -50,7 +49,7 @@ function Dashboard() {
       if (res.success) {
         setDashboardData(res);
         localStorage.setItem("careerforge-resume-data", JSON.stringify(res));
-        setMessage("Resume uploaded and analyzed successfully!");
+        setMessage("Resume uploaded and evaluated successfully!");
       } else {
         setMessage(res.message || "Failed to analyze resume. Please try again.");
       }
@@ -63,15 +62,18 @@ function Dashboard() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-8">
+      <div className="space-y-6 pb-12">
+        {/* Hero Section */}
         <DashboardHero data={dashboardData} />
 
+        {/* 4 Stat Cards */}
         <DashboardStats
           resumeScore={dashboardData?.resume_score}
           atsScore={dashboardData?.ats_score}
         />
 
-        <div className="grid lg:grid-cols-2 gap-8">
+        {/* Action Panel: Role Selector + Resume Upload */}
+        <div className="grid md:grid-cols-2 gap-5">
           <TargetRoleSelector
             targetRole={targetRole}
             setTargetRole={setTargetRole}
@@ -85,17 +87,18 @@ function Dashboard() {
           />
         </div>
 
+        {/* Detailed Results (When Resume Data Exists) */}
         {dashboardData && (
-          <>
-            <ResumeAnalysis resumeScore={dashboardData.resume_score} />
-            <ResumeOverview profile={dashboardData.profile} />
+          <div className="space-y-6 pt-2">
             <SkillGap skillGap={dashboardData.skill_gap} />
+            <ResumeAnalysis resumeScore={dashboardData.resume_score} />
             <LearningRoadmap roadmap={dashboardData.roadmap} />
-          </>
+            <ResumeOverview profile={dashboardData.profile} />
+          </div>
         )}
       </div>
     </DashboardLayout>
   );
 }
 
-export default Dashboard;
+export default Dashboard;

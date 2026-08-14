@@ -10,109 +10,84 @@ import {
 function Features() {
   const features = [
     {
-      icon: <FileText size={42} className="text-blue-500" />,
-      title: "AI Resume Analysis",
+      icon: <FileText size={22} className="text-[#d4af37]" />,
+      title: "ATS Resume Analysis",
       description:
-        "Analyze your resume instantly and discover strengths, weaknesses, and missing skills.",
+        "Extract technical keywords and evaluate your resume structure against industry benchmarks.",
     },
     {
-      icon: <Compass size={42} className="text-blue-500" />,
-      title: "Personalized Roadmap",
+      icon: <Compass size={22} className="text-[#d4af37]" />,
+      title: "Tailored Roadmaps",
       description:
-        "Get a customized learning path based on your dream job and current skills.",
+        "Receive personalized 6-week learning schedules tailored to your target job profile.",
     },
     {
-      icon: <Lightbulb size={42} className="text-blue-500" />,
-      title: "Project Recommendations",
+      icon: <Lightbulb size={22} className="text-[#d4af37]" />,
+      title: "Skill Gap Detection",
       description:
-        "Build real-world projects that strengthen your portfolio and impress recruiters.",
+        "Identify missing core requirements and bridge gaps before submitting job applications.",
     },
     {
-      icon: <Briefcase size={42} className="text-blue-500" />,
-      title: "Interview Preparation",
+      icon: <Briefcase size={22} className="text-[#d4af37]" />,
+      title: "DSA Practice Tracker",
       description:
-        "Practice coding, aptitude, and technical interview questions with AI guidance.",
+        "Master coding interviews with categorized algorithms practice, notes, and bookmarking.",
     },
     {
-      icon: <BarChart3 size={42} className="text-blue-500" />,
-      title: "Progress Tracking",
+      icon: <BarChart3 size={22} className="text-[#d4af37]" />,
+      title: "Readiness Index",
       description:
-        "Track your learning journey and measure your career readiness over time.",
+        "Quantify your career preparation with metrics calculated across your projects and skill proficiencies.",
     },
     {
-      icon: <BookOpen size={42} className="text-blue-500" />,
-      title: "Learning Resources",
+      icon: <BookOpen size={22} className="text-[#d4af37]" />,
+      title: "Curated Learning",
       description:
-        "Access curated courses, documentation, and tutorials for every skill.",
+        "Access structured topic breakdowns and high-impact resources for each targeted competency.",
     },
   ];
 
   return (
-   <section
-  id="features"
-  className="bg-black text-white py-28 px-8"
->
-      <div className="max-w-7xl mx-auto">
-
+    <section id="features" className="bg-[#0a0a0a] text-stone-200 py-20 px-6 border-t border-stone-900">
+      <div className="max-w-6xl mx-auto space-y-12">
         {/* Heading */}
-        <div className="text-center">
-
-          <p className="text-blue-500 font-semibold uppercase tracking-[6px]">
-            FEATURES
+        <div className="text-center space-y-3">
+          <p className="text-xs uppercase tracking-widest text-[#d4af37] font-light">
+            Core Modules
           </p>
 
-          <h2 className="text-5xl md:text-6xl font-bold mt-5 leading-tight">
-            Everything You Need
-            <br />
-            To Become Job-Ready
+          <h2 className="text-2xl sm:text-3xl font-light tracking-tight text-white">
+            Engineered for Job Readiness
           </h2>
 
-          <p className="text-gray-400 mt-8 text-lg max-w-3xl mx-auto leading-8">
-            CareerForge combines AI-powered career guidance, personalized
-            roadmaps, interview preparation, project recommendations, and
-            learning resources into one modern platform.
+          <p className="text-xs sm:text-sm text-stone-400 max-w-lg mx-auto leading-relaxed font-light">
+            Everything you need to calibrate your technical capabilities and prepare for competitive engineering interviews.
           </p>
-
         </div>
 
         {/* Cards */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mt-20">
-
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
           {features.map((feature, index) => (
             <div
               key={index}
-              className="
-              group
-              bg-gray-900
-              border
-              border-gray-800
-              rounded-3xl
-              p-8
-              transition-all
-              duration-300
-              hover:-translate-y-3
-              hover:border-blue-500
-              hover:shadow-[0_0_40px_rgba(37,99,235,0.25)]
-              "
+              className="bg-[#0f0f0f] border border-[#d4af37]/15 rounded-xl p-6 transition-all duration-200 hover:border-[#d4af37]/40 hover:bg-[#131313] hover:shadow-[0_4px_20px_rgba(0,0,0,0.5)] flex flex-col justify-between"
             >
+              <div className="space-y-4">
+                <div className="w-9 h-9 rounded-lg bg-[#d4af37]/10 border border-[#d4af37]/20 flex items-center justify-center">
+                  {feature.icon}
+                </div>
 
-              <div className="mb-6 transition-transform duration-300 group-hover:scale-110">
-                {feature.icon}
+                <h3 className="text-base font-normal text-stone-100 tracking-tight">
+                  {feature.title}
+                </h3>
+
+                <p className="text-xs text-stone-400 leading-relaxed font-light">
+                  {feature.description}
+                </p>
               </div>
-
-              <h3 className="text-3xl font-bold">
-                {feature.title}
-              </h3>
-
-              <p className="text-gray-400 mt-6 leading-8 text-lg">
-                {feature.description}
-              </p>
-
             </div>
           ))}
-
         </div>
-
       </div>
     </section>
   );

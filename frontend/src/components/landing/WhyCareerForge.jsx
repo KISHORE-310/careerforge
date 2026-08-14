@@ -1,152 +1,96 @@
 import {
-  CheckCircle,
-  XCircle,
+  Check,
+  Minus,
 } from "lucide-react";
 
 function WhyCareerForge() {
   const comparisons = [
     {
-      feature: "Personalized Learning Roadmap",
+      feature: "Target Role Skill Gap Analysis",
       careerforge: true,
       traditional: false,
     },
     {
-      feature: "AI Resume Analysis",
+      feature: "Automated ATS Resume Parsing",
       careerforge: true,
       traditional: false,
     },
     {
-      feature: "Project Recommendations",
+      feature: "Custom 6-Week Learning Roadmaps",
       careerforge: true,
       traditional: false,
     },
     {
-      feature: "Interview Preparation",
+      feature: "DSA Topic & Revision Tracking",
       careerforge: true,
       traditional: false,
     },
     {
-      feature: "Career Readiness Tracking",
+      feature: "Unified Career Readiness Metric",
       careerforge: true,
       traditional: false,
     },
     {
-      feature: "Everything In One Platform",
+      feature: "Integrated Preparation Dashboard",
       careerforge: true,
       traditional: false,
     },
   ];
 
   return (
-    <section
-      id="why-careerforge"
-      className="bg-[#030712] text-white py-28 px-8"
-    >
-      <div className="max-w-7xl mx-auto">
-
+    <section id="why-careerforge" className="bg-[#0a0a0a] text-stone-200 py-20 px-6 border-t border-stone-900">
+      <div className="max-w-4xl mx-auto space-y-12">
         {/* Heading */}
-
-        <div className="text-center">
-
-          <p className="text-blue-500 uppercase tracking-[6px] font-semibold">
-            WHY CAREERFORGE
+        <div className="text-center space-y-3">
+          <p className="text-xs uppercase tracking-widest text-[#d4af37] font-light">
+            Comparison
           </p>
 
-          <h2 className="text-5xl md:text-6xl font-bold mt-5">
-            Stop Learning Randomly.
-            <br />
-            Start Learning Smart.
+          <h2 className="text-2xl sm:text-3xl font-light tracking-tight text-white">
+            Structured Preparation vs. Generic Guidance
           </h2>
 
-          <p className="text-gray-400 text-lg max-w-3xl mx-auto mt-8 leading-8">
-            Instead of switching between multiple websites, CareerForge brings
-            resume analysis, learning roadmaps, projects, interview preparation,
-            and progress tracking into one intelligent platform.
+          <p className="text-xs sm:text-sm text-stone-400 max-w-lg mx-auto leading-relaxed font-light">
+            CareerForge combines profile diagnostics, role matching, and practice tracking in one focused interface.
           </p>
-
         </div>
 
-        {/* Comparison */}
-
-        <div className="mt-20 overflow-hidden rounded-3xl border border-gray-800">
-
-          <table className="w-full">
-
-            <thead className="bg-gray-900">
-
+        {/* Comparison Table */}
+        <div className="overflow-hidden rounded-xl border border-[#d4af37]/20 bg-[#0e0e0e]">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-[#141414] border-b border-stone-800 text-stone-300">
               <tr>
-
-                <th className="text-left p-6 text-xl">
-                  Feature
-                </th>
-
-                <th className="p-6 text-xl text-blue-500">
+                <th className="py-3.5 px-6 font-normal">Feature</th>
+                <th className="py-3.5 px-6 font-normal text-[#d4af37] text-center w-36">
                   CareerForge
                 </th>
-
-                <th className="p-6 text-xl text-gray-400">
-                  Traditional Learning
+                <th className="py-3.5 px-6 font-normal text-stone-500 text-center w-36">
+                  Traditional Methods
                 </th>
-
               </tr>
-
             </thead>
 
-            <tbody>
-
+            <tbody className="divide-y divide-stone-800/60 font-light">
               {comparisons.map((item, index) => (
+                <tr key={index} className="hover:bg-stone-900/40 transition">
+                  <td className="py-3 px-6 text-stone-200">{item.feature}</td>
 
-                <tr
-                  key={index}
-                  className="border-t border-gray-800 hover:bg-gray-900 transition"
-                >
-
-                  <td className="p-6 text-lg">
-                    {item.feature}
+                  <td className="py-3 px-6 text-center">
+                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#d4af37]/15 text-[#d4af37]">
+                      <Check size={12} strokeWidth={2.5} />
+                    </span>
                   </td>
 
-                  <td className="text-center">
-
-                    {item.careerforge ? (
-                      <CheckCircle
-                        className="mx-auto text-green-500"
-                        size={28}
-                      />
-                    ) : (
-                      <XCircle
-                        className="mx-auto text-red-500"
-                        size={28}
-                      />
-                    )}
-
+                  <td className="py-3 px-6 text-center">
+                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-stone-900 text-stone-600">
+                      <Minus size={12} />
+                    </span>
                   </td>
-
-                  <td className="text-center">
-
-                    {item.traditional ? (
-                      <CheckCircle
-                        className="mx-auto text-green-500"
-                        size={28}
-                      />
-                    ) : (
-                      <XCircle
-                        className="mx-auto text-red-500"
-                        size={28}
-                      />
-                    )}
-
-                  </td>
-
                 </tr>
-
               ))}
-
             </tbody>
-
           </table>
-
         </div>
-
       </div>
     </section>
   );
