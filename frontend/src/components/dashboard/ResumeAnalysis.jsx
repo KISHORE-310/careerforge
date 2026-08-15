@@ -8,119 +8,69 @@ function ResumeAnalysis({ resumeScore }) {
   if (!resumeScore) return null;
 
   return (
-    <div className="mt-10 rounded-3xl border border-zinc-800 bg-gradient-to-br from-[#18181B] to-[#111111] p-8">
-
+    <div className="rounded-xl border border-stone-800 bg-[#0e0e0e] p-6 space-y-6">
       {/* Header */}
-
-      <div className="flex items-center gap-4">
-
-        <div className="rounded-2xl bg-red-500/10 p-3">
-
-          <Award
-            size={28}
-            className="text-red-400"
-          />
-
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-[#d4af37]/10 border border-[#d4af37]/20 flex items-center justify-center text-[#d4af37]">
+            <Award size={16} />
+          </div>
+          <div>
+            <h2 className="text-sm font-normal text-stone-100">
+              Resume Structural Diagnostic
+            </h2>
+            <p className="text-xs text-stone-500 font-light">
+              Quality feedback and impact analysis.
+            </p>
+          </div>
         </div>
 
-        <div>
-
-          <h2 className="text-3xl font-bold text-white">
-            AI Resume Analysis
-          </h2>
-
-          <p className="mt-1 text-zinc-400">
-            AI evaluated your resume and found these insights.
-          </p>
-
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#d4af37]/10 border border-[#d4af37]/30 text-xs text-[#d4af37] font-light">
+          <span>Grade</span>
+          <span className="font-normal font-mono">{resumeScore.grade}</span>
         </div>
-
-      </div>
-
-      {/* Grade */}
-
-      <div className="mt-8 inline-flex items-center rounded-full bg-red-500/10 px-5 py-2">
-
-        <span className="text-red-400 font-semibold">
-          Grade : {resumeScore.grade}
-        </span>
-
       </div>
 
       {/* Strengths + Weaknesses */}
-
-      <div className="grid lg:grid-cols-2 gap-8 mt-10">
-
+      <div className="grid md:grid-cols-2 gap-5">
         {/* Strengths */}
-
-        <div>
-
-          <h3 className="text-xl font-bold text-green-400 mb-6">
-            Strengths
+        <div className="space-y-3">
+          <h3 className="text-xs uppercase tracking-wider font-light text-emerald-400">
+            Identified Strengths
           </h3>
 
-          <div className="space-y-4">
-
-            {resumeScore.strengths.map((item, index) => (
-
+          <div className="space-y-2">
+            {resumeScore.strengths?.map((item, index) => (
               <div
                 key={index}
-                className="flex items-start gap-4 rounded-2xl border border-green-500/20 bg-green-500/5 p-5 transition hover:border-green-400"
+                className="flex items-start gap-2.5 rounded-lg border border-emerald-900/30 bg-emerald-950/10 p-3 text-xs text-stone-300 font-light leading-relaxed"
               >
-
-                <CheckCircle2
-                  size={22}
-                  className="mt-1 text-green-400"
-                />
-
-                <p className="leading-7 text-zinc-200">
-                  {item}
-                </p>
-
+                <CheckCircle2 size={14} className="mt-0.5 text-emerald-400 shrink-0" />
+                <span>{item}</span>
               </div>
-
             ))}
-
           </div>
-
         </div>
 
         {/* Weaknesses */}
-
-        <div>
-
-          <h3 className="text-xl font-bold text-red-400 mb-6">
-            Improvements
+        <div className="space-y-3">
+          <h3 className="text-xs uppercase tracking-wider font-light text-amber-400">
+            Recommended Improvements
           </h3>
 
-          <div className="space-y-4">
-
-            {resumeScore.weaknesses.map((item, index) => (
-
+          <div className="space-y-2">
+            {resumeScore.weaknesses?.map((item, index) => (
               <div
                 key={index}
-                className="flex items-start gap-4 rounded-2xl border border-red-500/20 bg-red-500/5 p-5 transition hover:border-red-400"
+                className="flex items-start gap-2.5 rounded-lg border border-amber-900/30 bg-amber-950/10 p-3 text-xs text-stone-300 font-light leading-relaxed"
               >
-
-                <AlertCircle
-                  size={22}
-                  className="mt-1 text-red-400"
-                />
-
-                <p className="leading-7 text-zinc-200">
-                  {item}
-                </p>
-
+                <AlertCircle size={14} className="mt-0.5 text-amber-400 shrink-0" />
+                <span>{item}</span>
               </div>
-
             ))}
-
           </div>
-
         </div>
-
       </div>
-
     </div>
   );
 }

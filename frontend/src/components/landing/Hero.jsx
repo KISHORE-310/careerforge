@@ -1,96 +1,77 @@
 import DashboardPreview from "./DashboardPreview";
 import Button from "../common/Button";
+import { Link } from "react-router-dom";
 
 function Hero() {
   return (
-   <section
-  id="home"
-  className="relative overflow-hidden min-h-screen bg-gradient-to-b from-[#030712] via-black to-[#030712] text-white"
->
-
-      {/* Background Glow */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-20 left-1/2 -translate-x-1/2 w-[700px] h-[700px] bg-blue-600/20 rounded-full blur-[180px]"></div>
+    <section
+      id="home"
+      className="relative overflow-hidden min-h-[90vh] bg-[#070707] text-stone-200 pt-28 pb-16"
+    >
+      {/* Subtle Ambient Gold Glow */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-12 left-1/2 -translate-x-1/2 w-[550px] h-[350px] bg-[#d4af37]/5 rounded-full blur-[140px]"></div>
       </div>
 
-      <div className="relative z-10 max-w-7xl mx-auto min-h-screen grid lg:grid-cols-2 items-center gap-20 px-8">
-
+      <div className="relative z-10 max-w-6xl mx-auto px-6 grid lg:grid-cols-12 items-center gap-12">
         {/* Left Side */}
-        <div>
+        <div className="lg:col-span-7 space-y-6">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[#d4af37]/30 bg-[#d4af37]/5 text-[#d4af37] text-xs tracking-widest uppercase font-light">
+            <span>Career Intelligence Engine</span>
+          </div>
 
-          <span className="inline-flex items-center px-4 py-2 rounded-full border border-blue-500/50 bg-blue-500/10 text-blue-400 text-sm font-medium">
-            🚀 AI-Powered Career Platform
-          </span>
-
-          <h1 className="mt-8 text-5xl md:text-7xl font-extrabold leading-tight tracking-tight">
-            Build Skills.
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-light leading-[1.18] tracking-tight text-white">
+            Refine your resume.
             <br />
-            Build Projects.
+            Bridge your skills.
             <br />
-            <span className="text-blue-500">
-              Build Your Tech Career.
-            </span>
+            <span className="text-[#d4af37] italic">Accelerate your tech career.</span>
           </h1>
 
-          <p className="mt-8 max-w-xl text-lg md:text-xl text-gray-400 leading-9">
-            CareerForge helps engineering students analyze their resumes,
-            identify skill gaps, generate personalized learning roadmaps,
-            build real-world projects, and prepare for software engineering
-            careers.
+          <p className="max-w-lg text-sm sm:text-base text-stone-400 leading-relaxed font-light">
+            CareerForge evaluates your engineering profile, performs precise ATS keyword matching, 
+            and delivers custom week-by-week roadmaps to help you secure software engineering roles.
           </p>
 
           {/* Buttons */}
-          <div className="flex flex-wrap gap-5 mt-10">
-            <Button>
-              Start Your Journey
-            </Button>
+          <div className="flex flex-wrap items-center gap-3 pt-2">
+            <Link to="/signup">
+              <Button variant="primary" size="md">
+                Start Career Analysis
+              </Button>
+            </Link>
 
-            <Button variant="secondary">
-              Live Demo
-            </Button>
+            <Link to="/dashboard">
+              <Button variant="secondary" size="md">
+                Explore Dashboard
+              </Button>
+            </Link>
           </div>
 
-          {/* Stats */}
-          <div className="flex flex-wrap gap-12 mt-16">
-
+          {/* Minimal Key Stats */}
+          <div className="grid grid-cols-3 gap-6 pt-6 border-t border-stone-900 max-w-md">
             <div>
-              <h2 className="text-4xl font-bold text-blue-500">
-                50+
-              </h2>
-              <p className="text-gray-400 mt-2">
-                Career Paths
-              </p>
+              <p className="text-2xl font-light text-[#d4af37]">94%</p>
+              <p className="text-xs text-stone-500 font-light mt-0.5">ATS Match Rate</p>
             </div>
 
             <div>
-              <h2 className="text-4xl font-bold text-blue-500">
-                100+
-              </h2>
-              <p className="text-gray-400 mt-2">
-                Skills Covered
-              </p>
+              <p className="text-2xl font-light text-[#d4af37]">500+</p>
+              <p className="text-xs text-stone-500 font-light mt-0.5">Curated DSA Problems</p>
             </div>
 
             <div>
-              <h2 className="text-4xl font-bold text-blue-500">
-                1000+
-              </h2>
-              <p className="text-gray-400 mt-2">
-                Learning Roadmaps
-              </p>
+              <p className="text-2xl font-light text-[#d4af37]">6-Week</p>
+              <p className="text-xs text-stone-500 font-light mt-0.5">Custom Roadmaps</p>
             </div>
-
           </div>
-
         </div>
 
-        {/* Right Side */}
-        <div className="flex justify-center">
+        {/* Right Side Preview */}
+        <div className="lg:col-span-5 flex justify-center lg:justify-end">
           <DashboardPreview />
         </div>
-
       </div>
-
     </section>
   );
 }

@@ -1,106 +1,56 @@
 import {
   Bell,
   Search,
-  Moon,
 } from "lucide-react";
+import { Link } from "react-router-dom";
 
 function Topbar() {
   return (
-    <header className="sticky top-0 z-20 bg-[#090909]/95 backdrop-blur border-b border-zinc-800">
-
-      <div className="max-w-7xl mx-auto flex items-center justify-between px-8 py-6">
-
-        {/* Left */}
-
-        <div>
-
-          <h1 className="text-4xl font-bold text-white">
-            Welcome Back 👋
-          </h1>
-
-          <p className="mt-2 text-zinc-400">
-            Ready to improve your career today?
-          </p>
-
+    <header className="sticky top-3 z-20 px-6 my-2">
+      <div className="apple-liquid-glass rounded-2xl h-14 px-5 flex items-center justify-between shadow-xl">
+        {/* Left Welcome */}
+        <div className="flex items-center gap-3">
+          <h2 className="text-xs sm:text-sm font-normal text-stone-100">
+            Overview Dashboard
+          </h2>
+          <span className="hidden sm:inline-block text-stone-600 text-xs">•</span>
+          <span className="hidden sm:inline-block text-xs text-stone-400 font-light">
+            CareerForge Intelligence
+          </span>
         </div>
 
-        {/* Right */}
-
-        <div className="flex items-center gap-4">
-
+        {/* Right Tools */}
+        <div className="flex items-center gap-3">
           {/* Search */}
-
-          <div className="hidden lg:flex items-center gap-3 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 w-80">
-
-            <Search
-              size={18}
-              className="text-zinc-500"
-            />
-
+          <div className="hidden md:flex items-center gap-2 bg-black/40 border border-stone-800/80 rounded-full px-3 py-1.5 w-60">
+            <Search size={13} className="text-stone-500" />
             <input
               type="text"
-              placeholder="Search anything..."
-              className="flex-1 bg-transparent outline-none text-white placeholder:text-zinc-500"
+              placeholder="Search topics, roadmap..."
+              className="flex-1 bg-transparent outline-none text-xs text-stone-200 placeholder:text-stone-600 font-light"
             />
-
-            <kbd className="text-xs bg-zinc-800 text-zinc-400 px-2 py-1 rounded">
-              Ctrl K
-            </kbd>
-
           </div>
 
-          {/* Theme */}
-
-          <button className="h-14 w-14 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center hover:bg-zinc-800 transition">
-
-            <Moon />
-
+          {/* Notifications */}
+          <button className="relative w-8 h-8 rounded-full bg-black/40 border border-stone-800/80 flex items-center justify-center text-stone-400 hover:text-[#d4af37] hover:border-[#d4af37]/30 transition">
+            <Bell size={13} />
+            <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-[#d4af37]"></span>
           </button>
 
-          {/* Notification */}
-
-          <button className="relative h-14 w-14 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center hover:bg-zinc-800 transition">
-
-            <Bell />
-
-            <span className="absolute top-4 right-4 h-2.5 w-2.5 rounded-full bg-red-500"></span>
-
-          </button>
-
-          {/* Profile */}
-
-          <button className="flex items-center gap-4 rounded-2xl border border-zinc-800 bg-zinc-900 px-5 py-3 hover:bg-zinc-800 transition">
-
-            <div className="h-12 w-12 rounded-xl bg-red-600 flex items-center justify-center text-lg font-bold text-white">
-
+          {/* Profile Mini Chip */}
+          <Link
+            to="/profile"
+            className="flex items-center gap-2 rounded-full border border-stone-800/80 bg-black/40 pl-1.5 pr-3 py-1 hover:border-[#d4af37]/40 transition"
+          >
+            <div className="w-6 h-6 rounded-full bg-[#d4af37] text-black flex items-center justify-center text-[10px] font-bold">
               KR
-
             </div>
-
-            <div className="text-left">
-
-              <p className="font-semibold text-white">
-                Kishore Reddy
-              </p>
-
-              <p className="text-sm text-zinc-400">
-                Backend Developer
-              </p>
-
+            <div className="text-left hidden sm:block">
+              <p className="text-xs font-normal text-stone-200 leading-tight">Kishore</p>
             </div>
-
-            <div className="rounded-full bg-red-600 px-3 py-1 text-sm font-semibold text-white">
-
-              72%
-
-            </div>
-
-          </button>
-
+          </Link>
         </div>
-
       </div>
-
     </header>
   );
 }

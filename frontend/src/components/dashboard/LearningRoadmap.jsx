@@ -1,106 +1,51 @@
 import { BookOpen, CheckCircle2 } from "lucide-react";
 
 function LearningRoadmap({ roadmap }) {
-
   if (!roadmap || roadmap.length === 0) return null;
 
   return (
-
-    <div className="mt-10 rounded-3xl border border-zinc-800 bg-gradient-to-br from-[#18181B] to-[#111111] p-8">
-
+    <div className="rounded-xl border border-stone-800 bg-[#0e0e0e] p-6 space-y-6">
       {/* Header */}
-
-      <div className="flex items-center gap-4">
-
-        <div className="rounded-2xl bg-purple-500/10 p-3">
-
-          <BookOpen
-            size={28}
-            className="text-purple-400"
-          />
-
+      <div className="flex items-center gap-3">
+        <div className="w-8 h-8 rounded-lg bg-[#d4af37]/10 border border-[#d4af37]/20 flex items-center justify-center text-[#d4af37]">
+          <BookOpen size={16} />
         </div>
-
         <div>
-
-          <h2 className="text-3xl font-bold text-white">
-            Learning Roadmap
+          <h2 className="text-sm font-normal text-stone-100">
+            6-Week Structured Learning Curriculum
           </h2>
-
-          <p className="mt-1 text-zinc-400">
-            Your AI-generated learning journey.
+          <p className="text-xs text-stone-500 font-light">
+            Sequential milestones to master missing competencies.
           </p>
-
         </div>
-
       </div>
 
-      {/* Timeline */}
-
-      <div className="mt-10 space-y-8">
-
+      {/* Grid of Weeks */}
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
         {roadmap.map((step, index) => (
-
           <div
             key={index}
-            className="flex gap-6"
+            className="rounded-lg border border-stone-800/90 bg-[#131313] p-4 space-y-2 hover:border-[#d4af37]/30 transition"
           >
-
-            {/* Timeline */}
-
-            <div className="flex flex-col items-center">
-
-              <div className="rounded-full bg-purple-500 p-2">
-
-                <CheckCircle2
-                  className="text-white"
-                  size={18}
-                />
-
-              </div>
-
-              {index !== roadmap.length - 1 && (
-
-                <div className="h-20 w-[2px] bg-zinc-700 mt-2"></div>
-
-              )}
-
-            </div>
-
-            {/* Content */}
-
-            <div className="flex-1 rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
-
-              <p className="text-purple-400 font-semibold">
-
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-mono text-[#d4af37] bg-[#d4af37]/10 px-2 py-0.5 rounded border border-[#d4af37]/20">
                 Week {step.week}
-
-              </p>
-
-              <h3 className="text-xl font-bold text-white mt-2">
-
-                {step.title}
-
-              </h3>
-
-              <p className="text-zinc-400 mt-3 leading-7">
-
-                {step.description}
-
-              </p>
-
+              </span>
+              <span className="text-[10px] text-stone-500 font-light">Milestone {index + 1}</span>
             </div>
 
+            <h3 className="text-xs font-normal text-stone-200">
+              {step.title}
+            </h3>
+
+            <p className="text-[11px] text-stone-400 font-light leading-relaxed">
+              {step.description}
+            </p>
           </div>
-
         ))}
-
       </div>
-
     </div>
-
   );
-
 }
 
 export default LearningRoadmap;

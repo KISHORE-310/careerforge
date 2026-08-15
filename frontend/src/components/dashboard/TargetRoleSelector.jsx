@@ -1,81 +1,36 @@
 import { Briefcase } from "lucide-react";
 import { roles } from "../../data/roles";
 
-function TargetRoleSelector({
-  targetRole,
-  setTargetRole,
-}) {
+function TargetRoleSelector({ targetRole, setTargetRole }) {
   return (
-    <div className="mt-10 rounded-3xl border border-zinc-800 bg-gradient-to-br from-[#18181B] to-[#111111] p-8">
-
-      {/* Header */}
-
-      <div className="flex items-center gap-4">
-
-        <div className="rounded-2xl bg-red-500/10 p-3">
-
-          <Briefcase
-            size={28}
-            className="text-red-400"
-          />
-
+    <div className="rounded-xl border border-stone-800 bg-[#0e0e0e] p-5 space-y-4">
+      <div className="flex items-center gap-3">
+        <div className="w-8 h-8 rounded-lg bg-[#d4af37]/10 border border-[#d4af37]/20 flex items-center justify-center text-[#d4af37]">
+          <Briefcase size={16} />
         </div>
-
         <div>
-
-          <h2 className="text-3xl font-bold text-white">
-            Career Goal
+          <h2 className="text-sm font-normal text-stone-100">
+            Target Engineering Role
           </h2>
-
-          <p className="mt-1 text-zinc-400">
-            Select your dream role to receive personalized AI analysis.
+          <p className="text-xs text-stone-500 font-light">
+            Select role to calibrate ATS scoring and roadmap.
           </p>
-
         </div>
-
       </div>
 
-      {/* Dropdown */}
-
-      <div className="mt-8">
-
-        <label className="block mb-3 text-zinc-300 font-medium">
-          Target Role
-        </label>
-
+      <div>
         <select
           value={targetRole}
           onChange={(e) => setTargetRole(e.target.value)}
-          className="
-            w-full
-            rounded-xl
-            border
-            border-zinc-700
-            bg-zinc-900
-            px-5
-            py-4
-            text-white
-            outline-none
-            transition
-            focus:border-red-500
-          "
+          className="w-full rounded-lg border border-stone-800 bg-[#141414] px-3.5 py-2.5 text-xs text-stone-200 outline-none transition focus:border-[#d4af37]/60 font-light cursor-pointer"
         >
-
           {roles.map((role) => (
-
-            <option
-              key={role}
-              value={role}
-            >
+            <option key={role} value={role} className="bg-[#141414] text-stone-200">
               {role}
             </option>
-
           ))}
-
         </select>
-
       </div>
-
     </div>
   );
 }
