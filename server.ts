@@ -1,6 +1,7 @@
 import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import path from "path";
+import fs from "fs";
 import multer from "multer";
 import pdfParse from "pdf-parse";
 import jwt from "jsonwebtoken";
@@ -15,6 +16,19 @@ const app = express();
 const PORT = 3000;
 const SECRET_KEY = process.env.SECRET_KEY || "careerforge_secret_key_2026";
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+
+const DATA_FILE = path.join(process.cwd(), ".data", "store.json");
+
+function ensureDataDir() {
+  const dir = path.dirname(DATA_FILE);
+  if (!fs.existsSync(dir)) {
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+    } catch (e) {
+      console.warn("Could not create data directory", e);
+    }
+  }
+}
 
 // ============================================================================
 // IN-MEMORY DATA STORAGE (Fast, durable per-instance state with seed data)
@@ -369,6 +383,56 @@ userSkillsDb.set(demoEmail, [
   { name: "CI/CD & GitHub Actions", category: "DevOps", proficiency: 82, status: "mastered", marketDemand: 85 },
 ]);
 
+// Persistence Helper
+function saveStoreToDisk() {
+  try {
+    ensureDataDir();
+    const data = {
+      users: Array.from(usersDb.entries()),
+      resumes: Array.from(resumesDb.entries()),
+      applications: Array.from(applicationsDb.entries()),
+      interviews: Array.from(interviewsDb.entries()),
+      notifications: Array.from(notificationsDb.entries()),
+      userRoadmaps: Array.from(userRoadmapsDb.entries()),
+      userSkills: Array.from(userSkillsDb.entries()),
+      userLearning: Array.from(userLearningDb.entries()),
+      dsaProgress: Array.from(dsaProgressDb.entries()).map(([email, map]) => [
+        email,
+        Array.from(map.entries()),
+      ]),
+    };
+    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), "utf-8");
+  } catch (err) {
+    console.error("Error saving store to disk:", err);
+  }
+}
+
+function loadStoreFromDisk() {
+  try {
+    if (fs.existsSync(DATA_FILE)) {
+      const raw = fs.readFileSync(DATA_FILE, "utf-8");
+      const data = JSON.parse(raw);
+      if (data.users) data.users.forEach(([k, v]: any) => usersDb.set(k, v));
+      if (data.resumes) data.resumes.forEach(([k, v]: any) => resumesDb.set(k, v));
+      if (data.applications) data.applications.forEach(([k, v]: any) => applicationsDb.set(k, v));
+      if (data.interviews) data.interviews.forEach(([k, v]: any) => interviewsDb.set(k, v));
+      if (data.notifications) data.notifications.forEach(([k, v]: any) => notificationsDb.set(k, v));
+      if (data.userRoadmaps) data.userRoadmaps.forEach(([k, v]: any) => userRoadmapsDb.set(k, v));
+      if (data.userSkills) data.userSkills.forEach(([k, v]: any) => userSkillsDb.set(k, v));
+      if (data.userLearning) data.userLearning.forEach(([k, v]: any) => userLearningDb.set(k, v));
+      if (data.dsaProgress) {
+        data.dsaProgress.forEach(([email, entries]: any) => {
+          dsaProgressDb.set(email, new Map(entries));
+        });
+      }
+    }
+  } catch (err) {
+    console.error("Error loading store from disk:", err);
+  }
+}
+
+loadStoreFromDisk();
+
 // Seed jobs catalog
 export const JOBS_CATALOG = [
   {
@@ -679,33 +743,131 @@ function getGeminiClient(): GoogleGenAI | null {
 }
 
 // =====================================
-// Auth Token Helper
+// Auth Token Helper & Middleware
 // =====================================
 function createToken(email: string): string {
   return jwt.sign({ sub: email }, SECRET_KEY, { expiresIn: "30d" });
 }
 
-function authenticateToken(req: Request, _res: Response, next: NextFunction) {
+function authenticateToken(req: Request, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ success: false, message: "Authentication token required." });
+  }
+  const token = authHeader.replace("Bearer ", "");
+  if (token === "demo_jwt_token_careerforge") {
     (req as any).userEmail = demoEmail;
     return next();
   }
-  const token = authHeader.replace("Bearer ", "");
   try {
     const decoded = jwt.verify(token, SECRET_KEY) as { sub: string };
-    (req as any).userEmail = decoded.sub || demoEmail;
+    if (!decoded || !decoded.sub) {
+      return res.status(401).json({ success: false, message: "Invalid session token." });
+    }
+    (req as any).userEmail = decoded.sub;
     next();
   } catch {
-    (req as any).userEmail = demoEmail;
-    next();
+    return res.status(401).json({ success: false, message: "Expired or invalid session token." });
   }
+}
+
+function optionalAuth(req: Request, _res: Response, next: NextFunction) {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    const token = authHeader.replace("Bearer ", "");
+    if (token === "demo_jwt_token_careerforge") {
+      (req as any).userEmail = demoEmail;
+    } else {
+      try {
+        const decoded = jwt.verify(token, SECRET_KEY) as { sub: string };
+        (req as any).userEmail = decoded.sub;
+      } catch {
+        // ignore invalid token for optional routes
+      }
+    }
+  }
+  next();
+}
+
+function generateFreshRoadmap(targetRole: string = "Full Stack Engineer") {
+  return [
+    {
+      week: 1,
+      title: "Core Architecture & Modern Stack Foundations",
+      duration: "30-Day Focus",
+      status: "todo",
+      progress: 0,
+      description: `Establish production-grade foundations and key patterns for ${targetRole}.`,
+      tasks: [
+        { title: "Review Core Language Fundamentals & Type System", completed: false },
+        { title: "Architect Clean Component and API Layer Interfaces", completed: false },
+        { title: "Benchmark and Profile Runtime Performance", completed: false },
+      ],
+    },
+    {
+      week: 2,
+      title: "System Design & Distributed Data Layers",
+      duration: "30-Day Focus",
+      status: "todo",
+      progress: 0,
+      description: "Master caching, database indexing, rate limiting, and event patterns.",
+      tasks: [
+        { title: "Implement Redis Caching & Invalidation Logic", completed: false },
+        { title: "Design High-Availability Data Storage Schemas", completed: false },
+        { title: "Simulate Concurrency and Bottleneck Scenarios", completed: false },
+      ],
+    },
+    {
+      week: 3,
+      title: "Cloud Infrastructure & Containerization",
+      duration: "60-Day Focus",
+      status: "todo",
+      progress: 0,
+      description: "Deploy robust cloud containers, automated CI/CD pipelines, and health monitoring.",
+      tasks: [
+        { title: "Write Multi-Stage Production Container Specs", completed: false },
+        { title: "Configure Continuous Delivery Pipeline", completed: false },
+        { title: "Instrument Telemetry & Error Tracking", completed: false },
+      ],
+    },
+    {
+      week: 4,
+      title: "Interview Simulation & Portfolio Capstone",
+      duration: "90-Day Focus",
+      status: "todo",
+      progress: 0,
+      description: "Complete mock system design and behavioral rounds to maximize offer rates.",
+      tasks: [
+        { title: "Conduct 3 Full System Design Practice Sessions", completed: false },
+        { title: "Refine STAR Stories for Behavioral Rounds", completed: false },
+        { title: "Publish End-to-End Capstone with Live Demo", completed: false },
+      ],
+    },
+  ];
 }
 
 // =====================================
 // Intelligence Scoring Functions
 // =====================================
 function calculateResumeScore(profile: any) {
+  if (!profile) {
+    return {
+      resume_score: 0,
+      grade: "Incomplete",
+      strengths: [],
+      weaknesses: ["No resume information entered yet. Upload or draft your resume to generate an evaluation."],
+      breakdown: {
+        personal_information: 0,
+        summary: 0,
+        education: 0,
+        experience: 0,
+        projects: 0,
+        technical_skills: 0,
+        certifications: 0,
+      },
+    };
+  }
+
   let score = 0;
   const breakdown: Record<string, number> = {};
   const strengths: string[] = [];
@@ -717,28 +879,44 @@ function calculateResumeScore(profile: any) {
   if (personal.full_name) personalScore += 3;
   if (personal.email) personalScore += 3;
   if (personal.phone) personalScore += 3;
-  if (personal.linkedin) { personalScore += 3; strengths.push("LinkedIn verified and linked"); }
-  else { weaknesses.push("Add your verified LinkedIn profile URL"); }
-  if (personal.github) { personalScore += 4; strengths.push("GitHub repository link included"); }
-  else { weaknesses.push("Add your GitHub portfolio URL"); }
+  if (personal.linkedin) {
+    personalScore += 3;
+    strengths.push("LinkedIn profile linked");
+  } else {
+    weaknesses.push("Add your verified LinkedIn profile URL");
+  }
+  if (personal.github) {
+    personalScore += 4;
+    strengths.push("GitHub repository link included");
+  } else {
+    weaknesses.push("Add your GitHub portfolio URL");
+  }
   score += personalScore;
   breakdown.personal_information = personalScore;
 
   // Summary
   let summaryScore = 0;
   if (profile.summary && typeof profile.summary === "string") {
-    const words = profile.summary.trim().split(/\s+/).length;
-    if (words >= 35) { summaryScore = 10; strengths.push("Comprehensive impact-focused executive summary"); }
-    else if (words >= 15) { summaryScore = 7; strengths.push("Good professional summary"); }
-    else { summaryScore = 4; weaknesses.push("Expand summary with quantified career achievements"); }
-  } else {
+    const words = profile.summary.trim().split(/\s+/).filter(Boolean).length;
+    if (words >= 35) {
+      summaryScore = 10;
+      strengths.push("Comprehensive impact-focused executive summary");
+    } else if (words >= 15) {
+      summaryScore = 7;
+      strengths.push("Good professional summary");
+    } else if (words > 0) {
+      summaryScore = 4;
+      weaknesses.push("Expand summary with quantified career achievements");
+    }
+  }
+  if (summaryScore === 0) {
     weaknesses.push("Include a strong professional summary");
   }
   score += summaryScore;
   breakdown.summary = summaryScore;
 
   // Education
-  const education = Array.isArray(profile.education) ? profile.education : [];
+  const education = Array.isArray(profile.education) ? profile.education.filter((e: any) => e && (e.degree || e.institution)) : [];
   const educationScore = Math.min(education.length * 5, 10);
   if (educationScore > 0) strengths.push("Educational background documented");
   else weaknesses.push("Add educational degrees or certifications");
@@ -746,15 +924,15 @@ function calculateResumeScore(profile: any) {
   breakdown.education = educationScore;
 
   // Experience
-  const experience = Array.isArray(profile.experience) ? profile.experience : [];
+  const experience = Array.isArray(profile.experience) ? profile.experience.filter((e: any) => e && (e.company || e.role)) : [];
   const experienceScore = Math.min(experience.length * 10, 20);
   if (experienceScore >= 10) strengths.push("Demonstrated work experience with bullet metrics");
-  else weaknesses.push("Add more detailed work experience or project leadership");
+  else weaknesses.push("Add detailed work experience or project leadership");
   score += experienceScore;
   breakdown.experience = experienceScore;
 
   // Projects
-  const projects = Array.isArray(profile.projects) ? profile.projects : [];
+  const projects = Array.isArray(profile.projects) ? profile.projects.filter((p: any) => p && p.title) : [];
   const projectScore = Math.min(projects.length * 5, 20);
   if (projectScore >= 10) strengths.push(`${projects.length} relevant technical project(s) showcased`);
   else weaknesses.push("Add at least 2 full-stack or systems projects with live links");
@@ -762,7 +940,7 @@ function calculateResumeScore(profile: any) {
   breakdown.projects = projectScore;
 
   // Technical Skills
-  const technicalSkills = Array.isArray(profile.technical_skills) ? profile.technical_skills : [];
+  const technicalSkills = Array.isArray(profile.technical_skills) ? profile.technical_skills.filter(Boolean) : [];
   const skillScore = Math.min(technicalSkills.length, 15);
   if (skillScore >= 10) strengths.push("Diverse and modern technical stack");
   else weaknesses.push("Expand technical skills with relevant libraries and cloud tools");
@@ -770,17 +948,19 @@ function calculateResumeScore(profile: any) {
   breakdown.technical_skills = skillScore;
 
   // Certifications
-  const certs = Array.isArray(profile.certifications) ? profile.certifications : [];
+  const certs = Array.isArray(profile.certifications) ? profile.certifications.filter((c: any) => c && (c.name || typeof c === "string")) : [];
   const certScore = Math.min(certs.length * 2.5, 5);
   if (certScore > 0) strengths.push("Industry certifications included");
   score += certScore;
   breakdown.certifications = certScore;
 
-  const normalizedScore = Math.min(Math.round((score / 80) * 100), 98);
+  const rawPercent = Math.round((score / 80) * 100);
+  const normalizedScore = Math.min(Math.max(rawPercent, 0), 98);
   let grade = "Needs Improvement";
   if (normalizedScore >= 90) grade = "Excellent";
   else if (normalizedScore >= 75) grade = "Good";
   else if (normalizedScore >= 60) grade = "Average";
+  else if (normalizedScore === 0) grade = "Not Started";
 
   return {
     resume_score: normalizedScore,
@@ -805,34 +985,106 @@ app.get(["/health", "/api/health"], (_req, res) => {
   });
 });
 
-// 2. Auth: Signup
+// 2. Auth: Demo Mode
+app.post(["/demo", "/api/auth/demo"], (_req, res) => {
+  const token = createToken(demoEmail);
+  const demoUser = usersDb.get(demoEmail)!;
+  return res.json({
+    success: true,
+    message: "Logged in as demo candidate.",
+    access_token: token,
+    token_type: "bearer",
+    user: {
+      id: demoUser.id,
+      full_name: demoUser.full_name,
+      email: demoUser.email,
+      target_role: demoUser.target_role,
+      onboarding_completed: demoUser.onboarding_completed,
+    },
+  });
+});
+
+// 3. Auth: Signup
 app.post(["/signup", "/api/auth/signup"], async (req, res) => {
   try {
     const { full_name, email, password } = req.body;
     if (!email || !password) {
       return res.status(400).json({ success: false, message: "Email and password are required." });
     }
-    if (usersDb.has(email)) {
+    const cleanEmail = email.trim().toLowerCase();
+    if (usersDb.has(cleanEmail)) {
       return res.json({ success: false, message: "Account with this email already exists." });
     }
     const hashedPassword = await bcrypt.hash(password, 10);
+    const displayName = (full_name || "").trim() || "Candidate";
+    const initials = displayName
+      .split(" ")
+      .filter(Boolean)
+      .map((part: string) => part[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase() || "CD";
+
     const newUser: UserRecord = {
       id: `usr_${Date.now()}`,
-      full_name: full_name || "New Candidate",
-      email,
+      full_name: displayName,
+      email: cleanEmail,
       password: hashedPassword,
-      avatar: (full_name || "NC").slice(0, 2).toUpperCase(),
-      target_role: "Full Stack Engineer",
-      experience_level: "Mid-Level",
+      avatar: initials,
+      target_role: "Software Engineer",
+      experience_level: "Entry / Mid-Level",
       onboarding_completed: false,
       created_at: new Date().toISOString(),
     };
-    usersDb.set(email, newUser);
-    const token = createToken(email);
+    usersDb.set(cleanEmail, newUser);
+
+    // Initialize fresh empty candidate record
+    const emptyResume = {
+      personal_info: {
+        full_name: displayName,
+        email: cleanEmail,
+        phone: "",
+        location: "",
+        linkedin: "",
+        github: "",
+        portfolio: "",
+      },
+      summary: "",
+      education: [],
+      experience: [],
+      projects: [],
+      certifications: [],
+      technical_skills: [],
+      soft_skills: [],
+      achievements: [],
+      languages: [],
+    };
+    resumesDb.set(cleanEmail, emptyResume);
+    applicationsDb.set(cleanEmail, []);
+    interviewsDb.set(cleanEmail, []);
+    userSkillsDb.set(cleanEmail, []);
+    userRoadmapsDb.set(cleanEmail, generateFreshRoadmap(newUser.target_role));
+    notificationsDb.set(cleanEmail, [
+      {
+        id: `notif_${Date.now()}`,
+        user_email: cleanEmail,
+        title: "Welcome to CareerForge AI",
+        message: "Complete your onboarding and upload or build your resume to unlock real-time match analysis.",
+        type: "system",
+        read: false,
+        action_url: "/profile",
+        created_at: new Date().toISOString(),
+      },
+    ]);
+
+    saveStoreToDisk();
+
+    const token = createToken(cleanEmail);
     return res.json({
       success: true,
       message: "Account created successfully.",
       access_token: token,
+      token_type: "bearer",
       user: {
         id: newUser.id,
         full_name: newUser.full_name,
@@ -845,35 +1097,23 @@ app.post(["/signup", "/api/auth/signup"], async (req, res) => {
   }
 });
 
-// 3. Auth: Login
+// 4. Auth: Login
 app.post(["/login", "/api/auth/login"], async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) {
       return res.status(400).json({ success: false, message: "Email and password are required." });
     }
-    let user = usersDb.get(email);
+    const cleanEmail = email.trim().toLowerCase();
+    const user = usersDb.get(cleanEmail);
     if (!user) {
-      const hashedPassword = await bcrypt.hash(password, 10);
-      user = {
-        id: `usr_${Date.now()}`,
-        full_name: "Candidate",
-        email,
-        password: hashedPassword,
-        avatar: "CD",
-        target_role: "Full Stack Engineer",
-        experience_level: "Mid-Level",
-        onboarding_completed: true,
-        created_at: new Date().toISOString(),
-      };
-      usersDb.set(email, user);
-    } else {
-      const isMatch = await bcrypt.compare(password, user.password);
-      if (!isMatch) {
-        return res.json({ success: false, message: "Invalid email or password." });
-      }
+      return res.json({ success: false, message: "No account found with this email address. Please sign up." });
     }
-    const token = createToken(email);
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.json({ success: false, message: "Incorrect password. Please try again." });
+    }
+    const token = createToken(cleanEmail);
     return res.json({
       success: true,
       message: "Login successful!",
@@ -892,12 +1132,23 @@ app.post(["/login", "/api/auth/login"], async (req, res) => {
   }
 });
 
-// 4. Auth: Current User Profile
+// 5. Auth: Current User Profile
 app.get(["/api/auth/me", "/api/profile"], authenticateToken, (req, res) => {
-  const email = (req as any).userEmail || demoEmail;
-  const user = usersDb.get(email) || usersDb.get(demoEmail);
-  const resume = resumesDb.get(email) || seedResume;
-  const skills = userSkillsDb.get(email) || userSkillsDb.get(demoEmail);
+  const email = (req as any).userEmail;
+  const user = usersDb.get(email);
+  if (!user) {
+    return res.status(404).json({ success: false, message: "User record not found." });
+  }
+  const resume = resumesDb.get(email) || {
+    personal_info: { full_name: user.full_name, email: user.email },
+    summary: "",
+    education: [],
+    experience: [],
+    projects: [],
+    technical_skills: [],
+    soft_skills: [],
+  };
+  const skills = userSkillsDb.get(email) || [];
 
   res.json({
     success: true,
@@ -907,23 +1158,27 @@ app.get(["/api/auth/me", "/api/profile"], authenticateToken, (req, res) => {
   });
 });
 
-// 5. Update Profile
+// 6. Update Profile
 app.put("/api/profile", authenticateToken, (req, res) => {
-  const email = (req as any).userEmail || demoEmail;
+  const email = (req as any).userEmail;
   let user = usersDb.get(email);
   if (!user) {
-    user = { ...usersDb.get(demoEmail)!, email };
+    return res.status(404).json({ success: false, message: "User not found." });
   }
-  user = { ...user, ...req.body };
+  user = { ...user, ...req.body, email }; // prevent changing primary key email
   usersDb.set(email, user);
+  saveStoreToDisk();
   res.json({ success: true, message: "Profile updated successfully.", user });
 });
 
-// 6. Complete Onboarding
+// 7. Complete Onboarding
 app.post("/api/onboarding", authenticateToken, (req, res) => {
-  const email = (req as any).userEmail || demoEmail;
-  let user = usersDb.get(email) || { ...usersDb.get(demoEmail)!, email };
-  const { career_goal, target_role, experience_level, skills, target_salary } = req.body;
+  const email = (req as any).userEmail;
+  let user = usersDb.get(email);
+  if (!user) {
+    return res.status(404).json({ success: false, message: "User not found." });
+  }
+  const { target_role, experience_level, skills, target_salary } = req.body;
   user.target_role = target_role || user.target_role;
   user.experience_level = experience_level || user.experience_level;
   user.target_salary = target_salary || user.target_salary;
@@ -934,20 +1189,39 @@ app.post("/api/onboarding", authenticateToken, (req, res) => {
     const mappedSkills = skills.map((s: string) => ({
       name: s,
       category: "Technical",
-      proficiency: 80,
-      status: "mastered",
+      proficiency: 75,
+      status: "learning",
       marketDemand: 90,
     }));
     userSkillsDb.set(email, mappedSkills);
   }
 
+  userRoadmapsDb.set(email, generateFreshRoadmap(user.target_role));
+  saveStoreToDisk();
+
   res.json({ success: true, message: "Onboarding completed successfully!", user });
 });
 
-// 7. Resume: Get Current
+// 8. Resume: Get Current
 app.get(["/api/resume", "/api/resumes/current"], authenticateToken, (req, res) => {
-  const email = (req as any).userEmail || demoEmail;
-  const resume = resumesDb.get(email) || seedResume;
+  const email = (req as any).userEmail;
+  const user = usersDb.get(email);
+  let resume = resumesDb.get(email);
+  if (!resume) {
+    resume = {
+      personal_info: { full_name: user?.full_name || "Candidate", email: email },
+      summary: "",
+      education: [],
+      experience: [],
+      projects: [],
+      certifications: [],
+      technical_skills: [],
+      soft_skills: [],
+      achievements: [],
+      languages: [],
+    };
+    resumesDb.set(email, resume);
+  }
   const evaluation = calculateResumeScore(resume);
   res.json({
     success: true,
@@ -956,11 +1230,12 @@ app.get(["/api/resume", "/api/resumes/current"], authenticateToken, (req, res) =
   });
 });
 
-// 8. Resume: Save / Update
+// 9. Resume: Save / Update
 app.put("/api/resume", authenticateToken, (req, res) => {
-  const email = (req as any).userEmail || demoEmail;
+  const email = (req as any).userEmail;
   const updatedResume = req.body.resume || req.body;
   resumesDb.set(email, updatedResume);
+  saveStoreToDisk();
   const evaluation = calculateResumeScore(updatedResume);
   res.json({
     success: true,
@@ -970,12 +1245,13 @@ app.put("/api/resume", authenticateToken, (req, res) => {
   });
 });
 
-// 9. Resume: Upload & Intelligence
-app.post(["/upload-resume", "/api/upload-resume"], upload.single("file"), async (req: Request, res: Response) => {
+// 10. Resume: Upload & Intelligence
+app.post(["/upload-resume", "/api/upload-resume"], optionalAuth, upload.single("file"), async (req: Request, res: Response) => {
   try {
     const file = req.file;
-    const targetRole = (req.body.target_role as string) || "Senior Full Stack Engineer";
+    const targetRole = (req.body.target_role as string) || "Full Stack Engineer";
     const email = (req as any).userEmail || demoEmail;
+    const user = usersDb.get(email);
 
     let extractedText = "";
     if (file) {
@@ -1023,15 +1299,29 @@ ${extractedText.slice(0, 7000)}`;
 
     if (!profile || !profile.personal_info) {
       profile = {
-        ...seedResume,
         personal_info: {
-          ...seedResume.personal_info,
-          full_name: req.body.full_name || seedResume.personal_info.full_name,
+          full_name: req.body.full_name || user?.full_name || "Candidate",
+          email: email,
+          phone: "",
+          location: "",
+          linkedin: "",
+          github: "",
+          portfolio: "",
         },
+        summary: "Motivated engineer eager to apply technical skills to solve high-impact challenges.",
+        education: [],
+        experience: [],
+        projects: [],
+        certifications: [],
+        technical_skills: ["JavaScript", "TypeScript", "React", "Node.js"],
+        soft_skills: ["Communication", "Problem Solving", "Teamwork"],
+        achievements: [],
+        languages: ["English"],
       };
     }
 
     resumesDb.set(email, profile);
+    saveStoreToDisk();
     const resumeScore = calculateResumeScore(profile);
 
     res.json({
@@ -1046,7 +1336,7 @@ ${extractedText.slice(0, 7000)}`;
   }
 });
 
-// 10. AI Rewrite Suggestion for Resume Section
+// 11. AI Rewrite Suggestion for Resume Section
 app.post("/api/resume/ai-rewrite", async (req, res) => {
   try {
     const { section, content, target_role, instruction } = req.body;
@@ -1095,7 +1385,7 @@ Provide 3 distinct, highly polished rewrite alternatives. Return ONLY valid JSON
   }
 });
 
-// 11. Jobs: List & Search
+// 12. Jobs: List & Search
 app.get("/api/jobs", (req, res) => {
   const { query, role, type, min_match } = req.query;
   let filtered = [...JOBS_CATALOG];
@@ -1122,51 +1412,61 @@ app.get("/api/jobs", (req, res) => {
   res.json({ success: true, count: filtered.length, jobs: filtered });
 });
 
-// 12. Jobs: Single Job Match Analysis
-app.get("/api/jobs/:id", authenticateToken, (req, res) => {
+// 13. Jobs: Single Job Match Analysis
+app.get("/api/jobs/:id", optionalAuth, (req, res) => {
   const { id } = req.params;
   const job = JOBS_CATALOG.find((j) => j.id === id) || JOBS_CATALOG[0];
-  const email = (req as any).userEmail || demoEmail;
-  const resume = resumesDb.get(email) || seedResume;
+  const email = (req as any).userEmail;
+  const resume = (email && resumesDb.get(email)) || null;
 
-  const userSkills = (resume.technical_skills || []).map((s: string) => s.toLowerCase());
+  const userSkills = resume && Array.isArray(resume.technical_skills)
+    ? resume.technical_skills.map((s: string) => String(s).toLowerCase())
+    : [];
+
   const matched = job.skills_required.filter((s) => userSkills.includes(s.toLowerCase()));
   const missing = job.skills_required.filter((s) => !userSkills.includes(s.toLowerCase()));
+  const skillsMatchPct = job.skills_required.length > 0
+    ? Math.round((matched.length / job.skills_required.length) * 100)
+    : 0;
+
+  const overallScore = userSkills.length > 0
+    ? Math.min(Math.max(skillsMatchPct, 30), 98)
+    : job.match_score;
 
   res.json({
     success: true,
     job,
     fit_analysis: {
-      overall_match: job.match_score,
-      skills_match: Math.round((matched.length / job.skills_required.length) * 100),
-      experience_alignment: "Strong (Matches 4+ years requirement)",
+      overall_match: overallScore,
+      skills_match: skillsMatchPct,
+      experience_alignment: "Evaluated against candidate experience records",
       matched_skills: matched,
       missing_skills: missing,
-      key_strengths: ["Direct TypeScript & React expertise", "Demonstrated microservices architecture experience"],
-      recommended_action: "Customize resume summary to highlight high-concurrency payment and API gateway accomplishments.",
+      key_strengths: matched.length > 0 ? matched.map((s) => `Demonstrated proficiency in ${s}`) : ["Transferable software engineering foundation"],
+      recommended_action: missing.length > 0 ? `Target hands-on practice with ${missing.slice(0, 3).join(", ")} to maximize job match score.` : "High technical alignment; prepare tailored cover letter and STAR stories.",
     },
   });
 });
 
-// 13. Companies
+// 14. Companies
 app.get("/api/companies", (_req, res) => {
   res.json({ success: true, companies: COMPANIES_CATALOG });
 });
 
-// 14. Market Intelligence
+// 15. Market Intelligence
 app.get("/api/market", (_req, res) => {
   res.json({ success: true, market: MARKET_TRENDS });
 });
 
-// 15. Applications Tracker
+// 16. Applications Tracker
 app.get("/api/applications", authenticateToken, (req, res) => {
-  const email = (req as any).userEmail || demoEmail;
-  const list = applicationsDb.get(email) || applicationsDb.get(demoEmail) || [];
+  const email = (req as any).userEmail;
+  const list = applicationsDb.get(email) || [];
   res.json({ success: true, count: list.length, applications: list });
 });
 
 app.post("/api/applications", authenticateToken, (req, res) => {
-  const email = (req as any).userEmail || demoEmail;
+  const email = (req as any).userEmail;
   const list = applicationsDb.get(email) || [];
   const newApp: ApplicationRecord = {
     id: `app_${Date.now()}`,
@@ -1178,7 +1478,7 @@ app.post("/api/applications", authenticateToken, (req, res) => {
     status: req.body.status || "applied",
     applied_date: req.body.applied_date || new Date().toISOString().split("T")[0],
     job_url: req.body.job_url,
-    match_score: req.body.match_score || 88,
+    match_score: req.body.match_score || 85,
     notes: req.body.notes || "",
     contacts: req.body.contacts || "",
     next_step: req.body.next_step || "Application Review",
@@ -1200,49 +1500,56 @@ app.post("/api/applications", authenticateToken, (req, res) => {
     created_at: new Date().toISOString(),
   });
   notificationsDb.set(email, notifs);
+  saveStoreToDisk();
 
   res.json({ success: true, application: newApp });
 });
 
 app.put("/api/applications/:id", authenticateToken, (req, res) => {
-  const email = (req as any).userEmail || demoEmail;
+  const email = (req as any).userEmail;
   const list = applicationsDb.get(email) || [];
   const index = list.findIndex((a) => a.id === req.params.id);
   if (index !== -1) {
     list[index] = { ...list[index], ...req.body, updated_at: new Date().toISOString() };
     applicationsDb.set(email, list);
+    saveStoreToDisk();
     return res.json({ success: true, application: list[index] });
   }
   res.status(404).json({ success: false, message: "Application not found." });
 });
 
 app.delete("/api/applications/:id", authenticateToken, (req, res) => {
-  const email = (req as any).userEmail || demoEmail;
+  const email = (req as any).userEmail;
   let list = applicationsDb.get(email) || [];
   list = list.filter((a) => a.id !== req.params.id);
   applicationsDb.set(email, list);
+  saveStoreToDisk();
   res.json({ success: true, message: "Application deleted." });
 });
 
-// 16. Application AI: Cover Letters & Messages
-app.post("/api/application-ai/generate", async (req, res) => {
+// 17. Application AI: Cover Letters & Messages
+app.post("/api/application-ai/generate", optionalAuth, async (req, res) => {
   try {
     const { type, company, role, job_description, tone, key_points } = req.body;
+    const email = (req as any).userEmail;
+    const user = email ? usersDb.get(email) : null;
+    const candidateName = user?.full_name || "Candidate";
     const gemini = getGeminiClient();
 
     if (gemini) {
       const prompt = `You are CareerForge AI's elite Executive Career Strategist.
 Generate a high-converting ${type || "cover letter"} for:
+Candidate Name: ${candidateName}
 Company: ${company || "Tech Leader"}
-Role: ${role || "Senior Full Stack Engineer"}
+Role: ${role || "Software Engineer"}
 Tone: ${tone || "Passionate & Professional"}
-Key candidate highlights: ${key_points || "5+ years full stack, distributed systems, React, Node.js, 40% latency reduction"}
-Job Context: ${job_description || "Building scalable cloud platform tooling"}
+Key candidate highlights: ${key_points || "Strong engineering fundamentals, full-stack architecture, clean code"}
+Job Context: ${job_description || "Building high-performance software"}
 
 Return a raw JSON response:
 {
   "subject": "Subject line (if email/message)",
-  "content": "The full polished text",
+  "content": "The full polished text signed by ${candidateName}",
   "tips": ["Tip 1 to customize before sending", "Tip 2"]
 }`;
       try {
@@ -1262,159 +1569,112 @@ Return a raw JSON response:
     // Heuristic Fallback
     res.json({
       success: true,
-      subject: `Application for ${role || "Senior Full Stack Engineer"} — Kishore Reddy`,
-      content: `Dear Hiring Team at ${company || "Stripe"},\n\nI am writing to express my enthusiastic interest in the ${role || "Senior Full Stack Engineer"} position. With over 5 years of engineering experience architecting high-scale distributed systems and responsive web applications, I have consistently driven technical rigor and measurable product impact.\n\nAt Nexus Cloud Systems, I led the architecture of a real-time telemetry engine serving 2.5M daily active users while reducing frontend API latency from 850ms to 45ms using React, TypeScript, and Redis. I am deeply drawn to ${company || "Stripe"}'s commitment to developer excellence and rigorous craftsmanship, and I would love the opportunity to contribute to your engineering team.\n\nThank you for your time and consideration. I look forward to speaking with you.\n\nWarm regards,\nKishore Reddy`,
-      tips: ["Reference a recent product announcement or blog post from the engineering team.", "Mention your specific availability for technical interviews."],
+      subject: `Application for ${role || "Software Engineer"} — ${candidateName}`,
+      content: `Dear Hiring Team at ${company || "Innovative Tech"},\n\nI am writing to express my enthusiastic interest in the ${role || "Software Engineer"} position. With a strong foundation in modern web engineering, scalable system architecture, and iterative product execution, I am eager to contribute to your engineering organization.\n\nThroughout my work, I have prioritized clean software architecture, automated testing, and responsive user experiences. I am deeply impressed by ${company || "your team"}'s commitment to engineering rigor and would welcome the opportunity to discuss how my skill set aligns with your goals.\n\nThank you for your consideration.\n\nSincerely,\n${candidateName}`,
+      tips: ["Reference a recent product milestone or blog post from the engineering team.", "Highlight 1 or 2 specific technical accomplishments aligned with their stack."],
     });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// 17. Skill Intelligence
+// 18. Skill Intelligence
 app.get("/api/skills", authenticateToken, (req, res) => {
-  const email = (req as any).userEmail || demoEmail;
-  const skills = userSkillsDb.get(email) || userSkillsDb.get(demoEmail) || [];
+  const email = (req as any).userEmail;
+  const skills = userSkillsDb.get(email) || [];
+  const masteredCount = skills.filter((s: any) => s.status === "mastered" || s.proficiency >= 85).length;
+  const totalCount = skills.length;
+  const marketReadiness = totalCount > 0 ? Math.min(Math.round((masteredCount / totalCount) * 100), 98) : 0;
+
+  const topStrengths = skills
+    .filter((s: any) => s.proficiency >= 80)
+    .map((s: any) => s.name)
+    .slice(0, 4);
+
+  const primaryGaps = skills
+    .filter((s: any) => s.proficiency < 70)
+    .map((s: any) => s.name)
+    .slice(0, 3);
+
   res.json({
     success: true,
     skills,
-    market_readiness_score: 89,
-    top_strengths: ["TypeScript", "React", "Node.js", "System Design"],
-    primary_gaps: ["Kafka Event Streaming", "Kubernetes Multi-Cluster Orchestration"],
+    market_readiness_score: marketReadiness,
+    top_strengths: topStrengths.length > 0 ? topStrengths : ["Add skills to see top strengths"],
+    primary_gaps: primaryGaps.length > 0 ? primaryGaps : ["All listed skills are currently proficient"],
   });
 });
 
 app.put("/api/skills", authenticateToken, (req, res) => {
-  const email = (req as any).userEmail || demoEmail;
+  const email = (req as any).userEmail;
   const { skills } = req.body;
   if (Array.isArray(skills)) {
     userSkillsDb.set(email, skills);
+    saveStoreToDisk();
   }
   res.json({ success: true, message: "Skills updated." });
 });
 
-// 18. Career Roadmap
+// 19. Career Roadmap
 app.get("/api/roadmap", authenticateToken, (req, res) => {
-  const email = (req as any).userEmail || demoEmail;
+  const email = (req as any).userEmail;
+  const user = usersDb.get(email);
   let roadmap = userRoadmapsDb.get(email);
   if (!roadmap) {
-    roadmap = [
-      {
-        week: 1,
-        title: "Advanced TypeScript & Micro-Frontend Architecture",
-        duration: "30-Day Focus",
-        status: "completed",
-        progress: 100,
-        description: "Master strict generic constraints, module federation, and sub-millisecond client state management.",
-        tasks: [
-          { title: "Implement AST Type Guards & Generics", completed: true },
-          { title: "Configure Webpack / Vite Module Federation", completed: true },
-          { title: "Benchmark Render Performance on 50k DOM Nodes", completed: true },
-        ],
-      },
-      {
-        week: 2,
-        title: "Distributed Caching & Redis Resiliency",
-        duration: "30-Day Focus",
-        status: "completed",
-        progress: 100,
-        description: "Implement distributed locks, rate limiting with Token Bucket algorithm, and Cache-Aside architectures.",
-        tasks: [
-          { title: "Build Redis Redlock Distributed Lock Utility", completed: true },
-          { title: "Implement Sliding Window Log Rate Limiter", completed: true },
-          { title: "Set Up Cache Invalidation & Stampede Protection", completed: true },
-        ],
-      },
-      {
-        week: 3,
-        title: "Kubernetes & Cloud Infrastructure Mastery",
-        duration: "60-Day Focus",
-        status: "in_progress",
-        progress: 60,
-        description: "Deploy multi-container pods, configure Helm charts, zero-downtime rolling updates, and AWS EKS clusters.",
-        tasks: [
-          { title: "Write Multi-Stage Production Dockerfiles", completed: true },
-          { title: "Deploy Minikube Cluster with Ingress Controller", completed: true },
-          { title: "Configure Auto-Scaling HPA with Custom Prometheus Metrics", completed: false },
-        ],
-      },
-      {
-        week: 4,
-        title: "Apache Kafka & Event-Driven Systems",
-        duration: "60-Day Focus",
-        status: "todo",
-        progress: 0,
-        description: "Orchestrate asynchronous message queues, dead letter queues, consumer group scaling, and schema registries.",
-        tasks: [
-          { title: "Set Up Kafka Broker & Zookeeper Cluster", completed: false },
-          { title: "Build Idempotent Producer & Consumer Group Workers", completed: false },
-          { title: "Implement Saga Pattern Distributed Transactions", completed: false },
-        ],
-      },
-      {
-        week: 5,
-        title: "FAANG System Design & High-Concurrency Capstone",
-        duration: "90-Day Focus",
-        status: "todo",
-        progress: 0,
-        description: "Architect end-to-end distributed payment gateway with 99.999% availability and comprehensive telemetry.",
-        tasks: [
-          { title: "Design High-Availability Payment Gateway Blueprint", completed: false },
-          { title: "Conduct 4 Peer System Design Mock Interviews", completed: false },
-          { title: "Deploy Live Production Capstone to AWS", completed: false },
-        ],
-      },
-    ];
+    roadmap = generateFreshRoadmap(user?.target_role || "Full Stack Engineer");
     userRoadmapsDb.set(email, roadmap);
+    saveStoreToDisk();
   }
   res.json({ success: true, roadmap });
 });
 
 app.put("/api/roadmap", authenticateToken, (req, res) => {
-  const email = (req as any).userEmail || demoEmail;
+  const email = (req as any).userEmail;
   const { roadmap } = req.body;
   if (Array.isArray(roadmap)) {
     userRoadmapsDb.set(email, roadmap);
+    saveStoreToDisk();
   }
   res.json({ success: true, message: "Roadmap updated." });
 });
 
-// 19. Learning Intelligence
+// 20. Learning Intelligence
 app.get("/api/learning", authenticateToken, (req, res) => {
-  const email = (req as any).userEmail || demoEmail;
+  const email = (req as any).userEmail;
   const learning = userLearningDb.get(email) || LEARNING_CATALOG;
   res.json({ success: true, resources: learning });
 });
 
 app.put("/api/learning/:id/progress", authenticateToken, (req, res) => {
-  const email = (req as any).userEmail || demoEmail;
+  const email = (req as any).userEmail;
   const learning = userLearningDb.get(email) || [...LEARNING_CATALOG];
   const item = learning.find((l) => l.id === req.params.id);
   if (item) {
     item.progress_pct = req.body.progress_pct ?? item.progress_pct;
     item.completed = req.body.completed ?? (item.progress_pct >= 100);
     userLearningDb.set(email, learning);
+    saveStoreToDisk();
     return res.json({ success: true, resource: item });
   }
   res.status(404).json({ success: false, message: "Resource not found." });
 });
 
-// 20. Interview Lab: Sessions & Evaluation
+// 21. Interview Lab: Sessions & Evaluation
 app.get("/api/interviews", authenticateToken, (req, res) => {
-  const email = (req as any).userEmail || demoEmail;
-  const sessions = interviewsDb.get(email) || interviewsDb.get(demoEmail) || [];
+  const email = (req as any).userEmail;
+  const sessions = interviewsDb.get(email) || [];
   res.json({ success: true, sessions });
 });
 
 app.post("/api/interviews/start", authenticateToken, (req, res) => {
-  const email = (req as any).userEmail || demoEmail;
+  const email = (req as any).userEmail;
   const { role, type, company } = req.body;
   const newSession: InterviewSessionRecord = {
     id: `int_${Date.now()}`,
     user_email: email,
-    role: role || "Senior Full Stack Engineer",
-    type: type || "System Design",
-    company: company || "General Tech",
+    role: role || "Software Engineer",
+    type: type || "Technical",
+    company: company || "Target Tech",
     status: "in_progress",
     score: 0,
     duration_minutes: 0,
@@ -1422,7 +1682,7 @@ app.post("/api/interviews/start", authenticateToken, (req, res) => {
     transcript: [
       {
         sender: "ai",
-        text: `Welcome to your ${type || "System Design"} interview for the ${role || "Senior Full Stack Engineer"} position at ${company || "our team"}. Let's get started: Could you walk me through an end-to-end architecture you recently designed for high-scale throughput, focusing on scalability bottlenecks and caching?`,
+        text: `Welcome to your ${type || "Technical"} interview for the ${role || "Software Engineer"} position at ${company || "the company"}. Let's get started: Could you introduce yourself and walk me through a complex technical challenge you solved recently?`,
         timestamp: "00:00",
       },
     ],
@@ -1431,6 +1691,7 @@ app.post("/api/interviews/start", authenticateToken, (req, res) => {
   const list = interviewsDb.get(email) || [];
   list.unshift(newSession);
   interviewsDb.set(email, list);
+  saveStoreToDisk();
 
   res.json({ success: true, session: newSession });
 });
@@ -1441,7 +1702,7 @@ app.post("/api/interviews/:id/respond", async (req, res) => {
     const gemini = getGeminiClient();
 
     if (gemini && answer) {
-      const prompt = `You are a Principal Software Engineer conducting a rigorous technical/system design interview.
+      const prompt = `You are a Senior Principal Technical Interviewer conducting a mock interview round.
 Candidate Answer: "${answer}"
 
 Provide:
@@ -1469,8 +1730,8 @@ Return raw JSON:
 
     res.json({
       success: true,
-      interviewer_response: "That's a solid architectural choice. Now, how would you ensure data consistency across distributed database replicas when write traffic spikes by 10x during peak hours?",
-      micro_feedback: "Great mention of caching; consider emphasizing idempotency and dead-letter queues next.",
+      interviewer_response: "That's a solid explanation. How would you monitor this architecture in production and handle unexpected edge cases?",
+      micro_feedback: "Good structured answer; remember to mention metrics and failure recovery.",
     });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
@@ -1478,7 +1739,7 @@ Return raw JSON:
 });
 
 app.post("/api/interviews/:id/complete", authenticateToken, (req, res) => {
-  const email = (req as any).userEmail || demoEmail;
+  const email = (req as any).userEmail;
   const list = interviewsDb.get(email) || [];
   const session = list.find((s) => s.id === req.params.id);
   if (session) {
@@ -1490,17 +1751,18 @@ app.post("/api/interviews/:id/complete", authenticateToken, (req, res) => {
       clarity_score: session.score + 2,
       technical_score: session.score,
       impact_score: session.score - 3,
-      summary: "Candidate articulated structural trade-offs clearly, demonstrated solid algorithmic intuition, and handled failure modes with composure.",
-      strengths: ["Structured problem breakdown", "Strong distributed caching knowledge", "Concise verbal communication"],
+      summary: "Candidate articulated structural trade-offs clearly, demonstrated solid technical intuition, and communicated methodically.",
+      strengths: ["Structured problem breakdown", "Clear articulation of trade-offs", "Composure under pressure"],
       improvements: ["Elaborate more on disaster recovery plans", "Quantify SLA/SLO latency targets"],
     };
     interviewsDb.set(email, list);
+    saveStoreToDisk();
     return res.json({ success: true, session });
   }
   res.status(404).json({ success: false, message: "Session not found." });
 });
 
-// 21. Coding Lab: AI Code Review
+// 22. Coding Lab: AI Code Review
 app.post("/api/coding/review", async (req, res) => {
   try {
     const { code, language, problem_title, problem_description } = req.body;
@@ -1557,13 +1819,13 @@ Perform a comprehensive code review. Return raw JSON ONLY:
   }
 });
 
-// 22. AI Career Coach: Context-Aware Chat
+// 23. AI Career Coach: Context-Aware Chat
 app.post("/api/coach/chat", authenticateToken, async (req, res) => {
   try {
-    const email = (req as any).userEmail || demoEmail;
-    const { message, history } = req.body;
-    const user = usersDb.get(email) || usersDb.get(demoEmail);
-    const resume = resumesDb.get(email) || seedResume;
+    const email = (req as any).userEmail;
+    const { message } = req.body;
+    const user = usersDb.get(email);
+    const resume = resumesDb.get(email) || {};
     const applications = applicationsDb.get(email) || [];
     const skills = userSkillsDb.get(email) || [];
 
@@ -1571,13 +1833,13 @@ app.post("/api/coach/chat", authenticateToken, async (req, res) => {
     if (gemini && message) {
       const systemContext = `You are CareerForge AI, a world-class Executive Career Coach and Technical Talent Strategist.
 Candidate Context:
-- Name: ${user?.full_name || "Kishore Reddy"}
-- Target Role: ${user?.target_role || "Senior Full Stack Engineer"}
-- Top Skills: ${(resume.technical_skills || []).slice(0, 10).join(", ")}
-- Active Applications: ${applications.length} (${applications.map((a) => `${a.company} - ${a.status}`).join(", ")})
-- Target Salary: ${user?.target_salary || "$150k - $200k"}
+- Name: ${user?.full_name || "Candidate"}
+- Target Role: ${user?.target_role || "Software Engineer"}
+- Top Skills: ${(resume.technical_skills || skills.map((s: any) => s.name) || []).slice(0, 10).join(", ") || "None documented yet"}
+- Active Applications: ${applications.length} (${applications.map((a) => `${a.company} - ${a.status}`).join(", ") || "None yet"})
+- Target Salary: ${user?.target_salary || "Open"}
 
-Respond directly to the candidate with sharp, strategic, actionable, and encouraging career advice. Avoid generic filler. Use clean formatting with bold headers and bullet points.`;
+Respond directly to the candidate with sharp, strategic, actionable, and encouraging career advice based on their real profile. Avoid generic filler. Use clean formatting with bold headers and bullet points.`;
 
       try {
         const response = await gemini.models.generateContent({
@@ -1594,69 +1856,88 @@ Respond directly to the candidate with sharp, strategic, actionable, and encoura
     // Heuristic Fallback
     res.json({
       success: true,
-      reply: `Based on your profile as a **${user?.target_role || "Senior Full Stack Engineer"}** and your active applications at **${applications.map((a) => a.company).join(", ") || "top tech companies"}**, here is my strategic recommendation:\n\n1. **High-Impact Resume Focus**: Your technical skills in TypeScript and React are strong (94% match for Stripe). Highlight your system design metrics—specifically how your WebSocket optimizations dropped latency to 45ms.\n2. **Target High Priority Gaps**: Prioritize hands-on practice with Kafka and Kubernetes. Completing Week 3 of your Roadmap will elevate your readiness score to 95%+.\n3. **Interview Preparation**: For your upcoming screening, prepare 2 STAR-method stories emphasizing how you balanced rapid iteration with system reliability.\n\nWhat specific challenge would you like to tackle next?`,
+      reply: `Hi **${user?.full_name || "Candidate"}**, based on your goal to advance as a **${user?.target_role || "Software Engineer"}**:\n\n1. **Profile & Resume Alignment**: Keep your skills and projects updated with measurable outcomes and clear tech stack details.\n2. **Active Pipeline**: You currently have **${applications.length}** tracked application(s). Aim to maintain 5-8 active high-alignment targets.\n3. **Continuous Practice**: Work through your customized Roadmap milestones and practice technical interview rounds in the Interview Lab.\n\nHow can I help you prepare for your next career milestone today?`,
     });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// 23. Notifications
+// 24. Notifications
 app.get("/api/notifications", authenticateToken, (req, res) => {
-  const email = (req as any).userEmail || demoEmail;
-  const list = notificationsDb.get(email) || notificationsDb.get(demoEmail) || [];
+  const email = (req as any).userEmail;
+  const list = notificationsDb.get(email) || [];
   const unreadCount = list.filter((n) => !n.read).length;
   res.json({ success: true, notifications: list, unread_count: unreadCount });
 });
 
 app.put("/api/notifications/read-all", authenticateToken, (req, res) => {
-  const email = (req as any).userEmail || demoEmail;
+  const email = (req as any).userEmail;
   const list = notificationsDb.get(email) || [];
   list.forEach((n) => (n.read = true));
   notificationsDb.set(email, list);
+  saveStoreToDisk();
   res.json({ success: true, message: "All notifications marked as read." });
 });
 
-// 24. Progress & Analytics Engine
+// 25. Progress & Analytics Engine
 app.get("/api/progress/analytics", authenticateToken, (req, res) => {
-  const email = (req as any).userEmail || demoEmail;
+  const email = (req as any).userEmail;
   const applications = applicationsDb.get(email) || [];
   const interviews = interviewsDb.get(email) || [];
-  const resume = resumesDb.get(email) || seedResume;
+  const resume = resumesDb.get(email);
   const evaluation = calculateResumeScore(resume);
+  const skills = userSkillsDb.get(email) || [];
+
+  // Calculate real dynamic scores based on actual data
+  const totalApps = applications.length;
+  const interviewApps = applications.filter((a) => a.status === "interview" || a.status === "screening" || a.status === "offer").length;
+  const offerApps = applications.filter((a) => a.status === "offer").length;
+
+  const responseRate = totalApps > 0 ? Math.round((interviewApps / totalApps) * 100) : 0;
+  const offerRate = totalApps > 0 ? Math.round((offerApps / totalApps) * 100) : 0;
+
+  // Composite readiness score based on resume score (40%), skills (30%), applications/interviews (30%)
+  const resumeComponent = (evaluation.resume_score || 0) * 0.4;
+  const skillsComponent = Math.min(skills.length * 10, 100) * 0.3;
+  const activityComponent = Math.min((totalApps * 15) + (interviews.length * 20), 100) * 0.3;
+  const careerReadinessScore = Math.round(resumeComponent + skillsComponent + activityComponent);
+
+  const wishlistCount = applications.filter((a) => a.status === "wishlist").length;
+  const appliedCount = applications.filter((a) => a.status === "applied").length;
+  const screeningCount = applications.filter((a) => a.status === "screening").length;
+  const interviewingCount = applications.filter((a) => a.status === "interview").length;
+  const offerCount = applications.filter((a) => a.status === "offer").length;
 
   res.json({
     success: true,
     analytics: {
-      career_readiness_score: 92,
+      career_readiness_score: careerReadinessScore,
       resume_score: evaluation.resume_score,
-      ats_score: 94,
-      applications_count: applications.length,
+      ats_score: evaluation.resume_score > 0 ? Math.min(evaluation.resume_score + 2, 98) : 0,
+      applications_count: totalApps,
       interviews_count: interviews.length,
-      response_rate_pct: 75,
-      offer_rate_pct: 25,
-      skill_growth_rate: "+18% this month",
+      response_rate_pct: responseRate,
+      offer_rate_pct: offerRate,
+      skill_growth_rate: skills.length > 0 ? `${skills.length} active skills tracked` : "0 skills tracked",
       funnel: [
-        { stage: "Saved / Wishlist", count: applications.filter((a) => a.status === "wishlist").length + 2 },
-        { stage: "Applied", count: applications.filter((a) => a.status === "applied").length + 4 },
-        { stage: "Screening", count: applications.filter((a) => a.status === "screening").length + 2 },
-        { stage: "Interviewing", count: applications.filter((a) => a.status === "interview").length + 2 },
-        { stage: "Offer", count: applications.filter((a) => a.status === "offer").length + 1 },
+        { stage: "Saved / Wishlist", count: wishlistCount },
+        { stage: "Applied", count: appliedCount },
+        { stage: "Screening", count: screeningCount },
+        { stage: "Interviewing", count: interviewingCount },
+        { stage: "Offer", count: offerCount },
       ],
       readiness_history: [
-        { date: "Aug 1", score: 74 },
-        { date: "Aug 8", score: 80 },
-        { date: "Aug 15", score: 85 },
-        { date: "Aug 22", score: 89 },
-        { date: "Aug 30", score: 92 },
+        { date: "Day 1", score: Math.max(careerReadinessScore - 20, 0) },
+        { date: "Current", score: careerReadinessScore },
       ],
     },
   });
 });
 
-// 25. DSA Tracker: Progress
+// 26. DSA Tracker: Progress
 app.get(["/dsa/progress", "/api/dsa/progress"], authenticateToken, (req: Request, res: Response) => {
-  const email = (req as any).userEmail || demoEmail;
+  const email = (req as any).userEmail;
   const userProgressMap = dsaProgressDb.get(email) || new Map<string, any>();
 
   const progress: Record<string, any> = {};
@@ -1676,7 +1957,7 @@ app.get(["/dsa/progress", "/api/dsa/progress"], authenticateToken, (req: Request
 });
 
 app.put(["/dsa/progress/:topicSlug/:problemSlug", "/api/dsa/progress/:topicSlug/:problemSlug"], authenticateToken, (req: Request, res: Response) => {
-  const email = (req as any).userEmail || demoEmail;
+  const email = (req as any).userEmail;
   const { topicSlug, problemSlug } = req.params;
   const { status, bookmarked, notes } = req.body;
 
@@ -1695,6 +1976,7 @@ app.put(["/dsa/progress/:topicSlug/:problemSlug", "/api/dsa/progress/:topicSlug/
   existing.updated_at = new Date().toISOString();
 
   userProgressMap.set(key, existing);
+  saveStoreToDisk();
 
   res.json({
     success: true,
@@ -1703,9 +1985,19 @@ app.put(["/dsa/progress/:topicSlug/:problemSlug", "/api/dsa/progress/:topicSlug/
 });
 
 app.delete(["/dsa/progress", "/api/dsa/progress"], authenticateToken, (req: Request, res: Response) => {
-  const email = (req as any).userEmail || demoEmail;
+  const email = (req as any).userEmail;
   dsaProgressDb.delete(email);
+  saveStoreToDisk();
   res.json({ success: true, message: "DSA progress reset." });
+});
+
+// Download Project ZIP Archive
+app.get(["/api/export-zip", "/api/download-zip"], (_req: Request, res: Response) => {
+  const zipPath = path.join(process.cwd(), "careerforge-ai.zip");
+  if (fs.existsSync(zipPath)) {
+    return res.download(zipPath, "careerforge-ai.zip");
+  }
+  res.status(404).json({ success: false, message: "ZIP archive not generated yet." });
 });
 
 // =====================================
