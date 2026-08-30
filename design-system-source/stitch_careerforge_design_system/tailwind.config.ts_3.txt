@@ -1,0 +1,37 @@
+import { type Config } from "tailwindcss";
+
+const config: Config = {
+  content: [
+    "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+  ],
+  theme: {
+    extend: {
+      colors: {
+        obsidian: {
+          DEFAULT: "#0B0B0B",
+          light: "#1A1A1A",
+          lighter: "#262626",
+        },
+        gold: {
+          DEFAULT: "#D4AF37",
+          muted: "#A6892C",
+          bright: "#F2C94C",
+        },
+        surface: {
+          DEFAULT: "#151310",
+          dim: "#151310",
+          bright: "#3c3836",
+        }
+      },
+      fontFamily: {
+        serif: ["Newsreader", "serif"],
+        sans: ["Inter", "sans-serif"],
+        mono: ["Geist Mono", "monospace"],
+      },
+    },
+  },
+  plugins: [],
+};
+export default config;

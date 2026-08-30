@@ -1,0 +1,22 @@
+# CareerForge AI: Centralized AI Service & Match Engine Logic
+
+## Phase 2: AI Service Architecture
+- **Provider Abstraction**: Implemented `AIService` class to handle provider-agnostic calls (OpenAI/Anthropic/Google).
+- **Environment Config**: Wired to `PROCESS.ENV.AI_API_KEY`. No client-side exposure.
+- **Context Layer**: Created `AIContextBuilder` to aggregate `CareerProfile`, `Resume`, and `Job` data for consistent prompting.
+- **Resilience**: Implemented exponential backoff for rate limits and `AbortController` for 15s timeouts.
+
+## Phase 3: AI Job Match Engine
+- **Multi-Factor Scoring**:
+  - `SkillScore`: Weighted comparison of User Skills vs Job Requirements.
+  - `ExpScore`: Years of experience and role relevancy check.
+  - `EduScore`: Degree type and field of study alignment.
+  - `ResumeScore`: Semantic similarity between resume content and job description.
+- **Explanation Engine**: Generates structured "Why you match" and "Missing Gaps" data.
+- **Consistency**: Unified `calculateMatch(user, job)` utility used by Dashboard, Job Search, and Resume Studio.
+
+## Implementation Status
+- [x] Phase 1: Onboarding + Profile Foundation
+- [x] Phase 2: Centralized AI Service Architecture
+- [x] Phase 3: AI Job Match Engine
+- [ ] Phase 4: Job Discovery + Job Detail (In Progress)

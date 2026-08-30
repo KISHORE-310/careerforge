@@ -1,0 +1,57 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  password      String?
+  image         String?
+  profile       Profile?
+  applications  Application[]
+  notifications Notification[]
+  createdAt     DateTime  @default(now())
+}
+
+model Profile {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id])
+  targetRole       String?
+  experienceLevel  String?
+  skills           String[] // Stored as array of skill names
+  careerScore      Int      @default(0)
+  onboardingStatus String   @default("INCOMPLETE")
+  resumeUrl        String?
+  updatedAt        DateTime @updatedAt
+}
+
+model Application {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  jobTitle  String
+  company   String
+  status    String   @default("APPLIED") // APPLIED, SCREENING, INTERVIEW, OFFER, REJECTED
+  matchScore Int?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  type      String   // JOB_MATCH, ROADMAP_UPDATE, INTERVIEW_REMINDER
+  message   String
+  read      Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+}

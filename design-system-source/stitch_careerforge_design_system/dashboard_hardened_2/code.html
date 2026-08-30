@@ -1,0 +1,507 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0" name="viewport"><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script><script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+                "on-surface-variant": "#d0c5af",
+                "surface": "#151310",
+                "tertiary-fixed": "#d8e2ff",
+                "inverse-surface": "#e8e1dd",
+                "on-primary-fixed": "#241a00",
+                "surface-dim": "#151310",
+                "primary-fixed": "#ffe088",
+                "secondary-fixed": "#e5e2e1",
+                "outline-variant": "#4d4635",
+                "on-tertiary-fixed-variant": "#004395",
+                "on-secondary-fixed": "#1c1b1b",
+                "error-container": "#93000a",
+                "on-background": "#e8e1dd",
+                "tertiary": "#b9ceff",
+                "secondary-container": "#474646",
+                "tertiary-fixed-dim": "#adc6ff",
+                "on-secondary": "#313030",
+                "on-error-container": "#ffdad6",
+                "surface-bright": "#3c3836",
+                "inverse-primary": "#735c00",
+                "on-primary-fixed-variant": "#574500",
+                "on-secondary-container": "#b7b4b4",
+                "inverse-on-surface": "#33302d",
+                "primary-container": "#d4af37",
+                "primary-fixed-dim": "#e9c349",
+                "on-tertiary-fixed": "#001a42",
+                "on-primary-container": "#554300",
+                "background": "#151310",
+                "surface-container-lowest": "#100e0b",
+                "surface-variant": "#383431",
+                "surface-tint": "#e9c349",
+                "on-tertiary-container": "#004291",
+                "on-error": "#690005",
+                "secondary-fixed-dim": "#c9c6c5",
+                "surface-container-highest": "#383431",
+                "error": "#ffb4ab",
+                "secondary": "#c9c6c5",
+                "outline": "#99907c",
+                "primary": "#f2ca50",
+                "tertiary-container": "#8eb2ff",
+                "on-primary": "#3c2f00",
+                "surface-container-low": "#1e1b19",
+                "on-secondary-fixed-variant": "#474646",
+                "surface-container": "#221f1c",
+                "surface-container-high": "#2d2927",
+                "on-surface": "#e8e1dd",
+                "on-tertiary": "#002e6a"
+        },
+        "borderRadius": {
+                "DEFAULT": "0.25rem",
+                "lg": "0.5rem",
+                "xl": "0.75rem",
+                "full": "9999px"
+        },
+        "spacing": {
+                "margin-sm": "16px",
+                "container-max": "1152px",
+                "margin-lg": "32px",
+                "dashboard-max": "1440px",
+                "unit": "4px",
+                "gutter": "24px"
+        },
+        "fontFamily": {
+                "headline-md": [
+                        "Newsreader"
+                ],
+                "stat-mono": [
+                        "JetBrains Mono"
+                ],
+                "body-base": [
+                        "Plus Jakarta Sans", "sans-serif"
+                ],
+                "display-xl": [
+                        "Newsreader"
+                ],
+                "headline-lg": [
+                        "Newsreader"
+                ],
+                "headline-sm": [
+                        "Plus Jakarta Sans", "sans-serif"
+                ],
+                "body-lg": [
+                        "Plus Jakarta Sans", "sans-serif"
+                ],
+                "display-xl-mobile": [
+                        "Newsreader"
+                ],
+                "label-caps": [
+                        "JetBrains Mono"
+                ]
+        },
+        "fontSize": {
+                "headline-md": [
+                        "24px",
+                        {
+                                "lineHeight": "32px",
+                                "letterSpacing": "-0.01em",
+                                "fontWeight": "400"
+                        }
+                ],
+                "stat-mono": [
+                        "32px",
+                        {
+                                "lineHeight": "40px",
+                                "fontWeight": "400"
+                        }
+                ],
+                "body-base": [
+                        "14px",
+                        {
+                                "lineHeight": "24px",
+                                "fontWeight": "300"
+                        }
+                ],
+                "display-xl": [
+                        "48px",
+                        {
+                                "lineHeight": "56px",
+                                "letterSpacing": "-0.02em",
+                                "fontWeight": "300"
+                        }
+                ],
+                "headline-lg": [
+                        "36px",
+                        {
+                                "lineHeight": "44px",
+                                "letterSpacing": "-0.02em",
+                                "fontWeight": "300"
+                        }
+                ],
+                "headline-sm": [
+                        "18px",
+                        {
+                                "lineHeight": "28px",
+                                "fontWeight": "600"
+                        }
+                ],
+                "body-lg": [
+                        "16px",
+                        {
+                                "lineHeight": "26px",
+                                "fontWeight": "400"
+                        }
+                ],
+                "display-xl-mobile": [
+                        "32px",
+                        {
+                                "lineHeight": "40px",
+                                "fontWeight": "300"
+                        }
+                ],
+                "label-caps": [
+                        "11px",
+                        {
+                                "lineHeight": "16px",
+                                "letterSpacing": "0.15em",
+                                "fontWeight": "500"
+                        }
+                ]
+        }
+},
+    },
+  }
+</script><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600&amp;family=Newsreader:opsz,wght@6..72,300;400;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"></head><body class="bg-surface font-body-base text-on-surface"><aside class="fixed left-0 top-0 h-full w-[240px] bg-surface-container-lowest border-r border-outline-variant/10 z-50 flex flex-col"><div class="p-6 mb-8 flex items-center gap-3"><img alt="CareerForge Logo" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDAOR_XKQ9G5r9V-O90UONWUIzlBJy7__LDCgo7fmA76SOgLgVtSwKkMsfzO93WyVcNrHpDXqlpEx-FSO9fH6d1E3UjLClFL-PfHOhyBDErvcB-gXFCJBvgI4yFHB_fk1Tiue6dFnQhzRygDRuD1WIBvF3vhN-4Ual_BvVEequvJPzMCImm25snu1rmDDGQvuK-dsZiyDiq1xdhE591DW0UWjod_yoNJ9JE2VNIFCZEnEj_itgkUpLPkA"><span class="font-headline-sm text-headline-sm text-primary">CareerForge</span></div><nav class="flex-1 px-4 space-y-unit" data-active-classes="bg-primary-container/20 text-primary font-semibold"><a aria-current="page" class="flex items-center px-4 py-3 rounded-lg transition-all group bg-primary-container/20 text-primary font-semibold" data-path="dashboard" href="index.html"><span class="material-symbols-outlined mr-3">dashboard</span><span class="font-body-base">Dashboard</span></a><a class="flex items-center px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-all group" data-path="job-search" href="job-search.html"><span class="material-symbols-outlined mr-3">work</span><span class="font-body-base">Job Search</span></a><a class="flex items-center px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-all group" data-path="resume-builder" href="resume-builder.html"><span class="material-symbols-outlined mr-3">edit_note</span><span class="font-body-base">Resume Builder</span></a><a class="flex items-center px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-all group" data-path="skill-tracking" href="skill-intelligence.html"><span class="material-symbols-outlined mr-3">analytics</span><span class="font-body-base">Skill Tracking</span></a><a class="flex items-center px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-all group" data-path="settings" href="settings.html"><span class="material-symbols-outlined mr-3">settings</span><span class="font-body-base">Settings</span></a></nav><div class="p-4 mt-auto"><div class="bg-surface-container px-4 py-6 rounded-xl border border-outline-variant/20"><span class="font-label-caps text-label-caps text-primary uppercase">AI Forge Pro</span><p class="text-xs mt-2 text-on-surface-variant">Unlock advanced career analytics and AI resume tailoring.</p></div></div></aside><div class="pl-[240px]"><header class="fixed top-0 left-[240px] right-0 h-16 bg-surface/80 backdrop-blur-xl border-b border-outline-variant/10 z-40 flex items-center justify-between px-gutter"><div class="flex-1 max-w-xl"><div class="relative flex items-center bg-surface-container-low rounded-full px-4 py-2 border border-outline-variant/10 focus-within:border-primary/50 transition-all"><span class="material-symbols-outlined text-on-surface-variant">search</span><input class="bg-transparent border-none focus:ring-0 text-sm w-full ml-2 text-on-surface placeholder:text-outline-variant" placeholder="Search jobs, skills, or mentors..." type="text"></div></div><div class="flex items-center gap-6"><button class="relative group text-on-surface-variant hover:text-on-surface"><span class="material-symbols-outlined">notifications</span><span class="absolute top-0 right-0 w-2 h-2 bg-primary rounded-full"></span></button><div class="flex items-center gap-3 pl-6 border-l border-outline-variant/20"><div class="text-right hidden sm:block"><div class="font-body-base font-semibold text-on-surface leading-none">Alex Chen</div><div class="font-label-caps text-label-caps text-outline-variant">Level 42 Developer</div></div><img alt="Profile" class="w-9 h-9 rounded-full object-cover border border-primary/20" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAmPZ5tx23iRaJiJEj4PJ7EaJs0AEy1ELehLoOTRY31ZpCRZ6RALiByEjO03tS3OSM57JlnIbM7tW4HFUqH6zsopjzgyBEO2a-X5Y31G10-FL0-YhH44t2TktsEtpJcslNyJanM27VTw5Blxj_zIBJlmhM61MDOf3mQyVcavP1m1osSAtJjQJb94Bdm0NFxhepJtRrKdclkyM29uLKf444tK-0pN0gXCi7JKo8BgSWRkXSki7l3G53buQ"></div></div></header><main class="relative pt-16 bg-surface min-h-screen"><div class="flex flex-col w-full relative pb-margin-lg">
+<!-- Ambient background glow -->
+<div class="absolute inset-0 overflow-hidden pointer-events-none">
+<div class="absolute top-0 right-0 w-[800px] h-[800px] bg-[rgba(212,175,55,0.03)] rounded-full blur-[120px] translate-x-1/3 -translate-y-1/3 mix-blend-screen"></div>
+</div>
+<div class="relative z-10 grid grid-cols-12 gap-gutter px-gutter max-w-dashboard-max mx-auto w-full pt-margin-lg">
+<!-- Header Section -->
+<header class="col-span-12 flex flex-col md:flex-row justify-between items-start md:items-end mb-margin-lg">
+<div>
+<h1 class="font-display-xl text-display-xl text-on-surface mb-unit">Command Center</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant max-w-2xl">Your AI-driven career trajectory. Analyzing current market trends against your skill vectors.</p>
+</div>
+<div class="mt-margin-sm md:mt-0 flex gap-4">
+<button class="bg-surface-container hover:bg-surface-container-high transition-colors text-on-surface font-label-caps text-label-caps uppercase px-6 py-3 rounded-full flex items-center gap-2 group shadow-sm border border-outline-variant/20" onclick="const icon = this.querySelector('.material-symbols-outlined'); icon.classList.add('animate-spin'); apiFetch('/api/v1/profile/sync', {method: 'POST'}).then(() =&gt; { location.reload(); }).catch(err =&gt; { alert('Sync failed: ' + err.message); icon.classList.remove('animate-spin'); })">
+<span class="material-symbols-outlined text-[18px] group-hover:rotate-180 transition-transform duration-500">sync</span>
+          Sync Data
+        </button>
+<button class="bg-primary hover:bg-primary-fixed-dim transition-all text-on-primary font-label-caps text-label-caps uppercase px-6 py-3 rounded-full shadow-[0_0_15px_rgba(212,175,55,0.2)] hover:shadow-[0_0_25px_rgba(212,175,55,0.4)] flex items-center gap-2" onclick="this.disabled=true; this.innerHTML='&lt;span class=&quot;material-symbols-outlined text-[18px] animate-spin&quot;&gt;sync&lt;/span&gt; Optimizing...'; apiFetch('/api/v1/resume/optimize', {method: 'POST'}).then(data =&gt; { alert('Resume Optimized!'); location.reload(); }).catch(err =&gt; { alert('Optimization failed: ' + err.message); }).finally(() =&gt; { this.disabled=false; this.innerHTML='&lt;span class=&quot;material-symbols-outlined text-[18px]&quot;&gt;auto_awesome&lt;/span&gt; Optimize Resume'; })">
+<span class="material-symbols-outlined text-[18px]">auto_awesome</span>
+           Optimize Resume
+        </button>
+</div>
+</header>
+<!-- Left Column: Readiness & Skills (4 cols) -->
+<div class="col-span-12 lg:col-span-4 flex flex-col gap-margin-lg">
+<!-- Career Readiness Card -->
+<div class="bg-surface-container rounded-2xl p-margin-lg relative overflow-hidden group shadow-md transition-transform duration-300 hover:-translate-y-1 border border-outline-variant/10">
+<div class="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+<div class="absolute inset-0 border border-[rgba(212,175,55,0.15)] rounded-2xl group-hover:border-[rgba(212,175,55,0.35)] transition-colors duration-300 pointer-events-none"></div>
+<div class="flex justify-between items-center mb-margin-sm">
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Career Readiness</h2>
+<span class="material-symbols-outlined text-outline-variant">info</span>
+</div>
+<div class="flex flex-col items-center justify-center py-margin-sm relative">
+<svg class="w-48 h-48 -rotate-90" viewBox="0 0 100 100">
+<circle cx="50" cy="50" fill="transparent" r="40" stroke="#2d2927" stroke-linecap="round" stroke-width="8"></circle>
+<circle class="transition-all duration-1000 ease-out" cx="50" cy="50" fill="transparent" r="40" stroke="#d4af37" stroke-dasharray="251.2" stroke-dashoffset="35" stroke-linecap="round" stroke-width="8"></circle>
+</svg>
+<div class="absolute inset-0 flex flex-col items-center justify-center">
+<span class="font-stat-mono text-stat-mono text-primary" id="career-readiness-score">86%</span>
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase mt-unit">Optimized</span>
+</div>
+</div>
+<div class="mt-margin-sm space-y-3">
+<div class="flex justify-between items-center bg-surface-container-low p-3 rounded-lg">
+<span class="font-body-base text-body-base text-on-surface-variant">Resume Score</span>
+<span class="font-label-caps text-label-caps text-primary">92/100</span>
+</div>
+<div class="flex justify-between items-center bg-surface-container-low p-3 rounded-lg">
+<span class="font-body-base text-body-base text-on-surface-variant">Interview Prep</span>
+<span class="font-label-caps text-label-caps text-primary">78/100</span>
+</div>
+</div>
+<div class="hidden absolute inset-0 bg-surface-container/80 backdrop-blur-sm z-20 flex flex-col items-center justify-center gap-4" id="readiness-loading"><div class="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div><p class="font-label-caps text-label-caps text-primary uppercase">Analyzing Profile...</p></div><div class="hidden absolute inset-0 bg-surface-container z-20 flex flex-col items-center justify-center p-6 text-center" id="readiness-error"><span class="material-symbols-outlined text-error mb-2 text-[32px]">error</span><p class="font-body-base text-on-surface mb-4">Failed to load readiness data</p><button class="text-primary font-label-caps text-label-caps uppercase border border-primary/20 px-4 py-2 rounded-full hover:bg-primary/10">Retry</button></div></div>
+<!-- Skill Growth Card -->
+<div class="bg-surface-container rounded-2xl p-margin-lg relative group shadow-md transition-transform duration-300 hover:-translate-y-1 border border-outline-variant/10">
+<div class="absolute inset-0 border border-[rgba(212,175,55,0.15)] rounded-2xl group-hover:border-[rgba(212,175,55,0.35)] transition-colors duration-300 pointer-events-none"></div>
+<h2 class="font-headline-sm text-headline-sm text-on-surface mb-margin-sm">Skill Growth Vectors</h2>
+<div class="space-y-4">
+<!-- Skill 1 -->
+<div>
+<div class="flex justify-between items-end mb-unit">
+<span class="font-body-base text-body-base text-on-surface">Machine Learning</span>
+<span class="font-label-caps text-label-caps text-primary">+12%</span>
+</div>
+<div class="h-2 w-full bg-surface-container-high rounded-full overflow-hidden">
+<div class="h-full bg-primary rounded-full w-[85%] relative">
+<div class="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-r from-transparent to-white/30"></div>
+</div>
+</div>
+</div>
+<!-- Skill 2 -->
+<div>
+<div class="flex justify-between items-end mb-unit">
+<span class="font-body-base text-body-base text-on-surface">Systems Architecture</span>
+<span class="font-label-caps text-label-caps text-primary">+5%</span>
+</div>
+<div class="h-2 w-full bg-surface-container-high rounded-full overflow-hidden">
+<div class="h-full bg-primary rounded-full w-[70%] relative opacity-80"></div>
+</div>
+</div>
+<!-- Skill 3 -->
+<div>
+<div class="flex justify-between items-end mb-unit">
+<span class="font-body-base text-body-base text-on-surface">Team Leadership</span>
+<span class="font-label-caps text-label-caps text-on-surface-variant opacity-70">Focus Area</span>
+</div>
+<div class="h-2 w-full bg-surface-container-high rounded-full overflow-hidden">
+<div class="h-full bg-outline-variant rounded-full w-[45%] relative"></div>
+</div>
+</div>
+</div>
+<button class="w-full mt-margin-sm py-3 flex items-center justify-center gap-2 text-primary font-label-caps text-label-caps hover:bg-primary/10 rounded-lg transition-colors">
+            Explore Skill Gaps <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</button>
+</div>
+<!-- Next Best Actions -->
+<div class="bg-surface-container rounded-2xl p-margin-lg relative group shadow-md transition-transform duration-300 hover:-translate-y-1 border border-outline-variant/10">
+<div class="absolute inset-0 border border-[rgba(212,175,55,0.15)] rounded-2xl group-hover:border-[rgba(212,175,55,0.35)] transition-colors duration-300 pointer-events-none"></div>
+<h2 class="font-headline-sm text-headline-sm text-on-surface mb-margin-sm">Next Best Actions</h2>
+<ul class="space-y-3" id="recommendations-list">
+<!-- populated via JS -->
+<li class="flex items-center gap-3 p-3 bg-surface-container-low rounded-lg border border-outline-variant/10">
+                <span class="material-symbols-outlined text-primary">psychology</span>
+                <span class="font-body-base text-on-surface flex-1">Complete Rust Assessment</span>
+                <button class="text-on-surface-variant hover:text-primary"><span class="material-symbols-outlined text-sm">arrow_forward</span></button>
+            </li><li class="flex items-center gap-3 p-3 bg-surface-container-low rounded-lg border border-outline-variant/10">
+                <span class="material-symbols-outlined text-primary">description</span>
+                <span class="font-body-base text-on-surface flex-1">Tailor resume for Senior AI Engineer</span>
+                <button class="text-on-surface-variant hover:text-primary"><span class="material-symbols-outlined text-sm">arrow_forward</span></button>
+            </li><li class="flex items-center gap-3 p-3 bg-surface-container-low rounded-lg border border-outline-variant/10">
+                <span class="material-symbols-outlined text-primary">work</span>
+                <span class="font-body-base text-on-surface flex-1">Apply to Nexus Technologies</span>
+                <button class="text-on-surface-variant hover:text-primary"><span class="material-symbols-outlined text-sm">arrow_forward</span></button>
+            </li></ul>
+</div>
+</div>
+<!-- Right Column: Jobs & Activity (8 cols) -->
+<div class="col-span-12 lg:col-span-8 flex flex-col gap-margin-lg">
+<!-- Recommended Jobs Bento Grid -->
+<div>
+<div class="flex justify-between items-end mb-margin-sm">
+<h2 class="font-headline-md text-headline-md text-on-surface">Algorithmic Matches</h2>
+<a class="font-label-caps text-label-caps text-primary hover:underline underline-offset-4 flex items-center gap-1" href="job-search.html?filter=matches">View All <span class="material-symbols-outlined text-[16px]">chevron_right</span></a>
+</div>
+<div class="py-12 flex flex-col items-center justify-center gap-4 bg-surface-container-low rounded-xl border border-outline-variant/10" id="matches-loading">
+<div class="w-full max-w-2xl space-y-4">
+<div class="h-24 bg-surface-container animate-pulse rounded-xl"></div>
+<div class="h-24 bg-surface-container animate-pulse rounded-xl"></div>
+</div>
+</div>
+<div class="hidden py-12 flex flex-col items-center justify-center text-center bg-surface-container-low rounded-xl border border-dashed border-outline-variant/30" id="matches-empty"><span class="material-symbols-outlined text-outline-variant mb-3 text-[40px]">search_off</span><h3 class="font-headline-sm text-on-surface">No matches found yet</h3><p class="font-body-base text-on-surface-variant max-w-xs mx-auto mt-2">Try updating your skills or resume to see more relevant opportunities.</p><button class="mt-6 text-primary font-label-caps text-label-caps uppercase flex items-center gap-2 hover:underline"><span class="material-symbols-outlined text-[18px]">edit</span> Update Profile</button></div><div class="hidden py-12 flex flex-col items-center justify-center text-center bg-surface-container-low rounded-xl border border-outline-variant/10" id="matches-error"><span class="material-symbols-outlined text-error mb-2 text-[32px]">cloud_off</span><p class="font-body-base text-on-surface">Unable to fetch job matches</p><button class="mt-4 bg-surface-container-high px-6 py-2 rounded-full font-label-caps text-label-caps uppercase text-on-surface hover:bg-surface-container-highest transition-colors">Try Again</button></div><div class="grid grid-cols-1 md:grid-cols-2 gap-margin-sm hidden" id="matches-content">
+<!-- Job Card 1 -->
+<div class="bg-surface-container p-margin-sm rounded-xl relative group shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg flex flex-col h-full min-h-[220px] border border-outline-variant/10">
+<div class="absolute inset-0 border border-[rgba(212,175,55,0.15)] rounded-xl group-hover:border-[rgba(212,175,55,0.35)] transition-colors duration-300 pointer-events-none"></div>
+<div class="flex justify-between items-start mb-auto">
+<div class="w-12 h-12 bg-surface rounded-lg flex items-center justify-center overflow-hidden">
+<img class="w-8 h-8 object-contain" data-alt="A stylized geometric logo resembling a neural network node in shades of gold and deep blue on a dark background, minimal and corporate." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD_KCGWJ0TypH_iEOH-bvqJEgj5S7eiL1gAaCstTJKVBeO0rAucPjKfFwzLyReMB1Jm1Jo0blWXn8f7cyCM1aHbG3i67L5tExNCh9oy4tQexDjbRekiaL99KF4ZX8_lv9pjW_xd4liuaneIZSLYJrKQcEmsxlM-bJxszB9IJNcgs-muRwSGlycNv7J8qc52gNyI8eTfrwgGF4TTayZBg3OpK5Bo6sNNlojcbnh4i9xr4giyYWM0Ukv84g">
+</div>
+<div class="flex flex-col items-end">
+<span class="font-stat-mono text-[24px] leading-none text-primary">98%</span>
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase scale-75 origin-right">Match</span>
+</div>
+</div>
+<div class="mt-4">
+<h3 class="font-headline-lg text-[24px] leading-tight text-on-surface mb-1">Senior AI Engineer</h3>
+<p class="font-body-base text-body-base text-on-surface-variant mb-4">Nexus Technologies • Remote</p>
+<div class="flex flex-wrap gap-2">
+<span class="bg-[#0c3b2e] text-[#4ade80] px-2 py-1 rounded text-[10px] font-label-caps uppercase flex items-center gap-1"><span class="material-symbols-outlined text-[12px]">check</span> PyTorch</span>
+<span class="bg-[#3b2e0c] text-primary px-2 py-1 rounded text-[10px] font-label-caps uppercase flex items-center gap-1"><span class="material-symbols-outlined text-[12px]">add</span> Rust</span>
+</div>
+</div>
+</div>
+<!-- Job Card 2 -->
+<div class="bg-surface-container p-margin-sm rounded-xl relative group shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg flex flex-col h-full min-h-[220px] border border-outline-variant/10">
+<div class="absolute inset-0 border border-[rgba(212,175,55,0.15)] rounded-xl group-hover:border-[rgba(212,175,55,0.35)] transition-colors duration-300 pointer-events-none"></div>
+<div class="flex justify-between items-start mb-auto">
+<div class="w-12 h-12 bg-surface rounded-lg flex items-center justify-center overflow-hidden">
+<img class="w-8 h-8 object-contain" data-alt="A sleek minimalist logo of a stylized letter 'Q' in silver and white against a very dark grey background, representing a high-tech financial firm." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDpIt9IqleBJscE3HP2A1IVKru9WSpv69fodJ5f0nThJ4LfWagmabRJ7snxf8EQqXOdrtd0AGMExke3tLFYO70NRVv7d6qPD0BhDkNHoHd0xjDHzmIjO4BCTZakrAkKE4GDERcfNdN9qi5RjvzedMJW3lrQZgPS0h1poE-SJ1M4iBqAgjZov42EHRZT9eW1vAauAsEZG7eOEuTMfTkiAYnTToagon3xIehhHMXq1ZpD7Zf9iE0oPFoBwA">
+</div>
+<div class="flex flex-col items-end">
+<span class="font-stat-mono text-[24px] leading-none text-primary">94%</span>
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase scale-75 origin-right">Match</span>
+</div>
+</div>
+<div class="mt-4">
+<h3 class="font-headline-lg text-[24px] leading-tight text-on-surface mb-1">Lead Data Scientist</h3>
+<p class="font-body-base text-body-base text-on-surface-variant mb-4">QuantCore • New York (Hybrid)</p>
+<div class="flex flex-wrap gap-2">
+<span class="bg-[#0c3b2e] text-[#4ade80] px-2 py-1 rounded text-[10px] font-label-caps uppercase flex items-center gap-1"><span class="material-symbols-outlined text-[12px]">check</span> Python</span>
+<span class="bg-[#0c3b2e] text-[#4ade80] px-2 py-1 rounded text-[10px] font-label-caps uppercase flex items-center gap-1"><span class="material-symbols-outlined text-[12px]">check</span> SQL</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Recent Activity Timeline -->
+<div class="bg-surface-container rounded-2xl p-margin-lg relative shadow-md mt-auto border border-outline-variant/10">
+<div class="absolute inset-0 border border-[rgba(212,175,55,0.15)] rounded-2xl pointer-events-none"></div>
+<h2 class="font-headline-sm text-headline-sm text-on-surface mb-margin-sm">Activity Log</h2>
+<div class="relative pl-6 space-y-6">
+<!-- Timeline Line -->
+<div class="absolute left-[11px] top-2 bottom-2 w-[2px] bg-surface-container-high rounded-full"></div>
+<!-- Item 1 -->
+<div class="relative">
+<div class="absolute -left-[30px] top-1 w-4 h-4 rounded-full bg-surface-container border-2 border-primary flex items-center justify-center shadow-[0_0_8px_rgba(212,175,55,0.4)]">
+<div class="w-1.5 h-1.5 bg-primary rounded-full"></div>
+</div>
+<div class="flex justify-between items-start">
+<div>
+<p class="font-body-lg text-body-lg text-on-surface">Application Submitted: <span class="font-semibold text-primary">Google</span></p>
+<p class="font-body-base text-body-base text-on-surface-variant">Role: Staff Software Engineer</p>
+</div>
+<span class="font-label-caps text-label-caps text-outline-variant">2H AGO</span>
+</div>
+</div>
+<!-- Item 2 -->
+<div class="relative">
+<div class="absolute -left-[30px] top-1 w-4 h-4 rounded-full bg-surface-container border-2 border-outline-variant flex items-center justify-center"></div>
+<div class="flex justify-between items-start">
+<div>
+<p class="font-body-lg text-body-lg text-on-surface text-opacity-80">AI Resume Tailoring Complete</p>
+<p class="font-body-base text-body-base text-on-surface-variant">Generated 3 new bullet points focusing on system scalability.</p>
+</div>
+<span class="font-label-caps text-label-caps text-outline-variant">1D AGO</span>
+</div>
+</div>
+<!-- Item 3 -->
+<div class="relative">
+<div class="absolute -left-[30px] top-1 w-4 h-4 rounded-full bg-surface-container border-2 border-outline-variant flex items-center justify-center"></div>
+<div class="flex justify-between items-start">
+<div>
+<p class="font-body-lg text-body-lg text-on-surface text-opacity-80">Skill Verified: <span class="text-on-surface">Kubernetes</span></p>
+<p class="font-body-base text-body-base text-on-surface-variant">Passed advanced assessment (Top 5%).</p>
+</div>
+<span class="font-label-caps text-label-caps text-outline-variant">3D AGO</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div></main></div>
+<!-- Career Coach Widget -->
+<button class="fixed bottom-8 right-8 bg-primary text-on-primary w-14 h-14 rounded-full shadow-[0_0_20px_rgba(212,175,55,0.3)] hover:shadow-[0_0_30px_rgba(212,175,55,0.5)] transition-all duration-300 flex items-center justify-center z-50 group">
+<span class="material-symbols-outlined text-3xl group-hover:scale-110 transition-transform">support_agent</span>
+</button>
+<script>
+  window.appState = window.appState || {};
+  window.appState.readinessScore = 86;
+  window.appState.recommendations = [
+      { id: 1, title: 'Complete Rust Assessment', type: 'skill' },
+      { id: 2, title: 'Tailor resume for Senior AI Engineer', type: 'resume' },
+      { id: 3, title: 'Apply to Nexus Technologies', type: 'job' }
+  ];
+
+  // Secure User Profile Implementation
+  window.userProfile = {
+    firstName: 'Alex',
+    lastName: 'Chen',
+    level: 42,
+    role: 'Developer',
+    avatarUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAmPZ5tx23iRaJiJEj4PJ7EaJs0AEy1ELehLoOTRY31ZpCRZ6RALiByEjO03tS3OSM57JlnIbM7tW4HFUqH6zsopjzgyBEO2a-X5Y31G10-FL0-YhH44t2TktsEtpJcslNyJanM27VTw5Blxj_zIBJlmhM61MDOf3mQyVcavP1m1osSAtJjQJb94Bdm0NFxhepJtRrKdclkyM29uLKf444tK-0pN0gXCi7JKo8BgSWRkXSki7l3G53buQ'
+  };
+
+  // API Fetch Utility with Timeout Handling
+  async function apiFetch(url, options = {}) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error.name === 'AbortError') {
+        throw new Error('Request Timed Out');
+      }
+      throw error;
+    }
+  }
+
+  // Example data fetching logic
+  async function loadDashboardData() {
+    
+    // Update Readiness Score
+    const scoreElement = document.getElementById('career-readiness-score');
+    if(scoreElement && window.appState.readinessScore) {
+        scoreElement.textContent = `${window.appState.readinessScore}%`;
+    }
+
+    // Populate Recommendations
+    const recsList = document.getElementById('recommendations-list');
+    if (recsList && window.appState.recommendations) {
+        window.appState.recommendations.forEach(rec => {
+            const li = document.createElement('li');
+            li.className = "flex items-center gap-3 p-3 bg-surface-container-low rounded-lg border border-outline-variant/10";
+            
+            let icon = 'task_alt';
+            if(rec.type === 'skill') icon = 'psychology';
+            if(rec.type === 'resume') icon = 'description';
+            if(rec.type === 'job') icon = 'work';
+
+            li.innerHTML = `
+                <span class="material-symbols-outlined text-primary">${icon}</span>
+                <span class="font-body-base text-on-surface flex-1">${rec.title}</span>
+                <button class="text-on-surface-variant hover:text-primary"><span class="material-symbols-outlined text-sm">arrow_forward</span></button>
+            `;
+            recsList.appendChild(li);
+        });
+    }
+
+    // Algorithmic Matches Fetch Simulation
+    try {
+      // await apiFetch('/api/matches');
+      setTimeout(() => {
+          document.getElementById('matches-loading').classList.add('hidden');
+          document.getElementById('matches-content').classList.remove('hidden');
+      }, 1000);
+    } catch (error) {
+      document.getElementById('matches-loading').classList.add('hidden');
+      const matchesError = document.getElementById('matches-error');
+      if (matchesError) {
+        matchesError.classList.remove('hidden');
+        if (error.message === 'Request Timed Out') {
+          matchesError.querySelector('p').textContent = 'Request Timed Out';
+        }
+      }
+    }
+
+    // Career Readiness Fetch Simulation
+    try {
+      // await apiFetch('/api/readiness');
+    } catch (error) {
+      const readinessError = document.getElementById('readiness-error');
+      if (readinessError) {
+        readinessError.classList.remove('hidden');
+        if (error.message === 'Request Timed Out') {
+          readinessError.querySelector('p').textContent = 'Request Timed Out';
+        }
+      }
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', loadDashboardData);
+</script>
+
+
+</body></html>

@@ -1,0 +1,27 @@
+# CareerForge AI: Phase 4-7 Implementation Log
+
+## Phase 4: Job Discovery & Detail
+- **Discovery**: Integrated `calculateMatch` logic into `JobCard` components. Implemented 'Advanced Filters' and 'For You' recommendation sorting.
+- **Detail**: Created `JobDetailView` with automated 'Fit Analysis'. Linked 'Optimize Resume' directly to Resume Studio with job context.
+
+## Phase 5: Resume Studio Persistence
+- **Editor**: Switched to a robust content-editable architecture with auto-save to `PUT /api/v1/resume/:id`.
+- **Versioning**: Implemented `createVersion` logic for job-specific resume variants.
+- **Persistence**: Verified data integrity across page refreshes and session restarts.
+
+## Phase 6: AI Resume / ATS Engine
+- **Engine**: Implemented `ATSAnalyzer` to identify missing keywords and weak impact statements.
+- **Optimization**: Connected 'Apply Suggestion' buttons to the `bulletRewrite` service.
+- **Scoring**: Unified `ResumeScore` calculation based on job-specific relevance.
+
+## Phase 7: Application AI
+- **Contextual Generation**: Built `ApplicationAIGenerator` using (User Profile + Resume + Job + Company).
+- **Templates**: Implemented multi-channel generation: Cover Letter, LinkedIn Message, Recruiter Email.
+- **Editor**: Added markdown preview and editing for all generated content.
+
+## Status
+- [x] Phase 1-5: Complete
+- [x] Phase 6: AI Resume / ATS Engine (Complete)
+- [x] Phase 7: Application AI (Complete)
+- [ ] Phase 8: Application Tracker (In Progress)
+- [ ] Phase 9: Skill Intelligence (In Progress)
