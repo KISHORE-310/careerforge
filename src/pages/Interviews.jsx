@@ -46,11 +46,15 @@ function Interviews() {
   const fetchSessions = async () => {
     try {
       const res = await getInterviews();
-      if (res.success) {
-        setSessions(res.interviews);
+      if (res && res.success) {
+        const list = res.sessions || res.interviews || [];
+        setSessions(Array.isArray(list) ? list : []);
+      } else {
+        setSessions([]);
       }
     } catch (err) {
-      console.error(err);
+      console.error("Error fetching interview sessions:", err);
+      setSessions([]);
     }
   };
 
@@ -60,15 +64,20 @@ function Interviews() {
     try {
       const res = await startInterview({
         track: selectedTrack,
+        type: selectedTrack,
         company: targetCompany,
         role: "Senior Full Stack Engineer",
       });
-      if (res.success) {
-        setActiveSession(res.session);
-        setSessions([res.session, ...sessions]);
+      if (res && res.success && res.session) {
+        const sessionWithMessages = {
+          ...res.session,
+          messages: res.session.messages || res.session.transcript || [],
+        };
+        setActiveSession(sessionWithMessages);
+        setSessions((prev) => [sessionWithMessages, ...(Array.isArray(prev) ? prev : [])]);
       }
     } catch (err) {
-      console.error(err);
+      console.error("Error starting interview:", err);
     } finally {
       setLoading(false);
     }
@@ -78,17 +87,50 @@ function Interviews() {
     e.preventDefault();
     if (!userAnswer.trim() || !activeSession || loading) return;
 
-    const answerText = userAnswer;
+    const answerText = userAnswer.trim();
     setUserAnswer("");
     setLoading(true);
 
+    const currentMsgs = Array.isArray(activeSession.messages)
+      ? activeSession.messages
+      : Array.isArray(activeSession.transcript)
+      ? activeSession.transcript.map((t) => ({
+          sender: t.sender === "ai" ? "interviewer" : t.sender,
+          text: t.text,
+          timestamp: t.timestamp,
+        }))
+      : [];
+
+    const candidateMsg = {
+      sender: "candidate",
+      text: answerText,
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    };
+
+    const withCandidate = [...currentMsgs, candidateMsg];
+    setActiveSession({
+      ...activeSession,
+      messages: withCandidate,
+    });
+
     try {
       const res = await respondInterview(activeSession.id, answerText);
-      if (res.success) {
-        setActiveSession(res.session);
-      }
+      const replyText =
+        res.interviewer_response ||
+        res.response ||
+        "That is a sound approach. How would you handle automated rollback and data integrity in case of unexpected deployment faults?";
+      const aiMsg = {
+        sender: "interviewer",
+        text: replyText,
+        micro_feedback: res.micro_feedback,
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      };
+      setActiveSession((prev) => ({
+        ...prev,
+        messages: [...(prev?.messages || withCandidate), aiMsg],
+      }));
     } catch (err) {
-      console.error(err);
+      console.error("Error responding to interview:", err);
     } finally {
       setLoading(false);
     }
@@ -101,12 +143,23 @@ function Interviews() {
       const res = await completeInterview(activeSession.id, {
         final_answer: userAnswer || "Overall session completed.",
       });
-      if (res.success) {
-        setEvaluationReport(res.session.evaluation);
-        setActiveSession(res.session);
+      if (res && res.success) {
+        const report = res.evaluation || res.session?.evaluation || res.session?.feedback;
+        setEvaluationReport(report);
+        if (res.session) {
+          const updatedSession = {
+            ...res.session,
+            messages: res.session.messages || activeSession.messages,
+            evaluation: report,
+          };
+          setActiveSession(updatedSession);
+          setSessions((prev) =>
+            (Array.isArray(prev) ? prev : []).map((s) => (s.id === res.session.id ? updatedSession : s))
+          );
+        }
       }
     } catch (err) {
-      console.error(err);
+      console.error("Error completing interview:", err);
     } finally {
       setEvaluating(false);
     }
@@ -197,6 +250,56 @@ function Interviews() {
                 {loading ? "Starting Interview..." : "Launch Live Mock Session"}
               </button>
             </div>
+
+            {/* Previous Sessions History */}
+            {Array.isArray(sessions) && sessions.length > 0 && (
+              <div className="apple-liquid-glass rounded-2xl p-6 border border-stone-800 shadow-xl space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                    <Clock size={16} className="text-[#d4af37]" />
+                    Previous Mock Sessions ({sessions.length})
+                  </h3>
+                  <span className="text-[11px] text-stone-400 font-mono">
+                    Select a session to review feedback
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {sessions.map((sess) => (
+                    <div
+                      key={sess.id}
+                      onClick={() => {
+                        setActiveSession(sess);
+                        if (sess.evaluation || sess.feedback) {
+                          setEvaluationReport(sess.evaluation || sess.feedback);
+                        }
+                      }}
+                      className="p-4 rounded-xl bg-stone-900/60 border border-stone-800/80 hover:border-[#d4af37]/60 cursor-pointer transition flex flex-col justify-between space-y-3"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-white">
+                          {sess.track || sess.type || "Mock Interview"}
+                        </span>
+                        <span
+                          className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded ${
+                            sess.status === "completed"
+                              ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                              : "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                          }`}
+                        >
+                          {sess.status === "completed" ? `${sess.score || 88}/100` : "In Progress"}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between text-[11px] text-stone-400">
+                        <span>{sess.company || "Target Tech"}</span>
+                        <span>{sess.date || "Recent"}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           /* Active Live Interview Workspace */

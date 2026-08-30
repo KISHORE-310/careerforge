@@ -50,12 +50,12 @@ function Dashboard() {
           getProgressAnalytics(),
         ]);
 
-        if (profRes.success) setProfile(profRes.user);
-        if (resRes.success) setResumeData(resRes);
-        if (jobRes.success) setRecommendedJobs(jobRes.jobs.slice(0, 3));
-        if (appRes.success) setActiveApplications(appRes.applications.slice(0, 4));
-        if (roadRes.success) setRoadmap(roadRes.roadmap);
-        if (progRes.success) setAnalytics(progRes.analytics);
+        if (profRes?.success && profRes.user) setProfile(profRes.user);
+        if (resRes?.success) setResumeData(resRes);
+        if (jobRes?.success && Array.isArray(jobRes.jobs)) setRecommendedJobs(jobRes.jobs.slice(0, 3));
+        if (appRes?.success && Array.isArray(appRes.applications)) setActiveApplications(appRes.applications.slice(0, 4));
+        if (roadRes?.success && Array.isArray(roadRes.roadmap)) setRoadmap(roadRes.roadmap);
+        if (progRes?.success && progRes.analytics) setAnalytics(progRes.analytics);
       } catch (err) {
         console.error("Dashboard data load error:", err);
       } finally {

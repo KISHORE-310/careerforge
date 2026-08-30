@@ -28,11 +28,14 @@ function Skills() {
   const fetchSkills = async () => {
     try {
       const res = await getSkills();
-      if (res.success) {
-        setSkills(res.skills);
+      if (res && res.success) {
+        setSkills(Array.isArray(res.skills) ? res.skills : []);
+      } else {
+        setSkills([]);
       }
     } catch (err) {
       console.error(err);
+      setSkills([]);
     }
   };
 

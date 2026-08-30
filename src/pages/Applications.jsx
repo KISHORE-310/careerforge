@@ -44,11 +44,14 @@ function Applications() {
   const fetchApps = async () => {
     try {
       const res = await getApplications();
-      if (res.success) {
-        setApplications(res.applications);
+      if (res && res.success) {
+        setApplications(Array.isArray(res.applications) ? res.applications : []);
+      } else {
+        setApplications([]);
       }
     } catch (err) {
       console.error(err);
+      setApplications([]);
     }
   };
 
@@ -57,8 +60,8 @@ function Applications() {
     if (!newApp.company.trim()) return;
     try {
       const res = await addApplication(newApp);
-      if (res.success) {
-        setApplications([...applications, res.application]);
+      if (res && res.success && res.application) {
+        setApplications((prev) => [...(Array.isArray(prev) ? prev : []), res.application]);
         setShowAddModal(false);
         setNewApp({
           company: "",

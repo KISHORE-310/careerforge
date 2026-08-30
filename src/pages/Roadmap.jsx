@@ -25,11 +25,14 @@ function Roadmap() {
   const fetchRoadmap = async () => {
     try {
       const res = await getRoadmap();
-      if (res.success) {
-        setRoadmap(res.roadmap);
+      if (res && res.success) {
+        setRoadmap(Array.isArray(res.roadmap) ? res.roadmap : []);
+      } else {
+        setRoadmap([]);
       }
     } catch (err) {
       console.error(err);
+      setRoadmap([]);
     } finally {
       setLoading(false);
     }

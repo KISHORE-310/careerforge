@@ -28,11 +28,15 @@ function Learning() {
   const fetchLearning = async () => {
     try {
       const res = await getLearning();
-      if (res.success) {
-        setModules(res.modules);
+      if (res && res.success) {
+        const list = res.modules || res.resources || [];
+        setModules(Array.isArray(list) ? list : []);
+      } else {
+        setModules([]);
       }
     } catch (err) {
-      console.error(err);
+      console.error("Error fetching learning modules:", err);
+      setModules([]);
     }
   };
 

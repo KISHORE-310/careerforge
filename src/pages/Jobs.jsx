@@ -40,11 +40,14 @@ function Jobs() {
       if (filterType !== "all") params.type = filterType;
       if (minMatch > 0) params.min_match = minMatch;
       const res = await getJobs(params);
-      if (res.success) {
-        setJobs(res.jobs);
-        if (res.jobs.length > 0 && !selectedJob) {
-          setSelectedJob(res.jobs[0]);
+      if (res && res.success) {
+        const list = Array.isArray(res.jobs) ? res.jobs : [];
+        setJobs(list);
+        if (list.length > 0 && !selectedJob) {
+          setSelectedJob(list[0]);
         }
+      } else {
+        setJobs([]);
       }
     } catch (err) {
       console.error(err);

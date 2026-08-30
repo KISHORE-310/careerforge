@@ -23,8 +23,10 @@ function Companies() {
     async function load() {
       try {
         const res = await getCompanies();
-        if (res.success) {
-          setCompanies(res.companies);
+        if (res && res.success) {
+          setCompanies(Array.isArray(res.companies) ? res.companies : []);
+        } else {
+          setCompanies([]);
         }
       } catch (err) {
         console.error(err);
