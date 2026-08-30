@@ -1,0 +1,8 @@
+{
+  "name": "CareerForge AI",
+  "description": "Career intelligence, ATS resume evaluation, learning roadmaps, and DSA prep tracker.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
