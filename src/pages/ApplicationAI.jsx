@@ -11,8 +11,38 @@ import {
   Layers,
   RefreshCw,
   ChevronRight,
+  FileText,
+  Mail,
+  Zap,
 } from "lucide-react";
 import { generateApplicationAI } from "../services/api";
+
+const PRESETS = [
+  {
+    title: "Senior Full Stack @ Stripe",
+    company: "Stripe",
+    role: "Staff Software Engineer",
+    type: "cover_letter",
+    tone: "Metric-Focused & Confident",
+    keyPoints: "Architected distributed payment routing engine processing 20M requests/day; reduced p99 latency by 35% with Redis caching and Go.",
+  },
+  {
+    title: "Referral Request @ Google",
+    company: "Google",
+    role: "Senior Backend Engineer",
+    type: "referral_request",
+    tone: "Warm & Collaborative",
+    keyPoints: "Built high-throughput Spanner microservices, active open-source contributor to Kubernetes client libraries.",
+  },
+  {
+    title: "LinkedIn InMail @ Meta",
+    company: "Meta",
+    role: "Production Engineer",
+    type: "linkedin_pitch",
+    tone: "Concise & Direct (Recruiter-friendly)",
+    keyPoints: "Led infrastructure reliability scaling, reduced MTTR by 50% using eBPF observability and automated remediation.",
+  },
+];
 
 function ApplicationAI() {
   const [docType, setDocType] = useState("cover_letter");
@@ -30,6 +60,14 @@ function ApplicationAI() {
     { id: "referral_request", label: "Referral Request", desc: "Warm message for engineering connections" },
     { id: "follow_up", label: "Interview Follow-Up", desc: "Post-interview thank you highlighting technical points" },
   ];
+
+  const handleApplyPreset = (preset) => {
+    setCompany(preset.company);
+    setRole(preset.role);
+    setDocType(preset.type);
+    setTone(preset.tone);
+    setKeyPoints(preset.keyPoints);
+  };
 
   const handleGenerate = async () => {
     setLoading(true);
@@ -57,22 +95,54 @@ function ApplicationAI() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleDownload = (format = "txt") => {
+    if (!generatedContent) return;
+    const blob = new Blob([generatedContent], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${company}_${role.replace(/\s+/g, "_")}_${docType}.${format}`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const wordCount = generatedContent
+    ? generatedContent.trim().split(/\s+/).filter(Boolean).length
+    : 0;
+
   return (
     <AppLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded bg-[#d4af37]/20 text-[#f5d77f] font-semibold border border-[#d4af37]/30">
-              Application Intelligence
-            </span>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded bg-[#d4af37]/20 text-[#f5d77f] font-semibold border border-[#d4af37]/30">
+                Application Intelligence
+              </span>
+            </div>
+            <h1 className="text-2xl font-serif-header text-white">
+              Application AI Writer
+            </h1>
+            <p className="text-xs text-stone-400 font-light mt-0.5">
+              Craft high-conversion cover letters, recruiter pitches, and referral outreach messages tailored to target tech companies.
+            </p>
           </div>
-          <h1 className="text-2xl font-serif-header text-white">
-            Application AI Writer
-          </h1>
-          <p className="text-xs text-stone-400 font-light mt-0.5">
-            Craft high-conversion cover letters, recruiter pitches, and referral outreach messages tailored to target tech companies.
-          </p>
+        </div>
+
+        {/* Quick Presets Row */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1">
+          <span className="text-[11px] font-mono text-stone-500 shrink-0">Quick Presets:</span>
+          {PRESETS.map((preset, idx) => (
+            <button
+              key={idx}
+              onClick={() => handleApplyPreset(preset)}
+              className="px-3 py-1.5 rounded-xl bg-stone-900/80 hover:bg-[#d4af37]/20 border border-stone-800 hover:border-[#d4af37]/40 text-xs text-stone-300 hover:text-[#f5d77f] whitespace-nowrap transition flex items-center gap-1.5"
+            >
+              <Zap size={12} className="text-[#d4af37]" />
+              <span>{preset.title}</span>
+            </button>
+          ))}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -166,16 +236,42 @@ function ApplicationAI() {
                   <div className="flex items-center gap-2">
                     <Sparkles size={14} className="text-[#d4af37]" />
                     <span className="text-xs font-semibold text-white">Generated Content</span>
+                    {wordCount > 0 && (
+                      <span className="text-[10px] font-mono text-stone-400 bg-stone-900 px-2 py-0.5 rounded-md border border-stone-800">
+                        {wordCount} words
+                      </span>
+                    )}
                   </div>
 
                   {generatedContent && (
-                    <button
-                      onClick={handleCopy}
-                      className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-stone-900 border border-stone-800 text-stone-300 hover:text-white text-xs transition"
-                    >
-                      {copied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
-                      {copied ? "Copied" : "Copy"}
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={handleCopy}
+                        className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-stone-900 border border-stone-800 text-stone-300 hover:text-white text-xs transition"
+                        title="Copy to clipboard"
+                      >
+                        {copied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+                        {copied ? "Copied" : "Copy"}
+                      </button>
+
+                      <button
+                        onClick={() => handleDownload("txt")}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-stone-900 border border-stone-800 text-stone-300 hover:text-white text-xs transition"
+                        title="Download as Plain Text"
+                      >
+                        <Download size={13} />
+                        .txt
+                      </button>
+
+                      <button
+                        onClick={() => handleDownload("md")}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-stone-900 border border-stone-800 text-stone-300 hover:text-white text-xs transition"
+                        title="Download as Markdown"
+                      >
+                        <FileText size={13} />
+                        .md
+                      </button>
+                    </div>
                   )}
                 </div>
 
@@ -202,3 +298,4 @@ function ApplicationAI() {
 }
 
 export default ApplicationAI;
+

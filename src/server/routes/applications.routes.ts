@@ -1,0 +1,149 @@
+import { Router, Request, Response } from "express";
+import { db } from "../../db/repositories";
+import { authenticateToken, optionalAuth, AuthenticatedRequest } from "../auth";
+import { aiLimiter, validateBody } from "../security";
+import { ApplicationCreateSchema, ApplicationUpdateSchema, AICoverLetterSchema } from "../schemas";
+import { aiService } from "../services/ai.service";
+
+export const applicationsRouter = Router();
+
+// GET /api/applications
+applicationsRouter.get("/", authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as AuthenticatedRequest).userId;
+    const apps = await db.applications.listByUser(userId);
+    const formatted = apps.map((a) => ({
+      id: a.id,
+      company: a.company,
+      role: a.role,
+      location: a.location || "Remote",
+      salary: a.salary || "$150,000",
+      status: a.status,
+      applied_date: a.appliedDate.toISOString().split("T")[0],
+      match_score: a.matchScore || 85,
+      notes: a.notes || "",
+      next_step: a.nextStep || "Application Review",
+    }));
+
+    res.json({ success: true, count: formatted.length, applications: formatted });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: "Failed to retrieve job applications." });
+  }
+});
+
+// POST /api/applications
+applicationsRouter.post(
+  "/",
+  authenticateToken,
+  validateBody(ApplicationCreateSchema),
+  async (req: Request, res: Response) => {
+    try {
+      const userId = (req as AuthenticatedRequest).userId;
+      const newApp = await db.applications.create(userId, req.body);
+
+      await db.notifications.create(userId, {
+        title: `Application Tracked: ${newApp.company}`,
+        message: `Added ${newApp.role} at ${newApp.company} to your tracker.`,
+        type: "system",
+        link: "/applications",
+      });
+
+      await db.analytics.recordEvent(userId, "application_created", "Applications", {
+        company: newApp.company,
+        role: newApp.role,
+      });
+
+      res.status(201).json({
+        success: true,
+        application: {
+          id: newApp.id,
+          company: newApp.company,
+          role: newApp.role,
+          location: newApp.location,
+          salary: newApp.salary,
+          status: newApp.status,
+          applied_date: newApp.appliedDate.toISOString().split("T")[0],
+          match_score: newApp.matchScore || 85,
+          notes: newApp.notes,
+          next_step: newApp.nextStep,
+        },
+      });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: "Failed to create application entry." });
+    }
+  }
+);
+
+// PUT /api/applications/:id
+applicationsRouter.put(
+  "/:id",
+  authenticateToken,
+  validateBody(ApplicationUpdateSchema),
+  async (req: Request, res: Response) => {
+    try {
+      const userId = (req as AuthenticatedRequest).userId;
+      const updated = await db.applications.update(req.params.id, userId, req.body);
+      if (!updated) {
+        return res.status(404).json({ success: false, message: "Application not found or unauthorized." });
+      }
+
+      res.json({
+        success: true,
+        application: {
+          id: updated.id,
+          company: updated.company,
+          role: updated.role,
+          location: updated.location,
+          salary: updated.salary,
+          status: updated.status,
+          applied_date: updated.appliedDate.toISOString().split("T")[0],
+          match_score: updated.matchScore || 85,
+          notes: updated.notes,
+          next_step: updated.nextStep,
+        },
+      });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: "Failed to update application." });
+    }
+  }
+);
+
+// DELETE /api/applications/:id
+applicationsRouter.delete("/:id", authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as AuthenticatedRequest).userId;
+    await db.applications.delete(req.params.id, userId);
+    res.json({ success: true, message: "Application deleted successfully." });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: "Failed to delete application." });
+  }
+});
+
+// POST /api/application-ai/generate
+applicationsRouter.post(
+  "/ai/generate",
+  aiLimiter,
+  optionalAuth,
+  validateBody(AICoverLetterSchema),
+  async (req: Request, res: Response) => {
+    try {
+      const { type, company, role, job_description, tone, key_points } = req.body;
+      const userId = (req as any).userId;
+      const user = userId ? await db.users.findById(userId) : null;
+
+      const result = await aiService.generateApplicationDocument({
+        type,
+        company,
+        role,
+        jobDescription: job_description,
+        tone,
+        keyPoints: key_points,
+        candidateName: user?.name || "Candidate",
+      });
+
+      res.json({ success: true, ...result });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: "AI generation encountered an error." });
+    }
+  }
+);
