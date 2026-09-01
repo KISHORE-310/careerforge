@@ -1,65 +1,8 @@
-<<<<<<< HEAD
-// Prisma Schema for CareerForge AI
-
-=======
->>>>>>> 75a0715 (chore: save initial Cursor additions including Prisma schema, server config, and docker-compose)
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-<<<<<<< HEAD
-  provider = "sqlite"
-  url      = "file:./dev.db"
-}
-
-model User {
-  id           String    @id @default(uuid())
-  email        String    @unique
-  passwordHash String
-  name         String
-  role         String    @default("user")
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-
-  // Relationships
-  profile          Profile?
-  resumes          Resume[]
-  resumeVersions   ResumeVersion[]
-  skills           Skill[]
-  jobMatches       JobMatch[]
-  applications     Application[]
-  interviews       Interview[]
-  roadmaps         Roadmap[]
-  learningProgress LearningProgress[]
-  dsaProgress      DSAProgress[]
-  notifications    Notification[]
-  analyticsEvents  AnalyticsEvent[]
-  careerSnapshots  CareerSnapshot[]
-
-  @@index([email])
-}
-
-model Profile {
-  id              String   @id @default(uuid())
-  userId          String   @unique
-  title           String?
-  bio             String?
-  location        String?
-  targetRole      String?
-  targetSalary    Int?
-  experienceLevel String?  @default("Mid-Level")
-  phone           String?
-  github          String?
-  linkedin        String?
-  portfolio       String?
-  avatarUrl       String?
-  preferences     String?  // JSON string for notification/system preferences
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-=======
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
@@ -153,107 +96,11 @@ model RefreshToken {
   tokenHash String   @unique
   expiresAt DateTime
   createdAt DateTime @default(now())
->>>>>>> 75a0715 (chore: save initial Cursor additions including Prisma schema, server config, and docker-compose)
 
   @@index([userId])
 }
 
 model Resume {
-<<<<<<< HEAD
-  id              String   @id @default(uuid())
-  userId          String
-  title           String   @default("My Resume")
-  targetRole      String?
-  contactInfo     String?  // JSON string (name, email, phone, location, links)
-  summary         String?
-  experience      String?  // JSON string of Experience items
-  education       String?  // JSON string of Education items
-  skills          String?  // JSON string of skill arrays/categories
-  projects        String?  // JSON string of Project items
-  certifications  String?  // JSON string of Certifications
-  atsScore        Int?
-  parsedText      String?
-  evaluation      String?  // JSON string of ATS feedback, breakdown, suggestions
-  isPrimary       Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  versions ResumeVersion[]
-
-  @@index([userId])
-}
-
-model ResumeVersion {
-  id         String   @id @default(uuid())
-  resumeId   String
-  userId     String
-  versionNum Int
-  content    String   // JSON snapshot of entire resume state
-  changelog  String?
-  atsScore   Int?
-  createdAt  DateTime @default(now())
-
-  resume Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([resumeId])
-  @@index([userId])
-}
-
-model Skill {
-  id          String   @id @default(uuid())
-  userId      String
-  name        String
-  category    String   @default("Technical")
-  proficiency Int      @default(70) // 1-100
-  verified    Boolean  @default(false)
-  source      String   @default("User") // Resume, Assessment, Course, User
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, name])
-  @@index([userId])
-  @@index([name])
-}
-
-model Job {
-  id           String     @id @default(uuid())
-  title        String
-  company      String
-  companyLogo  String?
-  location     String
-  type         String     @default("Full-time") // Full-time, Contract, Remote, Hybrid
-  workplace    String     @default("Hybrid")    // On-site, Remote, Hybrid
-  salaryMin    Int?
-  salaryMax    Int?
-  salaryText   String?
-  description  String
-  requirements String?    // JSON string of requirement strings
-  skills       String?    // JSON string of skill tags
-  experience   String?
-  applyUrl     String?
-  source       String     @default("Direct")
-  postedAt     DateTime   @default(now())
-  isActive     Boolean    @default(true)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-
-  matches      JobMatch[]
-  applications Application[]
-
-  @@index([title])
-  @@index([company])
-  @@index([location])
-}
-
-model JobMatch {
-  id              String   @id @default(uuid())
-  userId          String
-  jobId           String
-  overallScore    Int      @default(0) // 0-100
   id               String          @id @default(cuid())
   userId           String          @unique
   user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -539,5 +386,4 @@ model MarketInsight {
   payload   Json
   source    String   @default("catalog")
   updatedAt DateTime @updatedAt
-}
 }
