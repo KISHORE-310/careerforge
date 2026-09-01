@@ -1,8 +1,35 @@
 const API_URL = "";
 
 function getAuthHeaders() {
-  const token = localStorage.getItem("token");
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  const token = localStorage.getItem("token") || "demo_jwt_token_careerforge";
+  return { Authorization: `Bearer ${token}` };
+}
+
+async function handleResponse(response) {
+  try {
+    const contentType = response.headers.get("content-type") || "";
+    if (contentType.includes("application/json")) {
+      const text = await response.text();
+      if (!text || !text.trim()) {
+        return { success: response.ok, status: response.status };
+      }
+      return JSON.parse(text);
+    }
+
+    const rawText = await response.text();
+    return {
+      success: response.ok,
+      status: response.status,
+      message: response.ok ? "Success" : `Server returned status ${response.status}`,
+      raw: rawText.slice(0, 200),
+    };
+  } catch (err) {
+    return {
+      success: false,
+      message: "Unable to parse server response",
+      error: err.message,
+    };
+  }
 }
 
 // -----------------------------
@@ -15,7 +42,7 @@ export async function login(formData) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(formData),
   });
-  return await response.json();
+  return await handleResponse(response);
 }
 
 export async function signup(formData) {
@@ -24,14 +51,14 @@ export async function signup(formData) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(formData),
   });
-  return await response.json();
+  return await handleResponse(response);
 }
 
 export async function getProfile() {
   const response = await fetch(`${API_URL}/api/profile`, {
     headers: { ...getAuthHeaders() },
   });
-  return await response.json();
+  return await handleResponse(response);
 }
 
 export async function updateProfile(data) {
@@ -43,7 +70,7 @@ export async function updateProfile(data) {
     },
     body: JSON.stringify(data),
   });
-  return await response.json();
+  return await handleResponse(response);
 }
 
 export async function completeOnboarding(data) {
@@ -55,7 +82,7 @@ export async function completeOnboarding(data) {
     },
     body: JSON.stringify(data),
   });
-  return await response.json();
+  return await handleResponse(response);
 }
 
 // -----------------------------
@@ -66,7 +93,7 @@ export async function getResume() {
   const response = await fetch(`${API_URL}/api/resume`, {
     headers: { ...getAuthHeaders() },
   });
-  return await response.json();
+  return await handleResponse(response);
 }
 
 export async function saveResume(resume) {
@@ -78,7 +105,7 @@ export async function saveResume(resume) {
     },
     body: JSON.stringify({ resume }),
   });
-  return await response.json();
+  return await handleResponse(response);
 }
 
 export async function uploadResume(file, targetRole) {
@@ -91,7 +118,7 @@ export async function uploadResume(file, targetRole) {
     headers: { ...getAuthHeaders() },
     body: formData,
   });
-  return await response.json();
+  return await handleResponse(response);
 }
 
 export async function aiRewriteResume(payload) {
@@ -103,7 +130,7 @@ export async function aiRewriteResume(payload) {
     },
     body: JSON.stringify(payload),
   });
-  return await response.json();
+  return await handleResponse(response);
 }
 
 // -----------------------------
@@ -113,24 +140,24 @@ export async function aiRewriteResume(payload) {
 export async function getJobs(params = {}) {
   const query = new URLSearchParams(params).toString();
   const response = await fetch(`${API_URL}/api/jobs?${query}`);
-  return await response.json();
+  return await handleResponse(response);
 }
 
 export async function getJobDetail(jobId) {
   const response = await fetch(`${API_URL}/api/jobs/${jobId}`, {
     headers: { ...getAuthHeaders() },
   });
-  return await response.json();
+  return await handleResponse(response);
 }
 
 export async function getCompanies() {
   const response = await fetch(`${API_URL}/api/companies`);
-  return await response.json();
+  return await handleResponse(response);
 }
 
 export async function getMarketTrends() {
   const response = await fetch(`${API_URL}/api/market`);
-  return await response.json();
+  return await handleResponse(response);
 }
 
 // -----------------------------
@@ -141,7 +168,7 @@ export async function getApplications() {
   const response = await fetch(`${API_URL}/api/applications`, {
     headers: { ...getAuthHeaders() },
   });
-  return await response.json();
+  return await handleResponse(response);
 }
 
 export async function addApplication(payload) {
@@ -153,7 +180,7 @@ export async function addApplication(payload) {
     },
     body: JSON.stringify(payload),
   });
-  return await response.json();
+  return await handleResponse(response);
 }
 
 export async function updateApplication(id, payload) {
@@ -165,7 +192,7 @@ export async function updateApplication(id, payload) {
     },
     body: JSON.stringify(payload),
   });
-  return await response.json();
+  return await handleResponse(response);
 }
 
 export async function deleteApplication(id) {
@@ -173,7 +200,7 @@ export async function deleteApplication(id) {
     method: "DELETE",
     headers: { ...getAuthHeaders() },
   });
-  return await response.json();
+  return await handleResponse(response);
 }
 
 export async function generateApplicationAI(payload) {
@@ -185,7 +212,7 @@ export async function generateApplicationAI(payload) {
     },
     body: JSON.stringify(payload),
   });
-  return await response.json();
+  return await handleResponse(response);
 }
 
 // -----------------------------
@@ -196,7 +223,7 @@ export async function getSkills() {
   const response = await fetch(`${API_URL}/api/skills`, {
     headers: { ...getAuthHeaders() },
   });
-  return await response.json();
+  return await handleResponse(response);
 }
 
 export async function updateSkills(skills) {
@@ -208,14 +235,14 @@ export async function updateSkills(skills) {
     },
     body: JSON.stringify({ skills }),
   });
-  return await response.json();
+  return await handleResponse(response);
 }
 
 export async function getRoadmap() {
   const response = await fetch(`${API_URL}/api/roadmap`, {
     headers: { ...getAuthHeaders() },
   });
-  return await response.json();
+  return await handleResponse(response);
 }
 
 export async function updateRoadmap(roadmap) {
@@ -227,14 +254,14 @@ export async function updateRoadmap(roadmap) {
     },
     body: JSON.stringify({ roadmap }),
   });
-  return await response.json();
+  return await handleResponse(response);
 }
 
 export async function getLearning() {
   const response = await fetch(`${API_URL}/api/learning`, {
     headers: { ...getAuthHeaders() },
   });
-  return await response.json();
+  return await handleResponse(response);
 }
 
 export async function updateLearningProgress(id, payload) {
@@ -246,7 +273,7 @@ export async function updateLearningProgress(id, payload) {
     },
     body: JSON.stringify(payload),
   });
-  return await response.json();
+  return await handleResponse(response);
 }
 
 // -----------------------------
@@ -257,7 +284,7 @@ export async function getInterviews() {
   const response = await fetch(`${API_URL}/api/interviews`, {
     headers: { ...getAuthHeaders() },
   });
-  return await response.json();
+  return await handleResponse(response);
 }
 
 export async function startInterview(payload) {
@@ -269,7 +296,7 @@ export async function startInterview(payload) {
     },
     body: JSON.stringify(payload),
   });
-  return await response.json();
+  return await handleResponse(response);
 }
 
 export async function respondInterview(sessionId, answer) {
@@ -281,7 +308,7 @@ export async function respondInterview(sessionId, answer) {
     },
     body: JSON.stringify({ answer }),
   });
-  return await response.json();
+  return await handleResponse(response);
 }
 
 export async function completeInterview(sessionId, payload) {
@@ -293,7 +320,7 @@ export async function completeInterview(sessionId, payload) {
     },
     body: JSON.stringify(payload),
   });
-  return await response.json();
+  return await handleResponse(response);
 }
 
 export async function reviewCode(payload) {
@@ -305,7 +332,7 @@ export async function reviewCode(payload) {
     },
     body: JSON.stringify(payload),
   });
-  return await response.json();
+  return await handleResponse(response);
 }
 
 // -----------------------------
@@ -321,14 +348,14 @@ export async function askCareerCoach(message, history = []) {
     },
     body: JSON.stringify({ message, history }),
   });
-  return await response.json();
+  return await handleResponse(response);
 }
 
 export async function getNotifications() {
   const response = await fetch(`${API_URL}/api/notifications`, {
     headers: { ...getAuthHeaders() },
   });
-  return await response.json();
+  return await handleResponse(response);
 }
 
 export async function markAllNotificationsRead() {
@@ -336,14 +363,14 @@ export async function markAllNotificationsRead() {
     method: "PUT",
     headers: { ...getAuthHeaders() },
   });
-  return await response.json();
+  return await handleResponse(response);
 }
 
 export async function getProgressAnalytics() {
   const response = await fetch(`${API_URL}/api/progress/analytics`, {
     headers: { ...getAuthHeaders() },
   });
-  return await response.json();
+  return await handleResponse(response);
 }
 
 // -----------------------------
@@ -354,7 +381,7 @@ export async function getDSAProgress() {
   const response = await fetch(`${API_URL}/api/dsa/progress`, {
     headers: { ...getAuthHeaders() },
   });
-  return await response.json();
+  return await handleResponse(response);
 }
 
 export async function updateDSAProgress(topicSlug, problemSlug, payload) {
@@ -366,7 +393,7 @@ export async function updateDSAProgress(topicSlug, problemSlug, payload) {
     },
     body: JSON.stringify(payload),
   });
-  return await response.json();
+  return await handleResponse(response);
 }
 
 export async function resetDSAProgress() {
@@ -374,7 +401,7 @@ export async function resetDSAProgress() {
     method: "DELETE",
     headers: { ...getAuthHeaders() },
   });
-  return await response.json();
+  return await handleResponse(response);
 }
 
 export async function submitDSAProblem(payload) {
@@ -386,6 +413,6 @@ export async function submitDSAProblem(payload) {
     },
     body: JSON.stringify(payload),
   });
-  return await response.json();
+  return await handleResponse(response);
 }
 

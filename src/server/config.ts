@@ -32,9 +32,8 @@ function validateAndLoadConfig(): ServerConfig {
 
   // Validate Database URL
   let dbUrl = process.env.DATABASE_URL;
-  if (!dbUrl) {
+  if (!dbUrl || !dbUrl.startsWith("file:")) {
     dbUrl = `file:${path.join(process.cwd(), "prisma", "dev.db")}`;
-    process.env.DATABASE_URL = dbUrl;
   }
 
   // Demo Mode check - only true if explicitly set to "true"
@@ -46,7 +45,7 @@ function validateAndLoadConfig(): ServerConfig {
     DATABASE_URL: dbUrl,
     JWT_SECRET: jwtSecret,
     GEMINI_API_KEY: process.env.GEMINI_API_KEY || null,
-    GEMINI_MODEL: process.env.GEMINI_MODEL || "gemini-2.5-flash",
+    GEMINI_MODEL: process.env.GEMINI_MODEL || "gemini-3.7-flash",
     FRONTEND_URL: process.env.FRONTEND_URL || null,
     DEMO_MODE: demoMode,
   };

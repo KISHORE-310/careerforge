@@ -1,92 +1,77 @@
-import { useState, useMemo } from "react";
-import { Flame, Calendar, Award, CheckCircle2, ChevronRight, Zap } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Flame, Calendar, Award, CheckCircle2, Zap, AlertCircle } from "lucide-react";
+import { getProgressAnalytics } from "../../services/api";
 
-/**
- * Generates deterministic 52-week activity data for candidate trajectory
- */
-function generateActivityData() {
-  const data = [];
-  const today = new Date();
-  const startDate = new Date(today);
-  startDate.setDate(startDate.getDate() - 364); // 52 weeks ago
-
-  let currentStreak = 0;
-  let maxStreak = 0;
-  let totalActive = 0;
-  let totalContributions = 0;
-
-  for (let i = 0; i < 365; i++) {
-    const d = new Date(startDate);
-    d.setDate(d.getDate() + i);
-
-    // Realistic tech career prep activity pattern (active weekdays, high weekends, occasional rest)
-    const dayOfWeek = d.getDay();
-    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-    const seed = (i * 13 + (dayOfWeek * 7)) % 100;
-
-    let count = 0;
-    if (i > 300) {
-      // Recent surge in last 2 months
-      count = seed > 20 ? (seed % 6) + 1 : 0;
-    } else if (i > 180) {
-      count = seed > 35 ? (seed % 5) + 1 : 0;
-    } else {
-      count = seed > 45 ? (seed % 4) + 1 : 0;
-    }
-
-    // Map count to intensity level 0-4
-    let level = 0;
-    if (count === 0) level = 0;
-    else if (count <= 2) level = 1;
-    else if (count <= 4) level = 2;
-    else if (count <= 6) level = 3;
-    else level = 4;
-
-    const dsa = Math.floor(count * 0.5);
-    const mock = count > 2 ? 1 : 0;
-    const apps = count > 3 ? count - dsa - mock : 0;
-
-    if (count > 0) {
-      currentStreak++;
-      if (currentStreak > maxStreak) maxStreak = currentStreak;
-      totalActive++;
-      totalContributions += count;
-    } else {
-      // If within last 3 days don't break active current streak
-      if (365 - i > 3) {
-        currentStreak = 0;
-      }
-    }
-
-    data.push({
-      date: d.toISOString().split("T")[0],
-      dayName: d.toLocaleDateString("en-US", { weekday: "short" }),
-      monthName: d.toLocaleDateString("en-US", { month: "short" }),
-      count,
-      level,
-      dsa,
-      mock,
-      apps,
-    });
-  }
-
-  return {
-    days: data,
-    stats: {
-      currentStreak: 16,
-      longestStreak: 42,
-      totalActiveDays: totalActive,
-      totalActivities: totalContributions,
-      completionRate: "94%",
-    },
-  };
-}
-
-export default function ActivityHeatmap({ title = "Career Execution & Practice Heatmap", subtitle = "52-week activity timeline tracking DSA submissions, mock interview loops, and ATS iterations." }) {
+export default function ActivityHeatmap({
+  activityCalendar,
+  title = "Career Execution & Practice Heatmap",
+  subtitle = "52-week activity timeline tracking real LeetCode submissions, mock interview loops, and application submissions.",
+}) {
   const [filter, setFilter] = useState("all");
   const [hoveredDay, setHoveredDay] = useState(null);
+  const [fetchedCalendar, setFetchedCalendar] = useState(null);
+  const [loading, setLoading] = useState(!activityCalendar);
 
-  const { days, stats } = useMemo(() => generateActivityData(), []);
+  useEffect(() => {
+    if (activityCalendar) {
+      setFetchedCalendar(activityCalendar);
+      setLoading(false);
+      return;
+    }
+
+    let isMounted = true;
+    async function load() {
+      try {
+        const res = await getProgressAnalytics();
+        if (isMounted && res?.success && res.analytics?.activity_calendar) {
+          setFetchedCalendar(res.analytics.activity_calendar);
+        }
+      } catch (err) {
+        console.error("Failed to load activity calendar:", err);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+    load();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activityCalendar]);
+
+  const rawDays = fetchedCalendar?.days || [];
+  const stats = fetchedCalendar?.stats || {
+    currentStreak: 0,
+    longestStreak: 0,
+    totalActiveDays: 0,
+    totalActivities: 0,
+    completionRate: "0%",
+  };
+
+  // Fallback placeholder days if not loaded yet (all 0)
+  const days = useMemo(() => {
+    if (rawDays.length > 0) return rawDays;
+    const placeholderDays = [];
+    const today = new Date();
+    const startDate = new Date(today);
+    startDate.setDate(startDate.getDate() - 364);
+
+    for (let i = 0; i < 365; i++) {
+      const d = new Date(startDate);
+      d.setDate(d.getDate() + i);
+      placeholderDays.push({
+        date: d.toISOString().split("T")[0],
+        dayName: d.toLocaleDateString("en-US", { weekday: "short" }),
+        monthName: d.toLocaleDateString("en-US", { month: "short" }),
+        count: 0,
+        level: 0,
+        dsa: 0,
+        mock: 0,
+        apps: 0,
+      });
+    }
+    return placeholderDays;
+  }, [rawDays]);
 
   // Split days into 52 weeks (7 days each)
   const weeks = useMemo(() => {
@@ -211,6 +196,15 @@ export default function ActivityHeatmap({ title = "Career Execution & Practice H
         </div>
       </div>
 
+      {stats.totalActiveDays === 0 && (
+        <div className="p-3 rounded-xl bg-stone-900/40 border border-stone-800/80 flex items-center gap-2.5 text-xs text-stone-400">
+          <AlertCircle size={15} className="text-[#d4af37] shrink-0" />
+          <span>
+            No prep sessions recorded yet. Solve DSA questions, upload your resume, or practice interview simulations to light up your activity heatmap.
+          </span>
+        </div>
+      )}
+
       {/* Heatmap Grid Stage */}
       <div className="pt-2 overflow-x-auto pb-2 no-scrollbar">
         <div className="min-w-[760px]">
@@ -241,16 +235,15 @@ export default function ActivityHeatmap({ title = "Career Execution & Practice H
               {weeks.map((week, wIdx) => (
                 <div key={wIdx} className="flex flex-col gap-[3.5px]">
                   {week.map((day, dIdx) => {
-                    const effectiveLevel =
-                      filter === "dsa"
-                        ? day.dsa > 0
-                          ? Math.min(4, day.dsa + 1)
-                          : 0
-                        : filter === "mock"
-                        ? day.mock > 0
-                          ? 3
-                          : 0
-                        : day.level;
+                    const effectiveCount =
+                      filter === "dsa" ? day.dsa : filter === "mock" ? day.mock : day.count;
+
+                    let effectiveLevel = 0;
+                    if (effectiveCount === 0) effectiveLevel = 0;
+                    else if (effectiveCount <= 2) effectiveLevel = 1;
+                    else if (effectiveCount <= 4) effectiveLevel = 2;
+                    else if (effectiveCount <= 6) effectiveLevel = 3;
+                    else effectiveLevel = 4;
 
                     return (
                       <div

@@ -123,9 +123,37 @@ roadmapRouter.put("/", authenticateToken, async (req: Request, res: Response) =>
         targetRole: roadmap.targetRole || "Software Engineer",
         milestones: roadmap.milestones,
       });
+      await db.analytics.recordEvent(userId, "roadmap_updated", "Roadmap", {
+        targetRole: roadmap.targetRole,
+        milestonesCount: roadmap.milestones.length,
+      });
     }
     res.json({ success: true, message: "Roadmap updated successfully." });
   } catch (error: any) {
     res.status(500).json({ success: false, message: "Failed to update roadmap." });
   }
 });
+
+// PUT & POST /api/roadmap/milestones/:id
+const updateMilestoneHandler = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as AuthenticatedRequest).userId;
+    const milestoneId = req.params.id;
+    const { status } = req.body;
+    const effectiveStatus = status || "completed";
+
+    const updated = await db.roadmaps.updateMilestone(milestoneId, effectiveStatus);
+    await db.analytics.recordEvent(userId, effectiveStatus === "completed" ? "milestone_completed" : "milestone_updated", "Roadmap", {
+      milestoneId,
+      status: effectiveStatus,
+      title: updated.title,
+    });
+
+    res.json({ success: true, message: "Milestone status updated.", milestone: updated });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: "Failed to update milestone status." });
+  }
+};
+
+roadmapRouter.put("/milestones/:id", authenticateToken, updateMilestoneHandler);
+roadmapRouter.post("/milestones/:id", authenticateToken, updateMilestoneHandler);

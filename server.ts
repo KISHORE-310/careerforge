@@ -15,7 +15,7 @@ import { prisma } from "./src/db/prisma";
 import { authRouter } from "./src/server/routes/auth.routes";
 import { profileRouter } from "./src/server/routes/profile.routes";
 import { resumeRouter } from "./src/server/routes/resume.routes";
-import { jobsRouter } from "./src/server/routes/jobs.routes";
+import { jobsRouter, companiesRouter, marketRouter } from "./src/server/routes/jobs.routes";
 import { applicationsRouter } from "./src/server/routes/applications.routes";
 import { skillsRouter } from "./src/server/routes/skills.routes";
 import { roadmapRouter } from "./src/server/routes/roadmap.routes";
@@ -28,6 +28,9 @@ import { analyticsRouter } from "./src/server/routes/analytics.routes";
 
 const app = express();
 const PORT = config.PORT;
+
+// Enable reverse proxy trust for accurate IP resolution behind Cloud Run / load balancers
+app.set("trust proxy", 1);
 
 // 1. Security Headers & CORS
 app.use(securityHeaders);
@@ -66,8 +69,8 @@ app.use("/api/resume", resumeRouter);
 app.use("/api/resumes", resumeRouter);
 app.use("/api/upload-resume", resumeRouter);
 app.use("/api/jobs", jobsRouter);
-app.use("/api/companies", jobsRouter);
-app.use("/api/market", jobsRouter);
+app.use("/api/companies", companiesRouter);
+app.use("/api/market", marketRouter);
 app.use("/api/applications", applicationsRouter);
 app.use("/api/application-ai", applicationsRouter);
 app.use("/api/skills", skillsRouter);
@@ -86,7 +89,15 @@ app.use("/demo", authRouter);
 app.use("/auth", authRouter);
 app.use("/dsa", dsaRouter);
 
-// 6. Global Sanitized Error Handler (Prevents leaking stack traces or credentials)
+// 6. 404 API Catch-all: Any unmatched /api/* request returns JSON, NEVER HTML fallback
+app.all("/api/*", (req: Request, res: Response) => {
+  res.status(404).json({
+    success: false,
+    message: `API endpoint not found: ${req.method} ${req.originalUrl}`,
+  });
+});
+
+// 7. Global Sanitized Error Handler (Prevents leaking stack traces or credentials)
 app.use(globalErrorHandler);
 
 // 7. Vite Middleware & Static Serving

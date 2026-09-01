@@ -15,6 +15,7 @@ export const authLimiter = rateLimit({
   max: 30,
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false,
   message: {
     success: false,
     message: "Too many authentication attempts. Please try again in 15 minutes.",
@@ -27,6 +28,7 @@ export const uploadLimiter = rateLimit({
   max: 15,
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false,
   message: {
     success: false,
     message: "Resume upload rate limit reached. Please wait before uploading another file.",
@@ -39,6 +41,7 @@ export const aiLimiter = rateLimit({
   max: 40,
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false,
   message: {
     success: false,
     message: "AI generation quota reached for this session. Please try again in a few minutes.",
@@ -51,6 +54,7 @@ export const generalApiLimiter = rateLimit({
   max: 400,
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false,
   message: {
     success: false,
     message: "Too many requests. Please slow down.",

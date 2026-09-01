@@ -87,6 +87,12 @@ applicationsRouter.put(
         return res.status(404).json({ success: false, message: "Application not found or unauthorized." });
       }
 
+      await db.analytics.recordEvent(userId, "application_status_updated", "Applications", {
+        id: updated.id,
+        status: updated.status,
+        company: updated.company,
+      });
+
       res.json({
         success: true,
         application: {
@@ -119,9 +125,9 @@ applicationsRouter.delete("/:id", authenticateToken, async (req: Request, res: R
   }
 });
 
-// POST /api/application-ai/generate
+// POST /api/application-ai/generate, /api/applications/ai/generate, /api/applications/generate
 applicationsRouter.post(
-  "/ai/generate",
+  ["/ai/generate", "/generate", "/ai-generate", "/"],
   aiLimiter,
   optionalAuth,
   validateBody(AICoverLetterSchema),
@@ -143,7 +149,14 @@ applicationsRouter.post(
 
       res.json({ success: true, ...result });
     } catch (error: any) {
-      res.status(500).json({ success: false, message: "AI generation encountered an error." });
+      console.error("[Application Document AI Error]:", error?.message || error);
+      const isMissingKey = error?.message?.includes("GEMINI_API_KEY");
+      res.status(500).json({
+        success: false,
+        message: isMissingKey
+          ? "Document AI Generator requires GEMINI_API_KEY to be configured in server environment."
+          : error?.message || "AI generation encountered an error.",
+      });
     }
   }
 );

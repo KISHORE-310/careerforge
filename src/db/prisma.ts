@@ -4,10 +4,19 @@ import path from "path";
 
 dotenv.config();
 
-const defaultDbUrl = `file:${path.join(process.cwd(), "prisma", "dev.db")}`;
-if (!process.env.DATABASE_URL) {
-  process.env.DATABASE_URL = defaultDbUrl;
+function getValidSqliteUrl(): string {
+  const dbUrl = process.env.DATABASE_URL;
+  if (dbUrl && dbUrl.startsWith("file:")) {
+    return dbUrl;
+  }
+  const customUrl = process.env.SQLITE_DATABASE_URL;
+  if (customUrl && customUrl.startsWith("file:")) {
+    return customUrl;
+  }
+  return `file:${path.join(process.cwd(), "prisma", "dev.db")}`;
 }
+
+const sqliteDbUrl = getValidSqliteUrl();
 
 // Global Prisma instance with graceful initialization
 declare global {
@@ -20,7 +29,7 @@ export const prisma: PrismaClient =
   new PrismaClient({
     datasources: {
       db: {
-        url: process.env.DATABASE_URL || defaultDbUrl,
+        url: sqliteDbUrl,
       },
     },
     log: process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"],

@@ -138,7 +138,14 @@ const handleInterviewMessageHandler = async (req: Request, res: Response) => {
       suggested_topics: aiResponse.suggested_topics || [],
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: "Failed to generate interviewer reply." });
+    console.error("[Interview Message Error]:", error?.message || error);
+    const isMissingKey = error?.message?.includes("GEMINI_API_KEY");
+    res.status(500).json({
+      success: false,
+      message: isMissingKey
+        ? "AI Interview Simulator requires GEMINI_API_KEY to be configured in server environment."
+        : error?.message || "Failed to generate interviewer reply.",
+    });
   }
 };
 
@@ -158,6 +165,13 @@ const evaluateInterviewHandler = async (req: Request, res: Response) => {
       if (stored?.messages) {
         evalMessages = stored.messages.map((m) => ({ sender: m.sender, message: m.content }));
       }
+    }
+
+    if (evalMessages.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "At least one candidate/interviewer message exchange is required to generate an evaluation.",
+      });
     }
 
     const evaluation = await aiService.evaluateInterviewSession({
@@ -190,7 +204,14 @@ const evaluateInterviewHandler = async (req: Request, res: Response) => {
       evaluation,
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: "Failed to evaluate interview." });
+    console.error("[Interview Evaluation Error]:", error?.message || error);
+    const isMissingKey = error?.message?.includes("GEMINI_API_KEY");
+    res.status(500).json({
+      success: false,
+      message: isMissingKey
+        ? "AI Interview Evaluation requires GEMINI_API_KEY to be configured in server environment."
+        : error?.message || "Failed to evaluate interview.",
+    });
   }
 };
 

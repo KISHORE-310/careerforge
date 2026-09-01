@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import AppLayout from "../components/layout/AppLayout";
 import ActivityHeatmap from "../components/charts/ActivityHeatmap";
@@ -18,6 +18,7 @@ import {
   Award,
   Layers,
   Zap,
+  Code2,
 } from "lucide-react";
 import {
   getProfile,
@@ -34,7 +35,7 @@ function Dashboard() {
   const [resumeData, setResumeData] = useState(null);
   const [recommendedJobs, setRecommendedJobs] = useState([]);
   const [activeApplications, setActiveApplications] = useState([]);
-  const [roadmap, setRoadmap] = useState([]);
+  const [roadmapData, setRoadmapData] = useState(null);
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -44,7 +45,7 @@ function Dashboard() {
         const [profRes, resRes, jobRes, appRes, roadRes, progRes] = await Promise.all([
           getProfile(),
           getResume(),
-          getJobs({ min_match: 85 }),
+          getJobs({ min_match: 80 }),
           getApplications(),
           getRoadmap(),
           getProgressAnalytics(),
@@ -53,8 +54,8 @@ function Dashboard() {
         if (profRes?.success && profRes.user) setProfile(profRes.user);
         if (resRes?.success) setResumeData(resRes);
         if (jobRes?.success && Array.isArray(jobRes.jobs)) setRecommendedJobs(jobRes.jobs.slice(0, 3));
-        if (appRes?.success && Array.isArray(appRes.applications)) setActiveApplications(appRes.applications.slice(0, 4));
-        if (roadRes?.success && Array.isArray(roadRes.roadmap)) setRoadmap(roadRes.roadmap);
+        if (appRes?.success && Array.isArray(appRes.applications)) setActiveApplications(appRes.applications);
+        if (roadRes?.success && roadRes.roadmap) setRoadmapData(roadRes.roadmap);
         if (progRes?.success && progRes.analytics) setAnalytics(progRes.analytics);
       } catch (err) {
         console.error("Dashboard data load error:", err);
@@ -65,34 +66,155 @@ function Dashboard() {
     loadData();
   }, []);
 
-  const readinessScore = analytics?.career_readiness_score || 92;
-  const resumeScore = resumeData?.evaluation?.resume_score || 94;
-  const targetRole = profile?.target_role || "Senior Full Stack Engineer";
+  const readinessScore = analytics?.career_readiness_score ?? 0;
+  const resumeScore = resumeData?.evaluation?.resume_score ?? analytics?.resume_ats_score;
+  const targetRole = profile?.target_role || profile?.profile?.targetRole || "Full Stack Engineer";
+  const targetSalary = analytics?.target_salary || (profile?.profile?.targetSalary ? `$${profile.profile.targetSalary.toLocaleString()}` : null);
 
-  const nextBestActions = [
-    {
-      title: "Complete System Design Mock Interview",
-      desc: "Simulate high-concurrency payment gateway for your upcoming Stripe technical round.",
-      actionText: "Launch Interview Lab",
-      link: "/interviews",
-      icon: <Award className="text-[#d4af37]" size={16} />,
-      badge: "High Impact",
-    },
-    {
-      title: "Bridge Kafka Event Streaming Gap",
-      desc: "Complete Module 2 in Learning Lab to raise your Anthropic role match from 91% to 96%.",
-      actionText: "Open Learning Module",
-      link: "/learning",
-      icon: <Zap className="text-[#f5d77f]" size={16} />,
-      badge: "+5% Match",
-    },
-  ];
+  const interviewApps = useMemo(() => {
+    return activeApplications.filter(
+      (a) => a.status === "interviewing" || a.status === "interview" || a.status === "screening"
+    );
+  }, [activeApplications]);
 
-  const skillGaps = [
-    { name: "Kafka Event Streaming", priority: "High", link: "/learning" },
-    { name: "Kubernetes Multi-Cluster", priority: "Medium", link: "/learning" },
-    { name: "Saga Pattern Distributed Tx", priority: "Medium", link: "/roadmap" },
-  ];
+  // Derive Next Best Actions dynamically from actual user state
+  const nextBestActions = useMemo(() => {
+    const actions = [];
+
+    // Priority 1: Imminent Interview Preparation
+    if (interviewApps.length > 0) {
+      const topInterview = interviewApps[0];
+      actions.push({
+        title: `Prepare for ${topInterview.company} Interview`,
+        desc: `Simulate technical & behavioral rounds calibrated for ${topInterview.role} at ${topInterview.company}.`,
+        actionText: "Launch Interview Lab",
+        link: "/interviews",
+        icon: <Award className="text-[#d4af37]" size={16} />,
+        badge: "Urgent Priority",
+      });
+    }
+
+    // Priority 2: Resume ATS Optimization if missing or low score
+    if (!resumeScore || resumeScore < 80) {
+      actions.push({
+        title: "Elevate Resume ATS Keyword Density",
+        desc: "Add quantifiable metrics and modern stack keywords to pass automated recruiter screens.",
+        actionText: "Optimize Resume",
+        link: "/resume",
+        icon: <FileText className="text-[#f5d77f]" size={16} />,
+        badge: "High Impact",
+      });
+    }
+
+    // Priority 3: Active Roadmap Progression
+    const milestones = roadmapData?.milestones || [];
+    const nextMilestone = milestones.find((m) => m.status !== "completed");
+    if (nextMilestone) {
+      actions.push({
+        title: `Advance Milestone: ${nextMilestone.title}`,
+        desc: nextMilestone.description || "Master required architecture patterns and core engineering competencies.",
+        actionText: "Open Roadmap",
+        link: "/roadmap",
+        icon: <Zap className="text-[#f5d77f]" size={16} />,
+        badge: `Week ${nextMilestone.week}`,
+      });
+    }
+
+    // Priority 4: DSA Practice if solved count is modest
+    const dsaSolved = analytics?.dsa_metrics?.solved_count ?? 0;
+    if (dsaSolved < 5 && actions.length < 2) {
+      actions.push({
+        title: "Solve Core Algorithmic Challenges",
+        desc: "Practice key array, two-pointer, and tree structures in DSA Lab to build interview rigor.",
+        actionText: "Open DSA Lab",
+        link: "/dsa",
+        icon: <Code2 className="text-[#d4af37]" size={16} />,
+        badge: "Foundation",
+      });
+    }
+
+    // Priority 5: Job Discovery if few active applications
+    if (activeApplications.length < 3 && actions.length < 2) {
+      const topJob = recommendedJobs[0];
+      actions.push({
+        title: topJob ? `Explore Opening at ${topJob.company}` : "Discover Verified Tech Openings",
+        desc: topJob
+          ? `${topJob.title} matches ${topJob.match_score}% of your profile and stack.`
+          : "Browse high-match job opportunities and track submissions.",
+        actionText: "Browse Jobs",
+        link: "/jobs",
+        icon: <Briefcase className="text-[#f5d77f]" size={16} />,
+        badge: topJob ? `${topJob.match_score}% Match` : "Job Match",
+      });
+    }
+
+    return actions.slice(0, 2);
+  }, [interviewApps, resumeScore, roadmapData, analytics, activeApplications, recommendedJobs]);
+
+  // Derive Skill Gaps dynamically by comparing candidate skills with job market / roadmap requirements
+  const skillGaps = useMemo(() => {
+    const candidateSkills = new Set(
+      (profile?.skills || resumeData?.resume?.technical_skills || []).map((s) =>
+        (typeof s === "string" ? s : s?.name || "").toLowerCase()
+      )
+    );
+
+    const requiredSkillsCount = new Map();
+
+    // Tally skills required by recommended jobs
+    recommendedJobs.forEach((job) => {
+      (job.skills_required || []).forEach((skill) => {
+        const lower = skill.toLowerCase();
+        if (!candidateSkills.has(lower)) {
+          requiredSkillsCount.set(skill, (requiredSkillsCount.get(skill) || 0) + 1);
+        }
+      });
+    });
+
+    // Tally skills from roadmap milestones
+    (roadmapData?.milestones || []).forEach((m) => {
+      (m.skills || []).forEach((skill) => {
+        const lower = skill.toLowerCase();
+        if (!candidateSkills.has(lower)) {
+          requiredSkillsCount.set(skill, (requiredSkillsCount.get(skill) || 0) + 2);
+        }
+      });
+    });
+
+    const gaps = Array.from(requiredSkillsCount.entries())
+      .map(([name, weight]) => ({
+        name,
+        priority: weight >= 2 ? "High" : "Medium",
+        link: "/learning",
+      }))
+      .slice(0, 3);
+
+    if (gaps.length === 0) {
+      return [
+        { name: "System Design Patterns", priority: "Recommended", link: "/learning" },
+        { name: "Distributed Caching", priority: "Recommended", link: "/learning" },
+        { name: "Cloud Architecture", priority: "Recommended", link: "/learning" },
+      ];
+    }
+
+    return gaps;
+  }, [profile, resumeData, recommendedJobs, roadmapData]);
+
+  // Dynamic AI coach tip based on real candidate state
+  const coachTip = useMemo(() => {
+    if (interviewApps.length > 0) {
+      const top = interviewApps[0];
+      return `You have an active stage with ${top.company} for ${top.role}. Practice communicating trade-offs cleanly using the STAR method and review relevant architecture capstones.`;
+    }
+    if (!resumeScore || resumeScore < 80) {
+      return `Your resume ATS calibration is currently ${resumeScore ? `${resumeScore}/100` : "unscanned"}. Focus on quantifying your technical project outcomes and listing key modern stack tools.`;
+    }
+    const dsaSolved = analytics?.dsa_metrics?.solved_count ?? 0;
+    if (dsaSolved < 5) {
+      return `Strengthen your algorithmic problem-solving in DSA Lab. Solving 5+ core patterns will significantly raise your technical screen readiness.`;
+    }
+    return `Your readiness velocity is on track. Keep your 365-day practice consistency high and continue applying to verified high-match roles.`;
+  }, [interviewApps, resumeScore, analytics]);
 
   return (
     <AppLayout>
@@ -107,13 +229,25 @@ function Dashboard() {
                 <span className="text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded bg-[#d4af37]/20 text-[#f5d77f] font-semibold border border-[#d4af37]/30">
                   Career Command Center
                 </span>
-                <span className="text-xs text-stone-400">Target Role: <strong className="text-white font-medium">{targetRole}</strong></span>
+                <span className="text-xs text-stone-400">
+                  Target Role: <strong className="text-white font-medium">{targetRole}</strong>
+                </span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-serif-header text-white leading-tight">
-                Welcome back, {profile?.full_name?.split(" ")[0] || "Candidate"}
+                Welcome back, {profile?.name?.split(" ")[0] || profile?.full_name?.split(" ")[0] || "Candidate"}
               </h1>
               <p className="text-xs sm:text-sm text-stone-300 max-w-2xl mt-1.5 font-light leading-relaxed">
-                Your Career Readiness is currently in the top <strong className="text-[#f5d77f]">9th percentile</strong>. You have 2 active interview stages and 3 verified job openings matching over 90% of your stack.
+                {activeApplications.length > 0 ? (
+                  <>
+                    You have <strong className="text-white font-medium">{activeApplications.length} tracked applications</strong>
+                    {interviewApps.length > 0 ? ` (${interviewApps.length} in interview stages)` : ""} and{" "}
+                    <strong className="text-[#f5d77f]">{recommendedJobs.length} high-match job openings</strong>.
+                  </>
+                ) : (
+                  <>
+                    Start your job hunt by tracking your target applications, testing your resume ATS fit, and practicing mock interview simulations.
+                  </>
+                )}
               </p>
             </div>
 
@@ -147,7 +281,7 @@ function Dashboard() {
               <div className="space-y-1">
                 <p className="text-xs font-semibold text-white">Career Readiness</p>
                 <p className="text-[11px] text-[#f5d77f] flex items-center gap-1 font-mono">
-                  <Sparkles size={11} /> Top Tier Caliber
+                  <Sparkles size={11} /> Real-time Calibrated
                 </p>
                 <Link
                   to="/progress"
@@ -165,9 +299,19 @@ function Dashboard() {
           <div className="gold-card rounded-xl p-4 flex items-center justify-between">
             <div>
               <p className="text-xs text-stone-400 font-light">Resume ATS Score</p>
-              <h3 className="text-2xl font-bold text-white font-mono mt-0.5">{resumeScore}<span className="text-xs text-stone-500 font-normal">/100</span></h3>
+              <h3 className="text-2xl font-bold text-white font-mono mt-0.5">
+                {resumeScore !== null && resumeScore !== undefined ? (
+                  <>
+                    {resumeScore}
+                    <span className="text-xs text-stone-500 font-normal">/100</span>
+                  </>
+                ) : (
+                  <span className="text-lg text-stone-500 font-normal">Unscanned</span>
+                )}
+              </h3>
               <p className="text-[11px] text-emerald-400 mt-1 flex items-center gap-1">
-                <CheckCircle2 size={11} /> 94% Keyword Density
+                <CheckCircle2 size={11} />{" "}
+                {resumeScore >= 85 ? "Optimal ATS Density" : (resumeScore ? "ATS Calibrated" : "Upload to evaluate")}
               </p>
             </div>
             <Link to="/resume" className="p-2.5 rounded-lg bg-stone-900 border border-stone-800 text-stone-400 hover:text-[#d4af37] transition">
@@ -180,7 +324,8 @@ function Dashboard() {
               <p className="text-xs text-stone-400 font-light">Active Applications</p>
               <h3 className="text-2xl font-bold text-white font-mono mt-0.5">{activeApplications.length}</h3>
               <p className="text-[11px] text-[#f5d77f] mt-1 flex items-center gap-1">
-                <Clock size={11} /> 2 in Interview Stages
+                <Clock size={11} />{" "}
+                {interviewApps.length > 0 ? `${interviewApps.length} in Interview Stages` : "Tracked Pipeline"}
               </p>
             </div>
             <Link to="/applications" className="p-2.5 rounded-lg bg-stone-900 border border-stone-800 text-stone-400 hover:text-[#d4af37] transition">
@@ -190,10 +335,12 @@ function Dashboard() {
 
           <div className="gold-card rounded-xl p-4 flex items-center justify-between">
             <div>
-              <p className="text-xs text-stone-400 font-light">Market Value Band</p>
-              <h3 className="text-2xl font-bold text-white font-mono mt-0.5">$180k - $220k</h3>
+              <p className="text-xs text-stone-400 font-light">Target Compensation</p>
+              <h3 className="text-2xl font-bold text-white font-mono mt-0.5">
+                {targetSalary || "$130k - $170k"}
+              </h3>
               <p className="text-[11px] text-emerald-400 mt-1 flex items-center gap-1">
-                <TrendingUp size={11} /> +18% Above Avg
+                <TrendingUp size={11} /> {targetRole}
               </p>
             </div>
             <Link to="/market" className="p-2.5 rounded-lg bg-stone-900 border border-stone-800 text-stone-400 hover:text-[#d4af37] transition">
@@ -258,29 +405,41 @@ function Dashboard() {
                 </Link>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {activeApplications.map((app) => (
-                  <div
-                    key={app.id}
-                    onClick={() => navigate("/applications")}
-                    className="p-3.5 rounded-xl bg-[#141414] border border-stone-800 hover:border-stone-700 cursor-pointer transition flex flex-col justify-between space-y-2"
+              {activeApplications.length === 0 ? (
+                <div className="p-5 rounded-xl bg-[#141414] border border-stone-800 text-center space-y-2">
+                  <p className="text-xs text-stone-400">No active applications currently tracked.</p>
+                  <Link
+                    to="/jobs"
+                    className="inline-flex items-center gap-1 text-xs text-[#f5d77f] hover:underline"
                   >
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h4 className="text-xs font-semibold text-stone-100">{app.company}</h4>
-                        <p className="text-[11px] text-stone-400 truncate">{app.role}</p>
+                    Browse jobs & track applications <ChevronRight size={12} />
+                  </Link>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {activeApplications.slice(0, 4).map((app) => (
+                    <div
+                      key={app.id}
+                      onClick={() => navigate("/applications")}
+                      className="p-3.5 rounded-xl bg-[#141414] border border-stone-800 hover:border-stone-700 cursor-pointer transition flex flex-col justify-between space-y-2"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <h4 className="text-xs font-semibold text-stone-100">{app.company}</h4>
+                          <p className="text-[11px] text-stone-400 truncate">{app.role}</p>
+                        </div>
+                        <span className="text-[9px] font-mono uppercase px-2 py-0.5 rounded bg-[#d4af37]/15 text-[#f5d77f] border border-[#d4af37]/30">
+                          {app.status}
+                        </span>
                       </div>
-                      <span className="text-[9px] font-mono uppercase px-2 py-0.5 rounded bg-[#d4af37]/15 text-[#f5d77f] border border-[#d4af37]/30">
-                        {app.status}
-                      </span>
+                      <div className="flex items-center justify-between text-[10px] text-stone-500 pt-2 border-t border-stone-800/80">
+                        <span>Match: <strong className="text-stone-300 font-mono">{app.match_score || 85}%</strong></span>
+                        <span className="truncate max-w-[140px]">{app.next_step || "Under Review"}</span>
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between text-[10px] text-stone-500 pt-2 border-t border-stone-800/80">
-                      <span>Match: <strong className="text-stone-300 font-mono">{app.match_score}%</strong></span>
-                      <span className="truncate max-w-[140px]">{app.next_step}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -298,7 +457,7 @@ function Dashboard() {
                 </div>
               </div>
               <p className="text-xs text-stone-300 font-light leading-relaxed">
-                "Your upcoming Stripe System Design interview will test rate limiting and distributed caching. Review your Raft KV capstone and ensure you mention your 45ms WebSocket optimizations."
+                "{coachTip}"
               </p>
               <Link
                 to="/coach"
@@ -348,6 +507,7 @@ function Dashboard() {
 
         {/* 52-Week Practice & Execution Heatmap */}
         <ActivityHeatmap
+          activityCalendar={analytics?.activity_calendar}
           title="Candidate Execution & Activity Heatmap"
           subtitle="Real-time 365-day consistency index across LeetCode DSA, System Design mocks, and ATS iterations."
         />
@@ -360,7 +520,7 @@ function Dashboard() {
                 <Sparkles size={16} className="text-[#d4af37]" />
                 Top Recommended Openings
               </h3>
-              <p className="text-xs text-stone-400 font-light">Verified jobs matching 85%+ of your profile</p>
+              <p className="text-xs text-stone-400 font-light">Verified jobs matching 80%+ of your profile</p>
             </div>
             <Link to="/jobs" className="text-xs text-[#d4af37] hover:underline flex items-center gap-1">
               Explore All Jobs <ChevronRight size={13} />
@@ -398,7 +558,9 @@ function Dashboard() {
                 </div>
 
                 <div className="flex items-center justify-between pt-3 border-t border-stone-800/80">
-                  <span className="text-xs font-medium text-stone-200 font-mono">{job.salary.split(" - ")[0]}</span>
+                  <span className="text-xs font-medium text-stone-200 font-mono">
+                    {job.salary_range ? job.salary_range.split(" - ")[0] : (job.salary || "$150,000")}
+                  </span>
                   <Link
                     to="/jobs"
                     className="px-3 py-1 rounded-lg bg-stone-900 hover:bg-[#d4af37] hover:text-black text-xs font-medium text-stone-300 transition"

@@ -144,9 +144,9 @@ profileRouter.put(
   }
 );
 
-// POST /api/onboarding
+// POST /api/onboarding and /api/profile/onboarding
 profileRouter.post(
-  "/onboarding",
+  ["/", "/onboarding"],
   authenticateToken,
   validateBody(OnboardingSchema),
   async (req: Request, res: Response) => {

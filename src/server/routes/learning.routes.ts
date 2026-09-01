@@ -69,6 +69,11 @@ const updateProgressHandler = async (req: Request, res: Response) => {
     const pct = typeof progress_percent === "number" ? progress_percent : (typeof progress === "number" ? progress : (status === "completed" ? 100 : 50));
 
     await db.learning.updateProgress(userId, resourceId, pct, quiz_score);
+    await db.analytics.recordEvent(userId, pct >= 100 ? "learning_completed" : "learning_progress", "Learning", {
+      resourceId,
+      progress: pct,
+      quizScore: quiz_score,
+    });
 
     res.json({ success: true, message: "Learning progress updated." });
   } catch (error: any) {

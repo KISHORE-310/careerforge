@@ -45,6 +45,28 @@ export async function authenticateToken(req: Request, res: Response, next: NextF
     // Look up or create demo user safely in development
     let demoUser = await db.users.findByEmail("demo@careerforge.ai");
     if (!demoUser) {
+      try {
+        demoUser = await db.users.create({
+          email: "demo@careerforge.ai",
+          name: "Alex Morgan",
+          passwordHash: "demo_hash",
+          profile: {
+            title: "Senior Full Stack Engineer",
+            targetRole: "Senior Full Stack Engineer",
+            targetSalary: 165000,
+            experienceLevel: "Senior",
+            location: "San Francisco, CA",
+            bio: "Passionate software architect building high-scale distributed systems.",
+            github: "https://github.com/alexmorgan-dev",
+            linkedin: "https://linkedin.com/in/alexmorgan-dev",
+          },
+        });
+      } catch {
+        demoUser = (await db.users.findByEmail("demo@careerforge.ai")) || null;
+      }
+    }
+
+    if (!demoUser) {
       return res.status(401).json({
         success: false,
         message: "Demo user not initialized. Please log in or sign up.",

@@ -95,58 +95,71 @@ jobsRouter.get("/:id", optionalAuth, async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/companies
-jobsRouter.get("/meta/companies", (_req: Request, res: Response) => {
-  const sampleCompanies = [
-    {
-      id: "comp_1",
-      name: "Stripe",
-      logo: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=60",
-      rating: 4.8,
-      open_roles: 14,
-      culture_score: 94,
-      interview_difficulty: "High",
-      headquarters: "San Francisco, CA",
-      description: "Financial infrastructure for the internet. Stripe builds APIs powering payments globally.",
-      tech_stack: ["Ruby", "TypeScript", "React", "Go", "PostgreSQL", "AWS"],
-    },
-    {
-      id: "comp_2",
-      name: "Anthropic",
-      logo: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=60",
-      rating: 4.9,
-      open_roles: 9,
-      culture_score: 98,
-      interview_difficulty: "Very High",
-      headquarters: "San Francisco, CA",
-      description: "AI safety and research company dedicated to building reliable, interpretable, and steerable AI systems.",
-      tech_stack: ["Python", "PyTorch", "TypeScript", "Rust", "JAX", "Distributed Computing"],
-    },
-    {
-      id: "comp_3",
-      name: "Vercel",
-      logo: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=60",
-      rating: 4.7,
-      open_roles: 8,
-      culture_score: 92,
-      interview_difficulty: "High",
-      headquarters: "San Francisco, CA",
-      description: "The Frontend Cloud platform enabling developers to build and deploy high-speed web apps.",
-      tech_stack: ["Next.js", "React", "TypeScript", "Rust", "Edge Infrastructure"],
-    },
-  ];
+export const companiesRouter = Router();
+export const marketRouter = Router();
+
+const sampleCompanies = [
+  {
+    id: "comp_1",
+    name: "Stripe",
+    logo: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=60",
+    rating: 4.8,
+    open_roles: 14,
+    culture_score: 94,
+    interview_difficulty: "High",
+    headquarters: "San Francisco, CA",
+    description: "Financial infrastructure for the internet. Stripe builds APIs powering payments globally.",
+    tech_stack: ["Ruby", "TypeScript", "React", "Go", "PostgreSQL", "AWS"],
+  },
+  {
+    id: "comp_2",
+    name: "Anthropic",
+    logo: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=60",
+    rating: 4.9,
+    open_roles: 9,
+    culture_score: 98,
+    interview_difficulty: "Very High",
+    headquarters: "San Francisco, CA",
+    description: "AI safety and research company dedicated to building reliable, interpretable, and steerable AI systems.",
+    tech_stack: ["Python", "PyTorch", "TypeScript", "Rust", "JAX", "Distributed Computing"],
+  },
+  {
+    id: "comp_3",
+    name: "Vercel",
+    logo: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=60",
+    rating: 4.7,
+    open_roles: 8,
+    culture_score: 92,
+    interview_difficulty: "High",
+    headquarters: "San Francisco, CA",
+    description: "The Frontend Cloud platform enabling developers to build and deploy high-speed web apps.",
+    tech_stack: ["Next.js", "React", "TypeScript", "Rust", "Edge Infrastructure"],
+  },
+];
+
+const sampleMarketData = {
+  demand_index: 87,
+  top_paying_skills: [
+    { skill: "Distributed Systems", avg_salary: "$195,000", growth_pct: "+24%" },
+    { skill: "LLM / AI Orchestration", avg_salary: "$210,000", growth_pct: "+62%" },
+    { skill: "TypeScript / Full Stack", avg_salary: "$175,000", growth_pct: "+18%" },
+  ],
+};
+
+companiesRouter.get(["/", "/companies"], (_req: Request, res: Response) => {
   res.json({ success: true, companies: sampleCompanies });
 });
 
-// GET /api/market
-jobsRouter.get("/meta/market", (_req: Request, res: Response) => {
-  const marketData = {
-    demand_index: 87,
-    top_paying_skills: [
-      { skill: "Distributed Systems", avg_salary: "$195,000", growth_pct: "+24%" },
-      { skill: "LLM / AI Orchestration", avg_salary: "$210,000", growth_pct: "+62%" },
-      { skill: "TypeScript / Full Stack", avg_salary: "$175,000", growth_pct: "+18%" },
-    ],
-  };
-  res.json({ success: true, market: marketData });
+marketRouter.get(["/", "/market"], (_req: Request, res: Response) => {
+  res.json({ success: true, market: sampleMarketData });
+});
+
+// GET /api/companies (via jobs router fallback)
+jobsRouter.get(["/meta/companies", "/companies"], (_req: Request, res: Response) => {
+  res.json({ success: true, companies: sampleCompanies });
+});
+
+// GET /api/market (via jobs router fallback)
+jobsRouter.get(["/meta/market", "/market"], (_req: Request, res: Response) => {
+  res.json({ success: true, market: sampleMarketData });
 });

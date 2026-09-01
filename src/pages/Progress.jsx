@@ -14,27 +14,38 @@ import {
   Layers,
   ArrowUpRight,
   ShieldCheck,
+  Briefcase,
+  Code2,
 } from "lucide-react";
 import { getProgressAnalytics } from "../services/api";
 
 function Progress() {
   const [analytics, setAnalytics] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
       try {
         const res = await getProgressAnalytics();
-        if (res.success) {
+        if (res?.success && res.analytics) {
           setAnalytics(res.analytics);
         }
       } catch (err) {
-        console.error(err);
+        console.error("Failed to load progress analytics:", err);
+      } finally {
+        setLoading(false);
       }
     }
     load();
   }, []);
 
-  const readinessScore = analytics?.career_readiness_score || 92;
+  const readinessScore = analytics?.career_readiness_score ?? 0;
+  const dsaSolved = analytics?.dsa_metrics?.solved_count ?? 0;
+  const totalApps = analytics?.applications_pipeline?.total ?? 0;
+  const avgInterview = analytics?.interview_metrics?.average_score;
+  const totalInterviews = analytics?.interview_metrics?.total_sessions ?? 0;
+  const verifiedSkills = analytics?.skills_overview?.verified_skills ?? 0;
+  const totalSkills = analytics?.skills_overview?.total_skills ?? 0;
 
   return (
     <AppLayout>
@@ -59,9 +70,12 @@ function Progress() {
           <div className="apple-liquid-glass rounded-2xl p-5 border border-[#d4af37]/30 shadow-xl flex items-center justify-between">
             <div>
               <span className="text-xs text-stone-400 font-light">Overall Career Readiness</span>
-              <h3 className="text-3xl font-bold text-white font-mono mt-1">{readinessScore}<span className="text-sm text-stone-500 font-normal">/100</span></h3>
+              <h3 className="text-3xl font-bold text-white font-mono mt-1">
+                {readinessScore}
+                <span className="text-sm text-stone-500 font-normal">/100</span>
+              </h3>
               <p className="text-xs text-emerald-400 mt-1 flex items-center gap-1 font-mono">
-                <ArrowUpRight size={13} /> +8 pts this month
+                <ArrowUpRight size={13} /> Real-time Calibrated
               </p>
             </div>
             <div className="w-12 h-12 rounded-2xl bg-black/60 border border-[#d4af37]/40 flex items-center justify-center text-[#f5d77f]">
@@ -71,10 +85,19 @@ function Progress() {
 
           <div className="gold-card rounded-2xl p-5 flex items-center justify-between">
             <div>
-              <span className="text-xs text-stone-400 font-light">Interview Screen Pass Rate</span>
-              <h3 className="text-3xl font-bold text-white font-mono mt-1">75%</h3>
+              <span className="text-xs text-stone-400 font-light">Mock Interview Average</span>
+              <h3 className="text-3xl font-bold text-white font-mono mt-1">
+                {avgInterview !== null && avgInterview !== undefined ? (
+                  <>
+                    {avgInterview}
+                    <span className="text-sm text-stone-500 font-normal">%</span>
+                  </>
+                ) : (
+                  <span className="text-lg text-stone-500 font-normal">No Mocks</span>
+                )}
+              </h3>
               <p className="text-xs text-[#f5d77f] mt-1 flex items-center gap-1 font-mono">
-                <Sparkles size={13} /> Top 5th Percentile
+                <Sparkles size={13} /> {totalInterviews} Completed Sessions
               </p>
             </div>
             <div className="w-12 h-12 rounded-2xl bg-stone-900 border border-stone-800 flex items-center justify-center text-[#d4af37]">
@@ -84,10 +107,13 @@ function Progress() {
 
           <div className="gold-card rounded-2xl p-5 flex items-center justify-between">
             <div>
-              <span className="text-xs text-stone-400 font-light">Sprint Tasks Completed</span>
-              <h3 className="text-3xl font-bold text-white font-mono mt-1">24<span className="text-sm text-stone-500 font-normal">/30</span></h3>
+              <span className="text-xs text-stone-400 font-light">Verified Skill Milestones</span>
+              <h3 className="text-3xl font-bold text-white font-mono mt-1">
+                {verifiedSkills}
+                <span className="text-sm text-stone-500 font-normal">/{Math.max(totalSkills, 1)}</span>
+              </h3>
               <p className="text-xs text-emerald-400 mt-1 flex items-center gap-1 font-mono">
-                <CheckCircle2 size={13} /> 80% Sprint Velocity
+                <Code2 size={13} /> {dsaSolved} DSA Solved
               </p>
             </div>
             <div className="w-12 h-12 rounded-2xl bg-stone-900 border border-stone-800 flex items-center justify-center text-[#d4af37]">
@@ -102,7 +128,7 @@ function Progress() {
             <ReadinessAreaChart currentScore={readinessScore} />
           </div>
           <div className="lg:col-span-5">
-            <CompetencyRadarChart />
+            <CompetencyRadarChart analytics={analytics} />
           </div>
         </div>
 
@@ -111,6 +137,7 @@ function Progress() {
 
         {/* Comprehensive 52-Week Practice & Execution Heatmap */}
         <ActivityHeatmap
+          activityCalendar={analytics?.activity_calendar}
           title="52-Week Practice, Interview & Application Heatmap"
           subtitle="Detailed daily activity matrix with streak analytics, practice hours, and target milestone fulfillment."
         />

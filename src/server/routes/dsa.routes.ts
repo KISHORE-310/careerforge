@@ -176,7 +176,14 @@ dsaRouter.post(
         feedback: review.feedback,
       });
     } catch (error: any) {
-      res.status(500).json({ success: false, message: "Failed to evaluate code submission." });
+      console.error("[DSA Code Review Error]:", error?.message || error);
+      const isMissingKey = error?.message?.includes("GEMINI_API_KEY");
+      res.status(500).json({
+        success: false,
+        message: isMissingKey
+          ? "DSA AI Code Review requires GEMINI_API_KEY to be configured in server environment."
+          : error?.message || "Failed to evaluate code submission.",
+      });
     }
   }
 );

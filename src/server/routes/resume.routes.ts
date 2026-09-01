@@ -267,14 +267,21 @@ resumeRouter.post(
 
       res.json({ success: true, ...result });
     } catch (error: any) {
-      res.status(500).json({ success: false, message: "AI rewriting service encountered an error." });
+      console.error("[Resume AI Rewrite Error]:", error?.message || error);
+      const isMissingKey = error?.message?.includes("GEMINI_API_KEY");
+      res.status(500).json({
+        success: false,
+        message: isMissingKey
+          ? "Resume AI Rewrite requires GEMINI_API_KEY to be configured in server environment."
+          : error?.message || "AI rewriting service encountered an error.",
+      });
     }
   }
 );
 
-// POST /api/upload-resume
+// POST /api/upload-resume and /api/resume/upload
 resumeRouter.post(
-  "/upload",
+  ["/", "/upload"],
   uploadLimiter,
   optionalAuth,
   upload.single("file"),
@@ -305,29 +312,20 @@ resumeRouter.post(
         }
       }
 
-      let profile = await aiService.parseResume(extractedText, targetRole);
+      if (!extractedText.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: "No readable text could be extracted from the uploaded PDF resume.",
+        });
+      }
+
+      const profile = await aiService.parseResume(extractedText, targetRole);
 
       if (!profile || !profile.personal_info) {
-        profile = {
-          personal_info: {
-            full_name: req.body.full_name || "Candidate",
-            email: (req as any).userEmail || "candidate@careerforge.ai",
-            phone: "",
-            location: "",
-            linkedin: "",
-            github: "",
-            portfolio: "",
-          },
-          summary: "Motivated engineer eager to apply technical skills to solve high-impact challenges.",
-          education: [],
-          experience: [],
-          projects: [],
-          certifications: [],
-          technical_skills: ["JavaScript", "TypeScript", "React", "Node.js"],
-          soft_skills: ["Communication", "Problem Solving", "Teamwork"],
-          achievements: [],
-          languages: ["English"],
-        };
+        return res.status(502).json({
+          success: false,
+          message: "AI parser was unable to extract structured candidate data from the resume.",
+        });
       }
 
       const resumeScore = calculateResumeScore(profile);
@@ -365,7 +363,14 @@ resumeRouter.post(
         target_role: targetRole,
       });
     } catch (error: any) {
-      res.status(500).json({ success: false, message: "Resume processing failed." });
+      console.error("[Resume Upload Error]:", error?.message || error);
+      const isMissingKey = error?.message?.includes("GEMINI_API_KEY");
+      res.status(500).json({
+        success: false,
+        message: isMissingKey
+          ? "Resume AI Parsing requires GEMINI_API_KEY to be configured in server environment."
+          : error?.message || "Resume processing failed.",
+      });
     }
   }
 );
