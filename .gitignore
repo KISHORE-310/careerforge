@@ -2,5 +2,14 @@ node_modules
 dist
 .env
 .env.local
+.env.*.local
+backend/.env
 .DS_Store
 *.log
+.data
+uploads
+coverage
+.venv
+backend/venv
+*.pyc
+__pycache__

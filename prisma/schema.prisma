@@ -1,10 +1,14 @@
+<<<<<<< HEAD
 // Prisma Schema for CareerForge AI
 
+=======
+>>>>>>> 75a0715 (chore: save initial Cursor additions including Prisma schema, server config, and docker-compose)
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
+<<<<<<< HEAD
   provider = "sqlite"
   url      = "file:./dev.db"
 }
@@ -55,11 +59,107 @@ model Profile {
   updatedAt       DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+=======
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ApplicationStatus {
+  wishlist
+  applied
+  screening
+  interview
+  offer
+  rejected
+  withdrawn
+}
+
+enum JobSource {
+  catalog
+  live
+}
+
+enum InterviewStatus {
+  in_progress
+  completed
+}
+
+enum NotificationType {
+  job_match
+  interview
+  milestone
+  learning
+  system
+  application
+}
+
+model User {
+  id                   String    @id @default(cuid())
+  email                String    @unique
+  passwordHash         String
+  fullName             String
+  onboardingCompleted  Boolean   @default(false)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  profile              Profile?
+  settings             UserSettings?
+  resume               Resume?
+  refreshTokens        RefreshToken[]
+  skills               Skill[]
+  applications         Application[]
+  savedJobs            SavedJob[]
+  interviews           Interview[]
+  roadmap              Roadmap?
+  learningProgress     LearningProgress[]
+  dsaProgress          DsaProgress[]
+  notifications        Notification[]
+  analyticsEvents      AnalyticsEvent[]
+  careerSnapshots      CareerSnapshot[]
+  coachMessages        CoachMessage[]
+}
+
+model Profile {
+  id               String  @id @default(cuid())
+  userId           String  @unique
+  user             User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  targetRole       String  @default("Software Engineer")
+  targetSalary     String  @default("")
+  experienceLevel  String  @default("")
+  bio              String  @default("")
+  location         String  @default("")
+  phone            String  @default("")
+  linkedin         String  @default("")
+  github           String  @default("")
+  portfolio        String  @default("")
+  careerGoal       String  @default("")
+  avatar           String  @default("")
+}
+
+model UserSettings {
+  id                    String  @id @default(cuid())
+  userId                String  @unique
+  user                  User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobMatchAlerts        Boolean @default(true)
+  interviewReminders    Boolean @default(true)
+  weeklyDigest          Boolean @default(true)
+  aiTone                String  @default("professional")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+>>>>>>> 75a0715 (chore: save initial Cursor additions including Prisma schema, server config, and docker-compose)
 
   @@index([userId])
 }
 
 model Resume {
+<<<<<<< HEAD
   id              String   @id @default(uuid())
   userId          String
   title           String   @default("My Resume")
@@ -154,255 +254,290 @@ model JobMatch {
   userId          String
   jobId           String
   overallScore    Int      @default(0) // 0-100
-  skillScore      Int      @default(0)
-  experienceScore Int      @default(0)
-  seniorityScore  Int      @default(0)
-  semanticScore   Int      @default(0)
-  locationScore   Int      @default(0)
-  salaryScore     Int      @default(0)
-  matchedSkills   String?  // JSON array
-  missingSkills   String?  // JSON array
-  strengths       String?  // JSON array
-  weaknesses      String?  // JSON array
-  explanation     String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id               String          @id @default(cuid())
+  userId           String          @unique
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currentVersionId String?
+  versions         ResumeVersion[]
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+}
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  job  Job  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+model ResumeVersion {
+  id             String   @id @default(cuid())
+  resumeId       String
+  resume         Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  versionNumber  Int
+  content        Json
+  extractedText  String?  @db.Text
+  source         String
+  label          String   @default("")
+  createdAt      DateTime @default(now())
+
+  @@unique([resumeId, versionNumber])
+  @@index([resumeId])
+}
+
+model Skill {
+  id          String @id @default(cuid())
+  userId      String
+  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  category    String @default("Technical")
+  proficiency Int    @default(50)
+  status      String @default("learning")
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+model Company {
+  id              String  @id @default(cuid())
+  name            String  @unique
+  industry        String  @default("")
+  headquarters    String  @default("")
+  size            String  @default("")
+  rating          Float?
+  recommendRate   Int?
+  hiringVelocity  String  @default("")
+  avgSalary       String  @default("")
+  techStack       Json
+  culture         String  @default("") @db.Text
+  description     String  @default("") @db.Text
+  openRolesCount  Int     @default(0)
+  source          JobSource @default(catalog)
+  jobs            Job[]
+}
+
+model Job {
+  id              String    @id @default(cuid())
+  externalId      String?
+  title           String
+  companyId       String?
+  company         Company?  @relation(fields: [companyId], references: [id])
+  companyName     String
+  location        String    @default("")
+  salary          String    @default("")
+  equity          String    @default("")
+  type            String    @default("Full-time")
+  experience      String    @default("")
+  workplace       String    @default("Remote")
+  department      String    @default("")
+  description     String    @db.Text
+  requirements    Json
+  skillsRequired  Json
+  benefits        Json
+  source          JobSource @default(catalog)
+  sourceUrl       String    @default("")
+  fetchedAt       DateTime  @default(now())
+  expiresAt       DateTime?
+  isExpired       Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  applications    Application[]
+  savedBy         SavedJob[]
+
+  @@unique([source, externalId])
+  @@index([companyName])
+  @@index([title])
+}
+
+model SavedJob {
+  id        String   @id @default(cuid())
+  userId    String
+  jobId     String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
 
   @@unique([userId, jobId])
-  @@index([userId])
-  @@index([jobId])
-  @@index([overallScore])
 }
 
 model Application {
-  id            String    @id @default(uuid())
-  userId        String
-  jobId         String?
-  company       String
-  role          String
-  location      String?
-  salary        String?
-  status        String    @default("applied") // saved, applied, screening, interviewing, offer, rejected, accepted
-  appliedDate   DateTime  @default(now())
-  nextStep      String?
-  nextStepDate  DateTime?
-  matchScore    Int?
-  notes         String?
-  coverLetter   String?
-  contactPerson String?
-  history       String?   // JSON array of status changes
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id          String             @id @default(cuid())
+  userId      String
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobId       String?
+  job         Job?               @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  company     String
+  role        String
+  location    String             @default("")
+  salary      String             @default("")
+  status      ApplicationStatus  @default(applied)
+  appliedDate DateTime           @default(now())
+  jobUrl      String             @default("")
+  notes       String             @default("") @db.Text
+  contacts    String             @default("")
+  nextStep    String             @default("")
+  followUpAt  DateTime?
+  interviewAt DateTime?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  job  Job? @relation(fields: [jobId], references: [id], onDelete: SetNull)
-
-  @@index([userId])
-  @@index([status])
+  @@index([userId, status])
 }
 
 model Interview {
-  id           String                @id @default(uuid())
-  userId       String
-  title        String
-  type         String                @default("Technical") // Technical, System Design, Behavioral, Coding
-  targetRole   String
-  companyFocus String?
-  difficulty   String                @default("Intermediate") // Junior, Intermediate, Senior, Staff
-  status       String                @default("in_progress")  // in_progress, completed, abandoned
-  overallScore Int?
-  transcript   String?               // JSON array of messages
-  startedAt    DateTime              @default(now())
-  completedAt  DateTime?
-  createdAt    DateTime              @default(now())
-  updatedAt    DateTime              @updatedAt
-
-  user         User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  messages     InterviewMessage[]
-  evaluations  InterviewEvaluation[]
-
-  @@index([userId])
-  @@index([status])
+  id               String            @id @default(cuid())
+  userId           String
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role             String
+  type             String
+  company          String            @default("")
+  status           InterviewStatus   @default(in_progress)
+  durationMinutes  Int               @default(0)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  messages         InterviewMessage[]
+  evaluation       InterviewEvaluation?
 }
 
 model InterviewMessage {
-  id          String   @id @default(uuid())
-  interviewId String
-  sender      String   // interviewer, user, system
-  content     String
-  metrics     String?  // JSON string (clarity, confidence, accuracy)
-  timestamp   DateTime @default(now())
-
-  interview Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+  id             String    @id @default(cuid())
+  interviewId    String
+  interview      Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+  sender         String
+  text           String    @db.Text
+  microFeedback  String?   @db.Text
+  createdAt      DateTime  @default(now())
 
   @@index([interviewId])
 }
 
 model InterviewEvaluation {
-  id              String   @id @default(uuid())
-  interviewId     String   @unique
-  overallScore    Int      // 0-100
-  rubricScores    String   // JSON string of category breakdown
-  strengths       String   // JSON array
-  weaknesses      String   // JSON array
-  improvements    String   // JSON array
-  detailedSummary String?
-  createdAt       DateTime @default(now())
-
-  interview Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
-
-  @@index([interviewId])
+  id                   String    @id @default(cuid())
+  interviewId          String    @unique
+  interview            Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+  overallScore         Int
+  clarityScore         Int
+  technicalScore       Int
+  impactScore          Int
+  summary              String    @db.Text
+  strengths            Json
+  improvements         Json
+  method               String
+  createdAt            DateTime  @default(now())
 }
 
 model Roadmap {
-  id          String             @id @default(uuid())
-  userId      String
+  id          String             @id @default(cuid())
+  userId      String             @unique
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   targetRole  String
-  title       String
-  description String?
-  duration    String?            @default("90 Days")
-  progress    Int                @default(0) // 0-100
-  isActive    Boolean            @default(true)
+  source      String             @default("skill_gap")
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
-
-  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   milestones  RoadmapMilestone[]
-
-  @@index([userId])
 }
 
 model RoadmapMilestone {
-  id          String    @id @default(uuid())
+  id          String   @id @default(cuid())
   roadmapId   String
-  orderIndex  Int
+  roadmap     Roadmap  @relation(fields: [roadmapId], references: [id], onDelete: Cascade)
+  week        Int
   title       String
-  description String?
-  category    String    @default("Core") // Core, Advanced, Projects, Interview Prep
-  weekNumber  Int
-  status      String    @default("todo") // todo, in_progress, completed, skipped
-  skills      String?   // JSON array of skills
-  resources   String?   // JSON array of links/resources
-  completedAt DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  roadmap Roadmap @relation(fields: [roadmapId], references: [id], onDelete: Cascade)
-
-  @@index([roadmapId])
+  description String   @db.Text
+  duration    String   @default("")
+  status      String   @default("todo")
+  sortOrder   Int      @default(0)
+  tasks       Json
 }
 
 model LearningResource {
-  id          String             @id @default(uuid())
-  title       String
-  description String
-  category    String
-  difficulty  String             @default("Intermediate")
-  estimatedHr Int                @default(4)
-  rating      Float              @default(4.8)
-  enrolled    Int                @default(0)
-  icon        String?            @default("code")
-  modules     String?            // JSON array of module titles/lessons
-  quiz        String?            // JSON quiz data
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
-
-  progress    LearningProgress[]
-
-  @@index([category])
+  id           String             @id @default(cuid())
+  skill        String
+  title        String
+  category     String
+  duration     String
+  estimatedHours Float            @default(1)
+  difficulty   String
+  type         String
+  description  String             @db.Text
+  lessons      Json
+  quiz         Json?
+  progress     LearningProgress[]
 }
 
 model LearningProgress {
-  id          String    @id @default(uuid())
-  userId      String
-  resourceId  String
-  status      String    @default("in_progress") // enrolled, in_progress, completed
-  progress    Int       @default(0)             // 0-100
-  quizScore   Int?
-  completedAt DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  resource LearningResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  id                 String           @id @default(cuid())
+  userId             String
+  user               User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resourceId         String
+  resource           LearningResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  completedLessonIds Json
+  progressPct        Int              @default(0)
+  completed          Boolean          @default(false)
+  updatedAt          DateTime         @updatedAt
 
   @@unique([userId, resourceId])
-  @@index([userId])
-  @@index([resourceId])
 }
 
-model DSAProgress {
-  id          String    @id @default(uuid())
+model DsaProgress {
+  id          String   @id @default(cuid())
   userId      String
-  problemId   String
-  title       String
-  slug        String
-  topic       String
-  difficulty  String    // Easy, Medium, Hard
-  status      String    @default("solved") // attempted, solved, reviewed
-  attempts    Int       @default(1)
-  timeSpentMs Int?
-  notes       String?
-  solvedAt    DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topicSlug   String
+  problemSlug String
+  status      String   @default("unsolved")
+  bookmarked  Boolean  @default(false)
+  notes       String   @default("") @db.Text
+  attempts    Int      @default(0)
+  updatedAt   DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, problemId])
+  @@unique([userId, topicSlug, problemSlug])
   @@index([userId])
-  @@index([topic])
-  @@index([status])
 }
 
 model Notification {
-  id        String   @id @default(uuid())
+  id        String           @id @default(cuid())
   userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   title     String
-  message   String
-  type      String   @default("info") // info, success, warning, alert
-  link      String?
-  read      Boolean  @default(false)
-  createdAt DateTime @default(now())
+  message   String           @db.Text
+  type      NotificationType @default(system)
+  read      Boolean          @default(false)
+  actionUrl String           @default("")
+  createdAt DateTime         @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([read])
+  @@index([userId, read])
 }
 
 model AnalyticsEvent {
-  id        String   @id @default(uuid())
+  id        String   @id @default(cuid())
   userId    String
-  eventType String   // dsa_solved, resume_updated, interview_completed, application_submitted, etc.
-  category  String
-  metadata  String?  // JSON string
-  timestamp DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  payload   Json
+  createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([eventType])
-  @@index([timestamp])
+  @@index([userId, type, createdAt])
 }
 
 model CareerSnapshot {
-  id             String   @id @default(uuid())
-  userId         String
-  date           DateTime @default(now())
-  readinessScore Int      @default(0) // 0-100
-  atsScore       Int?
-  skillsCount    Int      @default(0)
-  dsaSolvedCount Int      @default(0)
-  interviewScore Int?
-  activeApps     Int      @default(0)
-  velocityScore  Int?
-  metadata       String?  // JSON string
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  metrics   Json
+  createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, createdAt])
+}
 
-  @@index([userId])
-  @@index([date])
+model CoachMessage {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sender    String
+  text      String   @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model MarketInsight {
+  id        String   @id @default(cuid())
+  kind      String
+  payload   Json
+  source    String   @default("catalog")
+  updatedAt DateTime @updatedAt
+}
 }
