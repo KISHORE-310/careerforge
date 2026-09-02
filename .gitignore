@@ -1,15 +1,13 @@
-node_modules
-dist
+# Local secrets and environment configuration
 .env
-.env.local
-.env.*.local
+*.env
 backend/.env
-.DS_Store
-*.log
-.data
-uploads
-coverage
-.venv
-backend/venv
-*.pyc
-__pycache__
+
+# Generated Python/runtime files
+__pycache__/
+*.py[cod]
+.pythonlibs/
+
+# Generated frontend output
+frontend/dist/
+frontend/node_modules/
