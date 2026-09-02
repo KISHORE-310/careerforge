@@ -3,17 +3,27 @@ import { prisma } from "./prisma";
 export const db = {
   // Users & Profiles
   users: {
+    shape(user: any) {
+      if (!user) return null;
+      return {
+        ...user,
+        name: user.fullName || user.name,
+        fullName: user.fullName || user.name,
+      };
+    },
     async findByEmail(email: string) {
-      return prisma.user.findUnique({
+      const user = await prisma.user.findUnique({
         where: { email: email.toLowerCase() },
         include: { profile: true },
       });
+      return this.shape(user);
     },
     async findById(id: string) {
-      return prisma.user.findUnique({
+      const user = await prisma.user.findUnique({
         where: { id },
         include: { profile: true },
       });
+      return this.shape(user);
     },
     async create(data: {
       email: string;
@@ -25,69 +35,59 @@ export const db = {
         bio?: string;
         location?: string;
         targetRole?: string;
-        targetSalary?: number;
+        targetSalary?: number | string;
         experienceLevel?: string;
         phone?: string;
         github?: string;
         linkedin?: string;
       };
     }) {
-      return prisma.user.create({
+      const user = await prisma.user.create({
         data: {
           email: data.email.toLowerCase(),
           passwordHash: data.passwordHash,
-          name: data.name,
-          role: data.role || "user",
-          profile: data.profile
-            ? {
-                create: {
-                  title: data.profile.title || "Software Engineer",
-                  bio: data.profile.bio || "",
-                  location: data.profile.location || "",
-                  targetRole: data.profile.targetRole || "Full Stack Engineer",
-                  targetSalary: data.profile.targetSalary || 120000,
-                  experienceLevel: data.profile.experienceLevel || "Mid-Level",
-                  phone: data.profile.phone || "",
-                  github: data.profile.github || "",
-                  linkedin: data.profile.linkedin || "",
-                },
-              }
-            : {
-                create: {
-                  title: "Software Engineer",
-                  targetRole: "Full Stack Engineer",
-                  targetSalary: 120000,
-                  experienceLevel: "Mid-Level",
-                },
-              },
+          fullName: data.name,
+          profile: {
+            create: {
+              bio: data.profile?.bio || "",
+              location: data.profile?.location || "",
+              targetRole: data.profile?.targetRole || data.profile?.title || "Full Stack Engineer",
+              targetSalary: data.profile?.targetSalary != null ? String(data.profile.targetSalary) : "",
+              experienceLevel: data.profile?.experienceLevel || "Mid-Level",
+              phone: data.profile?.phone || "",
+              github: data.profile?.github || "",
+              linkedin: data.profile?.linkedin || "",
+            },
+          },
         },
         include: { profile: true },
       });
+      return this.shape(user);
     },
     async updateProfile(userId: string, data: Record<string, any>) {
+      const targetRole = data.targetRole || data.target_role;
+      const targetSalary = data.targetSalary ?? data.target_salary;
+      const experienceLevel = data.experienceLevel || data.experience_level;
       return prisma.profile.upsert({
         where: { userId },
         update: {
-          title: data.title,
           bio: data.bio,
           location: data.location,
-          targetRole: data.targetRole,
-          targetSalary: data.targetSalary ? Number(data.targetSalary) : undefined,
-          experienceLevel: data.experienceLevel,
+          targetRole,
+          targetSalary: targetSalary != null ? String(targetSalary) : undefined,
+          experienceLevel,
           phone: data.phone,
           github: data.github,
           linkedin: data.linkedin,
           portfolio: data.portfolio,
-          preferences: data.preferences ? JSON.stringify(data.preferences) : undefined,
         },
         create: {
           userId,
-          title: data.title || "Software Engineer",
           bio: data.bio || "",
           location: data.location || "",
-          targetRole: data.targetRole || "Full Stack Engineer",
-          targetSalary: data.targetSalary ? Number(data.targetSalary) : 120000,
-          experienceLevel: data.experienceLevel || "Mid-Level",
+          targetRole: targetRole || "Full Stack Engineer",
+          targetSalary: targetSalary != null ? String(targetSalary) : "",
+          experienceLevel: experienceLevel || "Mid-Level",
           phone: data.phone || "",
           github: data.github || "",
           linkedin: data.linkedin || "",
@@ -98,57 +98,94 @@ export const db = {
 
   // Resumes & Versions
   resumes: {
+    flattenRecord(resume: any, version: any) {
+      const content = version?.content && typeof version.content === "object" ? version.content : {};
+      return {
+        id: resume.id,
+        userId: resume.userId,
+        currentVersionId: resume.currentVersionId,
+        versions: resume.versions || [],
+        contactInfo: JSON.stringify(content.personal_info || content.contactInfo || {}),
+        summary: content.summary || "",
+        experience: JSON.stringify(content.experience || []),
+        education: JSON.stringify(content.education || []),
+        skills: JSON.stringify(content.technical_skills || content.skills || []),
+        projects: JSON.stringify(content.projects || []),
+        certifications: JSON.stringify(content.certifications || []),
+        atsScore: content.ats_score || content.atsScore || null,
+        targetRole: content.target_role || content.targetRole || null,
+        parsedText: version?.extractedText || content.parsedText || null,
+        evaluation: content.evaluation ? JSON.stringify(content.evaluation) : null,
+        content,
+      };
+    },
     async getPrimary(userId: string) {
-      return prisma.resume.findFirst({
-        where: { userId, isPrimary: true },
-        include: { versions: { orderBy: { createdAt: "desc" }, take: 5 } },
+      const resume = await prisma.resume.findUnique({
+        where: { userId },
+        include: { versions: { orderBy: { createdAt: "desc" }, take: 20 } },
       });
+      if (!resume) return null;
+      const current =
+        resume.versions.find((v) => v.id === resume.currentVersionId) || resume.versions[0] || null;
+      return this.flattenRecord(resume, current);
+    },
+    async listVersions(userId: string) {
+      const resume = await prisma.resume.findUnique({
+        where: { userId },
+        include: { versions: { orderBy: { createdAt: "desc" }, take: 20 } },
+      });
+      return resume?.versions || [];
     },
     async upsertResume(userId: string, resumeData: any) {
-      const existing = await prisma.resume.findFirst({
-        where: { userId, isPrimary: true },
-      });
-
-      const payload = {
-        title: resumeData.title || "My Resume",
-        targetRole: resumeData.targetRole || resumeData.target_role || "Software Engineer",
-        contactInfo: JSON.stringify(resumeData.contactInfo || resumeData.contact || {}),
+      const content = {
+        personal_info: resumeData.personal_info || resumeData.contactInfo || resumeData.contact || {},
         summary: resumeData.summary || "",
-        experience: JSON.stringify(resumeData.experience || []),
-        education: JSON.stringify(resumeData.education || []),
-        skills: JSON.stringify(resumeData.skills || []),
-        projects: JSON.stringify(resumeData.projects || []),
-        certifications: JSON.stringify(resumeData.certifications || []),
-        atsScore: resumeData.atsScore || resumeData.ats_score || null,
-        parsedText: resumeData.parsedText || resumeData.raw_text || null,
-        evaluation: resumeData.evaluation ? JSON.stringify(resumeData.evaluation) : null,
+        experience: resumeData.experience || [],
+        education: resumeData.education || [],
+        technical_skills: resumeData.technical_skills || resumeData.skills || [],
+        projects: resumeData.projects || [],
+        certifications: resumeData.certifications || [],
+        soft_skills: resumeData.soft_skills || [],
+        achievements: resumeData.achievements || [],
+        languages: resumeData.languages || [],
+        target_role: resumeData.targetRole || resumeData.target_role,
+        ats_score: resumeData.atsScore || resumeData.ats_score || null,
+        evaluation: resumeData.evaluation || null,
       };
 
-      if (existing) {
-        return prisma.resume.update({
-          where: { id: existing.id },
-          data: payload,
-        });
-      }
+      const existing = await prisma.resume.findUnique({ where: { userId } });
+      const resume = existing
+        ? existing
+        : await prisma.resume.create({ data: { userId } });
 
-      return prisma.resume.create({
+      const count = await prisma.resumeVersion.count({ where: { resumeId: resume.id } });
+      const version = await prisma.resumeVersion.create({
         data: {
-          userId,
-          isPrimary: true,
-          ...payload,
+          resumeId: resume.id,
+          versionNumber: count + 1,
+          content,
+          extractedText: resumeData.parsedText || resumeData.raw_text || null,
+          source: resumeData.parsedText ? "upload" : "editor",
+          label: resumeData.changelog || "Resume Studio save",
         },
       });
+
+      await prisma.resume.update({
+        where: { id: resume.id },
+        data: { currentVersionId: version.id },
+      });
+
+      return this.flattenRecord({ ...resume, versions: [version] }, version);
     },
-    async createVersion(resumeId: string, userId: string, content: any, changelog?: string) {
+    async createVersion(resumeId: string, _userId: string, content: any, changelog?: string) {
       const count = await prisma.resumeVersion.count({ where: { resumeId } });
       return prisma.resumeVersion.create({
         data: {
           resumeId,
-          userId,
-          versionNum: count + 1,
-          content: JSON.stringify(content),
-          changelog: changelog || "Manual save",
-          atsScore: content.atsScore || content.ats_score || null,
+          versionNumber: count + 1,
+          content,
+          source: "editor",
+          label: changelog || "Manual save",
         },
       });
     },
@@ -173,16 +210,14 @@ export const db = {
         update: {
           category: skill.category || "Technical",
           proficiency: skill.proficiency ?? 70,
-          verified: skill.verified ?? false,
-          source: skill.source || "User",
+          status: skill.verified ? "verified" : skill.source || "learning",
         },
         create: {
           userId,
           name: skill.name,
           category: skill.category || "Technical",
           proficiency: skill.proficiency ?? 70,
-          verified: skill.verified ?? false,
-          source: skill.source || "User",
+          status: skill.verified ? "verified" : skill.source || "learning",
         },
       });
     },
@@ -195,49 +230,76 @@ export const db = {
 
   // Jobs
   jobs: {
-    async list(filters?: { type?: string; location?: string; search?: string; limit?: number }) {
-      const where: any = { isActive: true };
+    async list(filters?: { type?: string; location?: string; search?: string; workplace?: string; limit?: number }) {
+      const where: any = { isExpired: false };
+      const and: any[] = [];
       if (filters?.type && filters.type !== "all") {
-        where.type = { contains: filters.type };
+        and.push({
+          OR: [
+            { type: { contains: filters.type, mode: "insensitive" } },
+            { workplace: { contains: filters.type, mode: "insensitive" } },
+          ],
+        });
+      }
+      if (filters?.workplace && filters.workplace !== "all") {
+        and.push({ workplace: { contains: filters.workplace, mode: "insensitive" } });
       }
       if (filters?.location) {
-        where.location = { contains: filters.location };
+        and.push({ location: { contains: filters.location, mode: "insensitive" } });
       }
       if (filters?.search) {
-        where.OR = [
-          { title: { contains: filters.search } },
-          { company: { contains: filters.search } },
-          { description: { contains: filters.search } },
-        ];
+        and.push({
+          OR: [
+            { title: { contains: filters.search, mode: "insensitive" } },
+            { companyName: { contains: filters.search, mode: "insensitive" } },
+            { description: { contains: filters.search, mode: "insensitive" } },
+          ],
+        });
       }
+      if (and.length) where.AND = and;
       return prisma.job.findMany({
         where,
-        take: filters?.limit || 50,
-        orderBy: { postedAt: "desc" },
+        include: { company: true },
+        take: filters?.limit || 80,
+        orderBy: { fetchedAt: "desc" },
       });
     },
     async findById(id: string) {
-      return prisma.job.findUnique({ where: { id } });
+      return prisma.job.findUnique({ where: { id }, include: { company: true } });
     },
     async create(jobData: any) {
       return prisma.job.create({
         data: {
           title: jobData.title,
-          company: jobData.company,
-          companyLogo: jobData.companyLogo,
-          location: jobData.location,
+          companyName: jobData.company || jobData.companyName,
+          companyId: jobData.companyId || null,
+          location: jobData.location || "",
           type: jobData.type || "Full-time",
           workplace: jobData.workplace || "Hybrid",
-          salaryMin: jobData.salaryMin,
-          salaryMax: jobData.salaryMax,
-          salaryText: jobData.salaryText,
+          salary: jobData.salary || jobData.salaryText || "",
           description: jobData.description,
-          requirements: JSON.stringify(jobData.requirements || []),
-          skills: JSON.stringify(jobData.skills || []),
-          experience: jobData.experience,
-          applyUrl: jobData.applyUrl,
-          source: jobData.source || "Direct",
+          requirements: jobData.requirements || [],
+          skillsRequired: jobData.skills || jobData.skillsRequired || [],
+          benefits: jobData.benefits || [],
+          experience: jobData.experience || "",
+          sourceUrl: jobData.applyUrl || jobData.sourceUrl || "",
+          source: jobData.source === "live" ? "live" : "catalog",
+          externalId: jobData.externalId || jobData.id || undefined,
         },
+      });
+    },
+  },
+  companies: {
+    async list() {
+      return prisma.company.findMany({
+        include: { jobs: { where: { isExpired: false } } },
+        orderBy: { name: "asc" },
+      });
+    },
+    async findByName(name: string) {
+      return prisma.company.findUnique({
+        where: { name },
+        include: { jobs: { where: { isExpired: false } } },
       });
     },
   },
