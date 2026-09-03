@@ -14,20 +14,29 @@ interviewsRouter.get("/", authenticateToken, async (req: Request, res: Response)
     const sessions = await db.interviews.listByUser(userId);
 
     const formatted = sessions.map((s) => {
-      let breakdown: any = {};
-      const evalObj = s.evaluations?.[0];
-      if (evalObj?.rubricScores) {
-        try { breakdown = JSON.parse(evalObj.rubricScores); } catch { breakdown = {}; }
-      }
+      // Schema change: `evaluation` is a single optional relation (was
+      // `evaluations[]`), and the rubric is stored as discrete integer columns
+      // rather than a JSON `rubricScores` blob.
+      const evalObj = s.evaluation;
+      const breakdown = evalObj
+        ? {
+            technical: evalObj.technicalScore,
+            communication: evalObj.clarityScore,
+            problemSolving: evalObj.impactScore,
+          }
+        : {};
       return {
         id: s.id,
-        role: s.targetRole,
+        role: s.role,
         track: s.type,
-        difficulty: s.difficulty,
+        company: s.company,
+        // `difficulty` has no column in the schema; retained as null so the
+        // response shape stays stable for existing frontend consumers.
+        difficulty: null,
         status: s.status,
-        score: s.overallScore || evalObj?.overallScore,
+        score: evalObj?.overallScore ?? null,
         duration_minutes: 25,
-        created_at: s.startedAt.toISOString(),
+        created_at: s.createdAt.toISOString(),
         score_breakdown: breakdown,
       };
     });
@@ -163,7 +172,7 @@ const evaluateInterviewHandler = async (req: Request, res: Response) => {
     if (userId && sessionId && !sessionId.startsWith("session_") && evalMessages.length === 0) {
       const stored = await db.interviews.findById(sessionId, userId);
       if (stored?.messages) {
-        evalMessages = stored.messages.map((m) => ({ sender: m.sender, message: m.content }));
+        evalMessages = stored.messages.map((m) => ({ sender: m.sender, message: m.text }));
       }
     }
 

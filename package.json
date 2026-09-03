@@ -8,6 +8,7 @@
     "build": "prisma generate && vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "start": "node dist/server.cjs",
     "lint": "vite build --mode development",
+    "typecheck": "tsc -p tsconfig.server.json --noEmit",
     "db:generate": "prisma generate",
     "db:migrate": "prisma db push",
     "db:seed": "tsx prisma/seed.ts"

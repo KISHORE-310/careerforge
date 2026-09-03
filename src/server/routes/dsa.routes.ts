@@ -78,7 +78,7 @@ dsaRouter.get("/progress", authenticateToken, async (req: Request, res: Response
 
     const progress: Record<string, any> = {};
     for (const item of list) {
-      const key = `${item.topic}:${item.slug}`;
+      const key = `${item.topicSlug}:${item.problemSlug}`;
       progress[key] = {
         status: item.status,
         notes: item.notes || "",
@@ -97,14 +97,13 @@ dsaRouter.put("/progress/:topicSlug/:problemSlug", authenticateToken, async (req
   try {
     const userId = (req as AuthenticatedRequest).userId;
     const { topicSlug, problemSlug } = req.params;
-    const { status, notes, title, difficulty } = req.body;
+    const { status, notes } = req.body;
 
+    // DsaProgress is keyed by (userId, topicSlug, problemSlug). The schema has
+    // no `title` or `difficulty` column, so those request fields are ignored.
     await db.dsa.recordProblem(userId, {
-      problemId: `${topicSlug}_${problemSlug}`,
-      slug: problemSlug,
-      topic: topicSlug,
-      title: title || problemSlug.replace(/-/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase()),
-      difficulty: difficulty || "Medium",
+      topicSlug,
+      problemSlug,
       status: status || "solved",
       notes: sanitizeAiInput(notes || "", 1000),
     });
@@ -150,11 +149,8 @@ dsaRouter.post(
 
       if (userId && problem_id) {
         await db.dsa.recordProblem(userId, {
-          problemId: problem_id,
-          slug: problem_id,
-          topic: "algorithms",
-          title: problem_title || "DSA Challenge",
-          difficulty: "Medium",
+          topicSlug: "algorithms",
+          problemSlug: problem_id,
           status: review.passed_tests ? "solved" : "attempted",
           notes: review.feedback,
         });

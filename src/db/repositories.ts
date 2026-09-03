@@ -318,6 +318,13 @@ export const db = {
       });
     },
     async create(userId: string, data: any) {
+      // Schema alignment notes:
+      // - `contactPerson` is stored in the schema's `contacts` column.
+      // - `matchScore`, `coverLetter` and `history` have no column in
+      //   prisma/schema.prisma. They are no longer persisted here. The
+      //   status-change audit trail that `history` provided is already recorded
+      //   independently as AnalyticsEvent rows ("application_status_updated")
+      //   by applications.routes.ts, so no audit capability is lost.
       return prisma.application.create({
         data: {
           userId,
@@ -327,18 +334,10 @@ export const db = {
           location: data.location || "",
           salary: data.salary || "",
           status: data.status || "applied",
-          nextStep: data.nextStep || null,
-          matchScore: data.matchScore ? Number(data.matchScore) : null,
+          nextStep: data.nextStep || "",
           notes: data.notes || "",
-          coverLetter: data.coverLetter || "",
-          contactPerson: data.contactPerson || "",
-          history: JSON.stringify([
-            {
-              status: data.status || "applied",
-              date: new Date().toISOString(),
-              note: "Application record created",
-            },
-          ]),
+          contacts: data.contactPerson || data.contacts || "",
+          jobUrl: data.jobUrl || "",
         },
       });
     },
@@ -346,21 +345,9 @@ export const db = {
       const existing = await prisma.application.findFirst({ where: { id, userId } });
       if (!existing) return null;
 
-      let history = [];
-      try {
-        history = existing.history ? JSON.parse(existing.history) : [];
-      } catch (e) {
-        history = [];
-      }
-
-      if (data.status && data.status !== existing.status) {
-        history.unshift({
-          status: data.status,
-          date: new Date().toISOString(),
-          note: data.notes || `Status changed to ${data.status}`,
-        });
-      }
-
+      // `history` and `coverLetter` have no column in the schema and are no
+      // longer written. Status transitions continue to be recorded as
+      // AnalyticsEvent rows by the route layer.
       return prisma.application.update({
         where: { id },
         data: {
@@ -371,8 +358,7 @@ export const db = {
           status: data.status !== undefined ? data.status : existing.status,
           nextStep: data.nextStep !== undefined ? data.nextStep : existing.nextStep,
           notes: data.notes !== undefined ? data.notes : existing.notes,
-          coverLetter: data.coverLetter !== undefined ? data.coverLetter : existing.coverLetter,
-          history: JSON.stringify(history),
+          contacts: data.contactPerson !== undefined ? data.contactPerson : existing.contacts,
         },
       });
     },
@@ -389,74 +375,74 @@ export const db = {
       return prisma.interview.findMany({
         where: { userId },
         include: {
-          messages: { orderBy: { timestamp: "asc" } },
-          evaluations: true,
+          messages: { orderBy: { createdAt: "asc" } },
+          evaluation: true,
         },
-        orderBy: { startedAt: "desc" },
+        orderBy: { createdAt: "desc" },
       });
     },
     async findById(id: string, userId: string) {
       return prisma.interview.findFirst({
         where: { id, userId },
         include: {
-          messages: { orderBy: { timestamp: "asc" } },
-          evaluations: true,
+          messages: { orderBy: { createdAt: "asc" } },
+          evaluation: true,
         },
       });
     },
     async create(userId: string, data: any) {
+      // The schema models an interview as role/type/company. The caller's
+      // `targetRole` maps to `role` and `companyFocus` maps to `company`.
+      // `title` and `difficulty` have no column and are no longer persisted.
       return prisma.interview.create({
         data: {
           userId,
-          title: data.title || `${data.type || "Technical"} Round: ${data.targetRole || "Software Engineer"}`,
+          role: data.targetRole || data.role || "Software Engineer",
           type: data.type || "Technical",
-          targetRole: data.targetRole || "Software Engineer",
-          companyFocus: data.companyFocus || null,
-          difficulty: data.difficulty || "Intermediate",
+          company: data.companyFocus || data.company || "",
           status: "in_progress",
         },
-        include: { messages: true, evaluations: true },
+        include: { messages: true, evaluation: true },
       });
     },
     async addMessage(interviewId: string, sender: string, content: string, metrics?: any) {
+      // Schema stores the message body in `text` and the per-turn coaching note
+      // in `microFeedback` (previously a JSON blob in `metrics`).
       return prisma.interviewMessage.create({
         data: {
           interviewId,
           sender,
-          content,
-          metrics: metrics ? JSON.stringify(metrics) : null,
+          text: content,
+          microFeedback: metrics?.feedbackSnippet || null,
         },
       });
     },
     async saveEvaluation(interviewId: string, evalData: any) {
       await prisma.interview.update({
         where: { id: interviewId },
-        data: {
-          status: "completed",
-          overallScore: evalData.overallScore || evalData.overall_score || 85,
-          completedAt: new Date(),
-        },
+        data: { status: "completed" },
       });
+
+      // InterviewEvaluation requires an explicit rubric breakdown. The AI
+      // service returns technical / communication / problem-solving scores,
+      // which map onto technicalScore / clarityScore / impactScore.
+      const rubrics = evalData.rubricScores || evalData.rubrics || {};
+      const overall = evalData.overallScore ?? evalData.overall_score ?? 0;
+      const payload = {
+        overallScore: Number(overall) || 0,
+        clarityScore: Number(rubrics.communication ?? rubrics.clarity ?? overall) || 0,
+        technicalScore: Number(rubrics.technical ?? overall) || 0,
+        impactScore: Number(rubrics.problemSolving ?? rubrics.impact ?? overall) || 0,
+        summary: evalData.detailedSummary || evalData.summary || "",
+        strengths: evalData.strengths || [],
+        improvements: evalData.improvements || [],
+        method: evalData.method || "ai",
+      };
 
       return prisma.interviewEvaluation.upsert({
         where: { interviewId },
-        update: {
-          overallScore: evalData.overallScore || evalData.overall_score || 85,
-          rubricScores: JSON.stringify(evalData.rubricScores || evalData.rubrics || {}),
-          strengths: JSON.stringify(evalData.strengths || []),
-          weaknesses: JSON.stringify(evalData.weaknesses || []),
-          improvements: JSON.stringify(evalData.improvements || []),
-          detailedSummary: evalData.detailedSummary || evalData.summary || "",
-        },
-        create: {
-          interviewId,
-          overallScore: evalData.overallScore || evalData.overall_score || 85,
-          rubricScores: JSON.stringify(evalData.rubricScores || evalData.rubrics || {}),
-          strengths: JSON.stringify(evalData.strengths || []),
-          weaknesses: JSON.stringify(evalData.weaknesses || []),
-          improvements: JSON.stringify(evalData.improvements || []),
-          detailedSummary: evalData.detailedSummary || evalData.summary || "",
-        },
+        update: payload,
+        create: { interviewId, ...payload },
       });
     },
   },
@@ -464,49 +450,55 @@ export const db = {
   // Roadmaps
   roadmaps: {
     async getActiveByUser(userId: string) {
-      return prisma.roadmap.findFirst({
-        where: { userId, isActive: true },
-        include: { milestones: { orderBy: { weekNumber: "asc" } } },
+      // Roadmap.userId is @unique in the schema: a user has at most one
+      // roadmap, so the previous `isActive` flag is no longer meaningful.
+      return prisma.roadmap.findUnique({
+        where: { userId },
+        include: { milestones: { orderBy: { sortOrder: "asc" } } },
       });
     },
     async createWithMilestones(userId: string, data: any) {
-      // Deactivate older active roadmaps
-      await prisma.roadmap.updateMany({
-        where: { userId, isActive: true },
-        data: { isActive: false },
-      });
+      // One roadmap per user: regenerating replaces the existing milestone set
+      // rather than deactivating an old roadmap and inserting a second one.
+      // `title`, `description`, `duration` and `progress` have no column on
+      // Roadmap; milestone `category`, `skills` and `resources` have no column
+      // on RoadmapMilestone. Milestone `tasks` is a native Json column.
+      const milestones = (data.milestones || []).map((m: any, idx: number) => ({
+        sortOrder: idx,
+        week: m.week || m.weekNumber || idx + 1,
+        title: m.title || `Milestone ${idx + 1}`,
+        description: m.description || "",
+        duration: m.duration || "",
+        status: m.status || "todo",
+        tasks: m.tasks || [],
+      }));
 
-      return prisma.roadmap.create({
-        data: {
-          userId,
-          targetRole: data.targetRole || "Senior Full Stack Engineer",
-          title: data.title || `Mastery Path for ${data.targetRole || "Software Engineer"}`,
-          description: data.description || "Structured 90-day roadmap targeting high-impact engineering competencies.",
-          duration: data.duration || "90 Days",
-          isActive: true,
-          milestones: {
-            create: (data.milestones || []).map((m: any, idx: number) => ({
-              orderIndex: idx,
-              weekNumber: m.week || m.weekNumber || idx + 1,
-              title: m.title || `Milestone ${idx + 1}`,
-              description: m.description || "",
-              category: m.category || "Core",
-              status: m.status || "todo",
-              skills: JSON.stringify(m.skills || []),
-              resources: JSON.stringify(m.resources || []),
-            })),
-          },
+      const existing = await prisma.roadmap.findUnique({ where: { userId } });
+      if (existing) {
+        await prisma.roadmapMilestone.deleteMany({ where: { roadmapId: existing.id } });
+      }
+
+      return prisma.roadmap.upsert({
+        where: { userId },
+        update: {
+          targetRole: data.targetRole || "Software Engineer",
+          source: data.source || "skill_gap",
+          milestones: { create: milestones },
         },
-        include: { milestones: { orderBy: { weekNumber: "asc" } } },
+        create: {
+          userId,
+          targetRole: data.targetRole || "Software Engineer",
+          source: data.source || "skill_gap",
+          milestones: { create: milestones },
+        },
+        include: { milestones: { orderBy: { sortOrder: "asc" } } },
       });
     },
     async updateMilestone(milestoneId: string, status: string) {
+      // `completedAt` has no column in the schema.
       return prisma.roadmapMilestone.update({
         where: { id: milestoneId },
-        data: {
-          status,
-          completedAt: status === "completed" ? new Date() : null,
-        },
+        data: { status },
       });
     },
   },
@@ -514,8 +506,10 @@ export const db = {
   // Learning
   learning: {
     async listResources() {
+      // `enrolled` has no column in the schema; ordering by title keeps the
+      // listing deterministic until popularity data exists.
       return prisma.learningResource.findMany({
-        orderBy: { enrolled: "desc" },
+        orderBy: { title: "asc" },
       });
     },
     async getUserProgress(userId: string) {
@@ -524,8 +518,13 @@ export const db = {
         include: { resource: true },
       });
     },
-    async updateProgress(userId: string, resourceId: string, progress: number, quizScore?: number) {
-      const isCompleted = progress >= 100;
+    async updateProgress(userId: string, resourceId: string, progress: number, _quizScore?: number) {
+      // Schema stores percentage in `progressPct` and a `completed` boolean.
+      // There is no `quizScore` or `completedAt` column, so the quiz score
+      // argument is accepted for call-site compatibility but not persisted.
+      // `completedLessonIds` is a required Json column and defaults to [].
+      const pct = Math.min(Math.max(Math.round(progress), 0), 100);
+      const isCompleted = pct >= 100;
       return prisma.learningProgress.upsert({
         where: {
           userId_resourceId: {
@@ -534,18 +533,15 @@ export const db = {
           },
         },
         update: {
-          progress,
-          status: isCompleted ? "completed" : "in_progress",
-          quizScore: quizScore !== undefined ? quizScore : undefined,
-          completedAt: isCompleted ? new Date() : undefined,
+          progressPct: pct,
+          completed: isCompleted,
         },
         create: {
           userId,
           resourceId,
-          progress,
-          status: isCompleted ? "completed" : "in_progress",
-          quizScore: quizScore !== undefined ? quizScore : null,
-          completedAt: isCompleted ? new Date() : null,
+          progressPct: pct,
+          completed: isCompleted,
+          completedLessonIds: [],
         },
       });
     },
@@ -554,50 +550,49 @@ export const db = {
   // DSA Progress
   dsa: {
     async listByUser(userId: string) {
-      return prisma.dSAProgress.findMany({
+      // Accessor is `prisma.dsaProgress` (model DsaProgress). The previous
+      // `prisma.dSAProgress` resolved to undefined and threw on every call.
+      return prisma.dsaProgress.findMany({
         where: { userId },
-        orderBy: { solvedAt: "desc" },
+        orderBy: { updatedAt: "desc" },
       });
     },
     async recordProblem(userId: string, problem: {
-      problemId: string;
-      title: string;
-      slug: string;
-      topic: string;
-      difficulty: string;
+      topicSlug: string;
+      problemSlug: string;
       status?: string;
-      timeSpentMs?: number;
+      bookmarked?: boolean;
       notes?: string;
     }) {
-      return prisma.dSAProgress.upsert({
+      // Identity is the compound unique (userId, topicSlug, problemSlug).
+      // `title`, `difficulty` and `timeSpentMs` have no column in the schema.
+      return prisma.dsaProgress.upsert({
         where: {
-          userId_problemId: {
+          userId_topicSlug_problemSlug: {
             userId,
-            problemId: problem.problemId,
+            topicSlug: problem.topicSlug,
+            problemSlug: problem.problemSlug,
           },
         },
         update: {
           status: problem.status || "solved",
-          timeSpentMs: problem.timeSpentMs,
-          notes: problem.notes,
+          notes: problem.notes ?? undefined,
+          bookmarked: problem.bookmarked ?? undefined,
           attempts: { increment: 1 },
-          solvedAt: new Date(),
         },
         create: {
           userId,
-          problemId: problem.problemId,
-          title: problem.title,
-          slug: problem.slug,
-          topic: problem.topic,
-          difficulty: problem.difficulty,
+          topicSlug: problem.topicSlug,
+          problemSlug: problem.problemSlug,
           status: problem.status || "solved",
-          timeSpentMs: problem.timeSpentMs || null,
-          notes: problem.notes || null,
+          bookmarked: problem.bookmarked ?? false,
+          notes: problem.notes || "",
+          attempts: 1,
         },
       });
     },
     async resetProgress(userId: string) {
-      return prisma.dSAProgress.deleteMany({
+      return prisma.dsaProgress.deleteMany({
         where: { userId },
       });
     },
@@ -612,18 +607,32 @@ export const db = {
         take: 20,
       });
     },
-    async create(userId: string, data: { title: string; message: string; type?: string; link?: string }) {
+    async create(userId: string, data: { title: string; message: string; type?: string; link?: string; actionUrl?: string }) {
+      // `link` is stored in the schema's `actionUrl` column. `type` is the
+      // NotificationType enum; the previous "info" default was not a member of
+      // that enum and would have been rejected, so it now defaults to "system".
+      const allowedTypes = ["job_match", "interview", "milestone", "learning", "system", "application"];
+      const type = data.type && allowedTypes.includes(data.type) ? data.type : "system";
       return prisma.notification.create({
         data: {
           userId,
           title: data.title,
           message: data.message,
-          type: data.type || "info",
-          link: data.link || null,
+          type: type as any,
+          actionUrl: data.actionUrl || data.link || "",
         },
       });
     },
-    async markAllRead(userId: string) {
+    // Route layer calls markAsRead / markAllAsRead; both were missing and threw
+    // a TypeError. markAsRead is scoped by userId so a caller cannot mark
+    // another user's notification as read.
+    async markAsRead(id: string, userId: string) {
+      return prisma.notification.updateMany({
+        where: { id, userId },
+        data: { read: true },
+      });
+    },
+    async markAllAsRead(userId: string) {
       return prisma.notification.updateMany({
         where: { userId, read: false },
         data: { read: true },
@@ -634,19 +643,21 @@ export const db = {
   // Analytics & Snapshots
   analytics: {
     async recordEvent(userId: string, eventType: string, category: string, metadata?: any) {
+      // Schema stores the event name in `type` and everything else in a native
+      // Json `payload`. `category` is folded into the payload so the analytics
+      // dashboard can still group by it.
       return prisma.analyticsEvent.create({
         data: {
           userId,
-          eventType,
-          category,
-          metadata: metadata ? JSON.stringify(metadata) : null,
+          type: eventType,
+          payload: { category, ...(metadata || {}) },
         },
       });
     },
     async getEvents(userId: string, limit = 100) {
       return prisma.analyticsEvent.findMany({
         where: { userId },
-        orderBy: { timestamp: "desc" },
+        orderBy: { createdAt: "desc" },
         take: limit,
       });
     },
@@ -660,24 +671,19 @@ export const db = {
       velocityScore?: number;
       metadata?: any;
     }) {
+      // CareerSnapshot stores all figures in a single `metrics` Json column.
+      const { metadata, ...metrics } = data;
       return prisma.careerSnapshot.create({
         data: {
           userId,
-          readinessScore: data.readinessScore,
-          atsScore: data.atsScore,
-          skillsCount: data.skillsCount,
-          dsaSolvedCount: data.dsaSolvedCount,
-          interviewScore: data.interviewScore,
-          activeApps: data.activeApps,
-          velocityScore: data.velocityScore,
-          metadata: data.metadata ? JSON.stringify(data.metadata) : null,
+          metrics: { ...metrics, ...(metadata || {}) },
         },
       });
     },
     async getSnapshots(userId: string) {
       return prisma.careerSnapshot.findMany({
         where: { userId },
-        orderBy: { date: "asc" },
+        orderBy: { createdAt: "asc" },
         take: 30,
       });
     },

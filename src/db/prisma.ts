@@ -1,24 +1,12 @@
 import { PrismaClient } from "@prisma/client";
-import dotenv from "dotenv";
-import path from "path";
+import { config } from "../server/config";
 
-dotenv.config();
+// The datasource URL is resolved and validated once, in src/server/config.ts.
+// This module previously re-derived its own SQLite `file:` URL, which both
+// contradicted the `postgresql` provider in prisma/schema.prisma and bypassed
+// the validated configuration. It now defers to config.DATABASE_URL so there is
+// exactly one source of truth for the connection string.
 
-function getValidSqliteUrl(): string {
-  const dbUrl = process.env.DATABASE_URL;
-  if (dbUrl && dbUrl.startsWith("file:")) {
-    return dbUrl;
-  }
-  const customUrl = process.env.SQLITE_DATABASE_URL;
-  if (customUrl && customUrl.startsWith("file:")) {
-    return customUrl;
-  }
-  return `file:${path.join(process.cwd(), "prisma", "dev.db")}`;
-}
-
-const sqliteDbUrl = getValidSqliteUrl();
-
-// Global Prisma instance with graceful initialization
 declare global {
   // eslint-disable-next-line no-var
   var prismaGlobal: PrismaClient | undefined;
@@ -29,13 +17,13 @@ export const prisma: PrismaClient =
   new PrismaClient({
     datasources: {
       db: {
-        url: sqliteDbUrl,
+        url: config.DATABASE_URL,
       },
     },
-    log: process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"],
+    log: config.NODE_ENV === "development" ? ["warn", "error"] : ["error"],
   });
 
-if (process.env.NODE_ENV !== "production") {
+if (config.NODE_ENV !== "production") {
   global.prismaGlobal = prisma;
 }
 

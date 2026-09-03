@@ -14,19 +14,22 @@ jobsRouter.get("/", async (req: Request, res: Response) => {
     });
 
     const formatted = jobs.map((j) => {
-      let skills: string[] = [];
-      let requirements: string[] = [];
-      try { skills = j.skills ? JSON.parse(j.skills) : []; } catch { skills = []; }
-      try { requirements = j.requirements ? JSON.parse(j.requirements) : []; } catch { requirements = []; }
+      // `requirements` and `skillsRequired` are native Json columns and are
+      // already parsed. The schema stores the company name on `companyName`
+      // (`company` is now the Company relation) and a single `salary` string
+      // (there are no salaryMin/salaryMax/salaryText columns).
+      const skills = Array.isArray(j.skillsRequired) ? j.skillsRequired : [];
+      const requirements = Array.isArray(j.requirements) ? j.requirements : [];
       return {
         id: j.id,
         title: j.title,
-        company: j.company,
-        company_logo: j.companyLogo || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=60",
+        company: j.companyName,
+        // No logo column in the schema. Placeholder retained; Phase 2 replaces it.
+        company_logo: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=60",
         location: j.location,
         type: j.type,
         workplace: j.workplace,
-        salary_range: j.salaryText || `$${(j.salaryMin || 140000).toLocaleString()} - $${(j.salaryMax || 190000).toLocaleString()}`,
+        salary_range: j.salary || "",
         description: j.description,
         requirements,
         skills_required: skills,
@@ -52,8 +55,7 @@ jobsRouter.get("/:id", optionalAuth, async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, message: "Job listing not found." });
     }
 
-    let skillsReq: string[] = [];
-    try { skillsReq = job.skills ? JSON.parse(job.skills) : []; } catch { skillsReq = []; }
+    const skillsReq: string[] = Array.isArray(job.skillsRequired) ? (job.skillsRequired as string[]) : [];
 
     let userSkills: string[] = [];
     if (userId) {
@@ -71,11 +73,11 @@ jobsRouter.get("/:id", optionalAuth, async (req: Request, res: Response) => {
       job: {
         id: job.id,
         title: job.title,
-        company: job.company,
+        company: job.companyName,
         location: job.location,
         type: job.type,
         workplace: job.workplace,
-        salary_range: job.salaryText || "$160k - $210k",
+        salary_range: job.salary || "",
         description: job.description,
         skills_required: skillsReq,
         match_score: overallScore,

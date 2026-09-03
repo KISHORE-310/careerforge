@@ -1,5 +1,4 @@
 import dotenv from "dotenv";
-import path from "path";
 
 dotenv.config();
 
@@ -30,17 +29,37 @@ function validateAndLoadConfig(): ServerConfig {
     }
   }
 
-  // Validate Database URL
+  // Validate Database URL.
+  // prisma/schema.prisma declares `provider = "postgresql"`, so DATABASE_URL is
+  // authoritative and MUST be a PostgreSQL connection string. Any previous
+  // SQLite (`file:`) coercion has been removed: it contradicted the schema and
+  // silently discarded the configured database.
   let dbUrl = process.env.DATABASE_URL;
-  if (!dbUrl || !dbUrl.startsWith("file:")) {
-    dbUrl = `file:${path.join(process.cwd(), "prisma", "dev.db")}`;
+  const isPostgresUrl = (url: string) =>
+    url.startsWith("postgresql://") || url.startsWith("postgres://");
+
+  if (!dbUrl) {
+    if (isProduction) {
+      throw new Error("FATAL: DATABASE_URL environment variable must be set in production.");
+    }
+    // Development default matches docker-compose.yml and .env.example
+    dbUrl = "postgresql://careerforge:careerforge@localhost:5432/careerforge";
+    console.warn(
+      "⚠️ Warning: DATABASE_URL not provided. Falling back to the local docker-compose PostgreSQL instance."
+    );
+  } else if (!isPostgresUrl(dbUrl)) {
+    throw new Error(
+      `FATAL: DATABASE_URL must be a PostgreSQL connection string (postgresql://...). ` +
+        `Received a URL starting with "${dbUrl.split(":")[0]}:". ` +
+        `The Prisma schema uses the "postgresql" provider; SQLite URLs are no longer supported.`
+    );
   }
 
   // Demo Mode check - only true if explicitly set to "true"
   const demoMode = process.env.DEMO_MODE === "true";
 
   const config: ServerConfig = {
-    PORT: 3000,
+    PORT: Number(process.env.PORT) || 3000,
     NODE_ENV: nodeEnv,
     DATABASE_URL: dbUrl,
     JWT_SECRET: jwtSecret,

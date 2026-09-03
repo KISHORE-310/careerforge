@@ -31,8 +31,13 @@ skillsRouter.get("/", authenticateToken, async (req: Request, res: Response) => 
         name: s.name,
         category: s.category,
         proficiency: s.proficiency,
-        verified: s.verified,
-        source: s.source,
+        status: s.status,
+        // Schema models skill provenance as a single `status` string
+        // ("verified" | "learning" | source label) rather than separate
+        // `verified` / `source` columns. Both keys are derived from it so the
+        // existing response shape is preserved.
+        verified: s.status === "verified",
+        source: s.status,
       })),
       market_readiness_score: marketReadiness,
       top_strengths: topStrengths.length > 0 ? topStrengths : ["Add skills to see top strengths"],

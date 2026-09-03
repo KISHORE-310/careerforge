@@ -157,7 +157,11 @@ authRouter.post(["/logout", "/auth/logout"], (_req: Request, res: Response) => {
 });
 
 // Current User Profile (`/api/auth/me`)
-authRouter.get(["/auth/me"], authenticateToken, async (req: Request, res: Response) => {
+// The path array previously contained only "/auth/me". Mounted at "/api/auth",
+// that resolved to "/api/auth/auth/me", so the "/api/auth/me" call the frontend
+// makes returned 404. "/me" is added; "/auth/me" is retained for the "/auth"
+// and "/demo" top-level mounts in server.ts.
+authRouter.get(["/me", "/auth/me"], authenticateToken, async (req: Request, res: Response) => {
   try {
     const userId = (req as AuthenticatedRequest).userId;
     const user = await db.users.findById(userId);

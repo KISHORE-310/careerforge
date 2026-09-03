@@ -16,7 +16,8 @@ notificationsRouter.get("/", authenticateToken, async (req: Request, res: Respon
       message: n.message,
       type: n.type,
       read: n.read,
-      link: n.link,
+      link: n.actionUrl,
+      action_url: n.actionUrl,
       created_at: n.createdAt.toISOString(),
     }));
 

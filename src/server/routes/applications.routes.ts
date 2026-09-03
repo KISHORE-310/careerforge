@@ -20,7 +20,9 @@ applicationsRouter.get("/", authenticateToken, async (req: Request, res: Respons
       salary: a.salary || "$150,000",
       status: a.status,
       applied_date: a.appliedDate.toISOString().split("T")[0],
-      match_score: a.matchScore || 85,
+      // No `matchScore` column in the schema; Phase 2 wires the real matching
+      // engine here. Placeholder retained to preserve the response shape.
+      match_score: 85,
       notes: a.notes || "",
       next_step: a.nextStep || "Application Review",
     }));
@@ -63,7 +65,7 @@ applicationsRouter.post(
           salary: newApp.salary,
           status: newApp.status,
           applied_date: newApp.appliedDate.toISOString().split("T")[0],
-          match_score: newApp.matchScore || 85,
+          match_score: 85,
           notes: newApp.notes,
           next_step: newApp.nextStep,
         },
@@ -103,7 +105,7 @@ applicationsRouter.put(
           salary: updated.salary,
           status: updated.status,
           applied_date: updated.appliedDate.toISOString().split("T")[0],
-          match_score: updated.matchScore || 85,
+          match_score: 85,
           notes: updated.notes,
           next_step: updated.nextStep,
         },

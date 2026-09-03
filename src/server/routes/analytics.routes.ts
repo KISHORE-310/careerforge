@@ -10,7 +10,7 @@ export const analyticsRouter = Router();
  */
 function buildActivityCalendar(params: {
   events: Array<{ eventType: string; category: string; timestamp: Date }>;
-  dsaList: Array<{ status: string; solvedAt: Date; updatedAt: Date }>;
+  dsaList: Array<{ status: string; updatedAt: Date }>;
   interviews: Array<{ createdAt: Date; overallScore: number | null }>;
   applications: Array<{ appliedDate: Date; createdAt: Date }>;
 }) {
@@ -49,10 +49,11 @@ function buildActivityCalendar(params: {
     recordAction(ev.timestamp, type);
   }
 
-  // 2. Process DSA solved timestamps
+  // 2. Process DSA activity timestamps.
+  // The schema has no `solvedAt` column; `updatedAt` is the activity time.
   for (const d of dsaList) {
-    if (d.solvedAt) {
-      recordAction(d.solvedAt, "dsa");
+    if (d.updatedAt) {
+      recordAction(d.updatedAt, "dsa");
     }
   }
 
@@ -191,18 +192,27 @@ analyticsRouter.get(["/", "/dashboard", "/analytics", "/progress/analytics"], au
     const interviews = await db.interviews.listByUser(userId);
     const dsaList = await db.dsa.listByUser(userId);
 
-    const interviewScores = interviews.filter((i) => i.overallScore != null).map((i) => i.overallScore as number);
+    // Interview no longer carries `overallScore`; it lives on the
+    // InterviewEvaluation relation, which listByUser now includes.
+    const interviewScores = interviews
+      .map((i: any) => i.evaluation?.overallScore)
+      .filter((v: any) => v != null) as number[];
     const avgInterviewScore = interviewScores.length > 0
       ? Math.round(interviewScores.reduce((a, b) => a + b, 0) / interviewScores.length)
       : null;
 
+    // ApplicationStatus enum values are: wishlist | applied | screening |
+    // interview | offer | rejected | withdrawn. The previous filters looked for
+    // "saved" and "interviewing", which are not enum members, so those buckets
+    // were always 0. Response keys are unchanged for the frontend.
     const pipelineCounts = {
-      saved: applications.filter((a) => a.status === "saved").length,
+      saved: applications.filter((a) => a.status === "wishlist").length,
       applied: applications.filter((a) => a.status === "applied").length,
       screening: applications.filter((a) => a.status === "screening").length,
-      interviewing: applications.filter((a) => a.status === "interviewing" || a.status === "interview").length,
+      interviewing: applications.filter((a) => a.status === "interview").length,
       offer: applications.filter((a) => a.status === "offer").length,
       rejected: applications.filter((a) => a.status === "rejected").length,
+      withdrawn: applications.filter((a) => a.status === "withdrawn").length,
     };
 
     const dsaSolvedCount = dsaList.filter((d) => d.status === "solved" || d.status === "accepted").length;
@@ -219,10 +229,19 @@ analyticsRouter.get(["/", "/dashboard", "/analytics", "/progress/analytics"], au
       : 0;
 
     // Real 365-day activity calendar
+    // AnalyticsEvent stores the event name in `type` and the category inside
+    // the `payload` Json column, with `createdAt` as the timestamp.
     const activityData = buildActivityCalendar({
-      events: allEvents,
-      dsaList: dsaList.map((d) => ({ status: d.status, solvedAt: d.solvedAt, updatedAt: d.updatedAt })),
-      interviews: interviews.map((i) => ({ createdAt: i.createdAt, overallScore: i.overallScore })),
+      events: allEvents.map((e: any) => ({
+        eventType: e.type,
+        category: e.payload?.category || "",
+        timestamp: e.createdAt,
+      })),
+      dsaList: dsaList.map((d) => ({ status: d.status, updatedAt: d.updatedAt })),
+      interviews: interviews.map((i: any) => ({
+        createdAt: i.createdAt,
+        overallScore: i.evaluation?.overallScore ?? null,
+      })),
       applications: applications.map((a) => ({ appliedDate: a.appliedDate, createdAt: a.createdAt })),
     });
 
@@ -239,7 +258,7 @@ analyticsRouter.get(["/", "/dashboard", "/analytics", "/progress/analytics"], au
         },
         skills_overview: {
           total_skills: skills.length,
-          verified_skills: skills.filter((s) => s.verified).length,
+          verified_skills: skills.filter((s) => s.status === "verified").length,
           top_skills: skills.slice(0, 5).map((s) => s.name),
         },
         interview_metrics: {
@@ -253,11 +272,11 @@ analyticsRouter.get(["/", "/dashboard", "/analytics", "/progress/analytics"], au
         },
         activity_calendar: activityData,
       },
-      recent_events: recentEvents.map((e) => ({
+      recent_events: recentEvents.map((e: any) => ({
         id: e.id,
-        event_name: e.eventType,
-        category: e.category,
-        timestamp: e.timestamp.toISOString(),
+        event_name: e.type,
+        category: e.payload?.category || "",
+        timestamp: e.createdAt.toISOString(),
       })),
     });
   } catch (error: any) {

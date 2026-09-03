@@ -21,35 +21,34 @@ learningRouter.get("/", optionalAuth, async (req: Request, res: Response) => {
     }
 
     const formatted = resources.map((r) => {
-      let modulesList: string[] = [];
-      try {
-        modulesList = r.modules ? JSON.parse(r.modules) : [];
-      } catch {
-        modulesList = [];
-      }
-
-      let quizObj: any = null;
-      try {
-        quizObj = r.quiz ? JSON.parse(r.quiz) : null;
-      } catch {
-        quizObj = null;
-      }
+      // `lessons` and `quiz` are native Json columns in the schema, so they are
+      // already parsed values and must not be JSON.parse()d again.
+      const lessonsList = Array.isArray(r.lessons) ? r.lessons : [];
+      const progress = progressMap[r.id];
+      const pct = progress?.progressPct ?? 0;
 
       return {
         id: r.id,
         title: r.title,
+        skill: r.skill,
         category: r.category,
         difficulty: r.difficulty,
-        estimated_hours: r.estimatedHr,
-        rating: r.rating,
-        enrolled: r.enrolled,
-        icon: r.icon,
+        type: r.type,
+        duration: r.duration,
+        estimated_hours: r.estimatedHours,
         description: r.description,
-        modules: modulesList,
-        quiz: quizObj,
-        status: progressMap[r.id]?.status || "not_started",
-        progress_percent: progressMap[r.id]?.progress || 0,
-        quiz_score: progressMap[r.id]?.quizScore,
+        // Schema has no `rating`, `enrolled` or `icon` column; keys retained
+        // as null so the response shape stays stable for the frontend.
+        rating: null,
+        enrolled: null,
+        icon: null,
+        modules: lessonsList,
+        lessons: lessonsList,
+        quiz: r.quiz ?? null,
+        status: progress ? (progress.completed ? "completed" : "in_progress") : "not_started",
+        progress_percent: pct,
+        // No `quizScore` column in the schema.
+        quiz_score: null,
       };
     });
 

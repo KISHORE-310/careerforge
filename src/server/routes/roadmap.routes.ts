@@ -80,31 +80,40 @@ roadmapRouter.get("/", authenticateToken, async (req: Request, res: Response) =>
       });
     }
 
-    const formattedMilestones = (roadmap.milestones || []).map((m) => {
-      let skills: string[] = [];
-      let resources: string[] = [];
-      try { skills = m.skills ? JSON.parse(m.skills) : []; } catch { skills = []; }
-      try { resources = m.resources ? JSON.parse(m.resources) : []; } catch { resources = []; }
-      return {
-        id: m.id,
-        week: m.weekNumber,
-        title: m.title,
-        description: m.description,
-        category: m.category,
-        status: m.status,
-        skills,
-        resources,
-      };
-    });
+    // Schema alignment: milestone week is `week` (was `weekNumber`), `tasks` is
+    // a native Json column, and there are no `category` / `skills` / `resources`
+    // milestone columns. Those keys are retained as empty values so the
+    // response shape stays stable for existing frontend consumers.
+    const formattedMilestones = (roadmap.milestones || []).map((m) => ({
+      id: m.id,
+      week: m.week,
+      title: m.title,
+      description: m.description,
+      duration: m.duration,
+      status: m.status,
+      tasks: Array.isArray(m.tasks) ? m.tasks : [],
+      category: null,
+      skills: [],
+      resources: [],
+    }));
+
+    // Roadmap has no `title`, `description` or `progress` column. The title is
+    // derived exactly as it was previously stored, and progress is computed
+    // from milestone statuses rather than read from a stale column.
+    const completedCount = formattedMilestones.filter((m) => m.status === "completed").length;
+    const progress = formattedMilestones.length
+      ? Math.round((completedCount / formattedMilestones.length) * 100)
+      : 0;
 
     res.json({
       success: true,
       roadmap: {
         id: roadmap.id,
         targetRole: roadmap.targetRole,
-        title: roadmap.title,
-        description: roadmap.description,
-        progress: roadmap.progress,
+        source: roadmap.source,
+        title: `Mastery Path for ${roadmap.targetRole}`,
+        description: "",
+        progress,
         milestones: formattedMilestones,
       },
     });
