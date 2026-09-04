@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { normalizeStatus } from "./lib/data";
 
 // =====================================
 // Auth Validation Schemas
@@ -115,18 +116,61 @@ export const ResumeSchema = z.object({
 // =====================================
 // Job Application Validation Schemas
 // =====================================
-export const ApplicationCreateSchema = z.object({
+
+// Mirrors the ApplicationStatus enum in prisma/schema.prisma. The previous
+// list omitted `screening` and `withdrawn`, which normalizeStatus can legally
+// return, so those would have been rejected after normalization.
+const APPLICATION_STATUSES = [
+  "wishlist",
+  "applied",
+  "screening",
+  "interview",
+  "offer",
+  "rejected",
+  "withdrawn",
+] as const;
+
+// Base object (not a ZodEffects) so `.partial()` still works for the update
+// schema. The alias transform is applied separately to each exported schema.
+const ApplicationFieldsSchema = z.object({
   company: z.string().trim().min(1, "Company name is required").max(100),
   role: z.string().trim().min(1, "Role title is required").max(100),
   location: z.string().trim().max(100).optional(),
   salary: z.string().trim().max(100).optional(),
-  status: z.enum(["wishlist", "applied", "interview", "offer", "rejected"]).default("applied"),
+  // Alias accepted because the existing frontend sends `salary_range`
+  // (src/pages/Jobs.jsx, src/pages/Applications.jsx). Normalized to `salary`
+  // by the transform below so nothing downstream needs to know about it.
+  salary_range: z.string().trim().max(100).optional(),
+  // Normalized through the shared normalizeStatus helper so the frontend's
+  // "Wishlist" / "Interviewing" casing and aliases are accepted.
+  status: z
+    .preprocess(
+      (value) => (typeof value === "string" && value.trim() ? normalizeStatus(value) : value),
+      z.enum(APPLICATION_STATUSES)
+    )
+    .optional(),
+  // Optional link to a real Job row. Previously absent, which meant Zod
+  // stripped it and Application.jobId was always null.
+  jobId: z.string().trim().min(1).max(100).optional(),
   matchScore: z.number().min(0).max(100).optional(),
   notes: z.string().max(5000).optional(),
   nextStep: z.string().max(200).optional(),
 });
 
-export const ApplicationUpdateSchema = ApplicationCreateSchema.partial();
+/** Collapses the `salary_range` alias onto `salary`, preferring an explicit `salary`. */
+function applySalaryAlias<T extends { salary?: string; salary_range?: string }>(data: T) {
+  const { salary_range: salaryRange, ...rest } = data;
+  const salary = rest.salary ?? salaryRange;
+  return (salary === undefined ? rest : { ...rest, salary }) as Omit<T, "salary_range">;
+}
+
+export const ApplicationCreateSchema = ApplicationFieldsSchema.transform((data) => {
+  const mapped = applySalaryAlias(data);
+  // Preserves the previous `.default("applied")` behaviour.
+  return { ...mapped, status: mapped.status ?? ("applied" as const) };
+});
+
+export const ApplicationUpdateSchema = ApplicationFieldsSchema.partial().transform(applySalaryAlias);
 
 // =====================================
 // Interview Validation Schemas

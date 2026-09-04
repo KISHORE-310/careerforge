@@ -359,6 +359,7 @@ export const db = {
           nextStep: data.nextStep !== undefined ? data.nextStep : existing.nextStep,
           notes: data.notes !== undefined ? data.notes : existing.notes,
           contacts: data.contactPerson !== undefined ? data.contactPerson : existing.contacts,
+          jobId: data.jobId !== undefined ? data.jobId : existing.jobId,
         },
       });
     },
