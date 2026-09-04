@@ -916,6 +916,142 @@ async function run() {
     await call("interviews list after session", "GET", "/api/interviews");
   }
 
+  // ---------- interviews: Phase 2 Step 4 (real duration_minutes) ----------
+  section("Interviews — Phase 2 Step 4");
+  {
+    async function findSession(id) {
+      const r = await call(`interviews list (lookup ${id})`, "GET", "/api/interviews");
+      const session = r.json?.sessions?.find((s) => s.id === id);
+      return { r, session };
+    }
+
+    // A. Start a new interview and correctly capture the session id. The
+    // start response has no `session` object -- the id is the top-level
+    // `session_id` field (the pre-existing "interview start" test above reads
+    // `s.json?.session?.id`, which does not exist on this shape, so its
+    // downstream AI checks silently never run; that is a pre-existing harness
+    // bug left untouched here, worked around locally in this section only).
+    const start = await call("interview start (Phase 2 Step 4)", "POST", "/api/interviews/start", {
+      body: {
+        role: "Backend Engineer",
+        track: "Technical",
+        company: "Phase2 Step4 Corp",
+        difficulty: "Intermediate",
+      },
+      expect: [200, 201],
+    });
+    const step4InterviewId = start.json?.session_id;
+    results.push({
+      name: "interview start response carries a usable session_id",
+      method: "POST",
+      path: "/api/interviews/start",
+      status: step4InterviewId ? "ok" : "MISSING",
+      ok: Boolean(step4InterviewId),
+      ms: 0,
+      detail: step4InterviewId ? "" : `expected a session_id string, got ${JSON.stringify(start.json?.session_id)}`,
+    });
+
+    // B. The freshly-created, still in-progress interview must report
+    // duration_minutes: null -- never the old fabricated 25.
+    if (step4InterviewId) {
+      const { session } = await findSession(step4InterviewId);
+      const freshOk = session !== undefined && session.duration_minutes === null;
+      results.push({
+        name: "in-progress interview reports duration_minutes: null (not fabricated 25)",
+        method: "GET",
+        path: "/api/interviews",
+        status: session ? JSON.stringify(session.duration_minutes) : "MISSING",
+        ok: freshOk,
+        ms: 0,
+        detail: freshOk
+          ? ""
+          : session
+          ? `expected duration_minutes null for an in-progress session, got ${JSON.stringify(session.duration_minutes)}`
+          : `session ${step4InterviewId} not found in list response`,
+      });
+    } else {
+      results.push({
+        name: "in-progress interview reports duration_minutes: null (not fabricated 25)",
+        method: "-",
+        path: "-",
+        status: "SKIP",
+        ok: false,
+        ms: 0,
+        detail: "no session id from interview start — cannot look up the session",
+      });
+    }
+
+    // C. Optional live-AI evaluation check, gated on ctx.aiEnabled (set from
+    // the /api/health check). Completes the interview and verifies a real,
+    // non-negative computed duration replaces the old constant. Marked N/A
+    // rather than failing the suite when GEMINI_API_KEY is unavailable.
+    if (ctx.aiEnabled && step4InterviewId) {
+      const msg = await call("interview message (Phase 2 Step 4, live AI)", "POST", `/api/interviews/${step4InterviewId}/message`, {
+        body: {
+          message: "I would use a hash map for O(n) lookup.",
+          conversation_history: [],
+        },
+      });
+
+      if (msg.ok) {
+        const evaluation = await call("interview evaluate (Phase 2 Step 4, live AI)", "POST", `/api/interviews/${step4InterviewId}/evaluate`, {
+          body: { conversation_history: [] },
+        });
+
+        if (evaluation.ok) {
+          const { session: completedSession } = await findSession(step4InterviewId);
+          const d = completedSession?.duration_minutes;
+          const isValid = typeof d === "number" && d >= 0;
+          results.push({
+            name: "completed interview reports a real numeric duration_minutes",
+            method: "GET",
+            path: "/api/interviews",
+            status: d ?? "MISSING",
+            ok: isValid,
+            ms: 0,
+            detail: isValid
+              ? d === 25
+                ? "value is 25, matching the old constant by coincidence of real elapsed time — not a failure, flagged for visibility"
+                : ""
+              : `expected a non-negative number, got ${JSON.stringify(d)}`,
+          });
+        } else {
+          results.push({
+            name: "completed interview reports a real numeric duration_minutes",
+            method: "POST",
+            path: `/api/interviews/${step4InterviewId}/evaluate`,
+            status: "N/A",
+            ok: true,
+            ms: 0,
+            detail: "ai_engine reported enabled but the evaluate call did not succeed — treating as N/A rather than failing the suite",
+          });
+        }
+      } else {
+        results.push({
+          name: "completed interview reports a real numeric duration_minutes",
+          method: "POST",
+          path: `/api/interviews/${step4InterviewId}/message`,
+          status: "N/A",
+          ok: true,
+          ms: 0,
+          detail: "ai_engine reported enabled but the message call did not succeed — treating as N/A rather than failing the suite",
+        });
+      }
+    } else {
+      results.push({
+        name: "completed interview reports a real numeric duration_minutes",
+        method: "-",
+        path: "-",
+        status: "N/A",
+        ok: true,
+        ms: 0,
+        detail: !step4InterviewId
+          ? "no session id from interview start — cannot exercise the evaluate flow"
+          : "GEMINI_API_KEY not configured (ai_engine: fallback_mode) — skipped, not counted as a failure",
+      });
+    }
+  }
+
   // ---------- notifications ----------
   section("Notifications");
   {

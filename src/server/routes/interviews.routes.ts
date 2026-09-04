@@ -35,7 +35,7 @@ interviewsRouter.get("/", authenticateToken, async (req: Request, res: Response)
         difficulty: null,
         status: s.status,
         score: evalObj?.overallScore ?? null,
-        duration_minutes: 25,
+        duration_minutes: s.status === "completed" ? s.durationMinutes : null,
         created_at: s.createdAt.toISOString(),
         score_breakdown: breakdown,
       };

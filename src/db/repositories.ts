@@ -421,9 +421,20 @@ export const db = {
       });
     },
     async saveEvaluation(interviewId: string, evalData: any) {
+      // durationMinutes has no other writer (create() defaults it to 0 and
+      // never updates it), so it's computed here from the session's real
+      // createdAt at the moment the interview is marked completed.
+      const interview = await prisma.interview.findUnique({
+        where: { id: interviewId },
+        select: { createdAt: true },
+      });
+      const durationMinutes = interview
+        ? Math.max(0, Math.round((Date.now() - interview.createdAt.getTime()) / 60000))
+        : 0;
+
       await prisma.interview.update({
         where: { id: interviewId },
-        data: { status: "completed" },
+        data: { status: "completed", durationMinutes },
       });
 
       // InterviewEvaluation requires an explicit rubric breakdown. The AI
