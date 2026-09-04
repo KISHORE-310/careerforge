@@ -33,6 +33,10 @@ authRouter.post(["/demo", "/auth/demo"], authLimiter, async (_req: Request, res:
           location: "San Francisco, CA",
         },
       });
+      // The demo account ships with a pre-filled profile, so it should
+      // genuinely skip onboarding rather than just claim to in the response.
+      await db.users.completeOnboarding(demoUser.id);
+      demoUser = await db.users.findById(demoUser.id);
     }
 
     const token = createToken(demoUser.id, demoUser.email);
@@ -46,7 +50,7 @@ authRouter.post(["/demo", "/auth/demo"], authLimiter, async (_req: Request, res:
         full_name: demoUser.name,
         email: demoUser.email,
         target_role: demoUser.profile?.targetRole || "Senior Full Stack Engineer",
-        onboarding_completed: true,
+        onboarding_completed: demoUser.onboardingCompleted,
       },
     });
   } catch (error: any) {
@@ -100,7 +104,7 @@ authRouter.post(
           id: newUser.id,
           full_name: newUser.name,
           email: newUser.email,
-          onboarding_completed: false,
+          onboarding_completed: newUser.onboardingCompleted,
         },
       });
     } catch (error: any) {
@@ -139,7 +143,7 @@ authRouter.post(
           full_name: user.name,
           email: user.email,
           target_role: user.profile?.targetRole || "Software Engineer",
-          onboarding_completed: true,
+          onboarding_completed: user.onboardingCompleted,
         },
       });
     } catch (error: any) {
@@ -184,7 +188,7 @@ authRouter.get(["/me", "/auth/me"], authenticateToken, async (req: Request, res:
         github: user.profile?.github || "",
         linkedin: user.profile?.linkedin || "",
         portfolio: user.profile?.portfolio || "",
-        onboarding_completed: true,
+        onboarding_completed: user.onboardingCompleted,
       },
     });
   } catch (error: any) {

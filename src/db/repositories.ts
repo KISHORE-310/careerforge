@@ -94,6 +94,12 @@ export const db = {
         },
       });
     },
+    async completeOnboarding(userId: string) {
+      return prisma.user.update({
+        where: { id: userId },
+        data: { onboardingCompleted: true },
+      });
+    },
   },
 
   // Resumes & Versions

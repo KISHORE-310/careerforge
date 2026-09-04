@@ -33,7 +33,7 @@ profileRouter.get("/", authenticateToken, async (req: Request, res: Response) =>
       github: user.profile?.github || "",
       linkedin: user.profile?.linkedin || "",
       portfolio: user.profile?.portfolio || "",
-      onboarding_completed: true,
+      onboarding_completed: user.onboardingCompleted,
     };
 
     res.json({
@@ -108,6 +108,8 @@ profileRouter.post(
           }
         }
       }
+
+      await db.users.completeOnboarding(userId);
 
       const user = await db.users.findById(userId);
       res.json({ success: true, message: "Onboarding completed successfully!", user });

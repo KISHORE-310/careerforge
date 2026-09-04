@@ -115,6 +115,158 @@ async function run() {
     if (me.json?.user?.id) ctx.userId = me.json.user.id;
   }
 
+  // ---------- auth/onboarding: Phase 2 Step 5 (real onboardingCompleted) ----------
+  section("Auth/Onboarding — Phase 2 Step 5");
+  {
+    // Dedicated fresh user so this section doesn't disturb the onboarding
+    // state of the shared test user used by every later section. `call()`
+    // always authenticates with the module-level `token`, so it's swapped to
+    // this user's token for the duration of this block and restored after.
+    const step5Email = `phase2.step5.${Date.now()}@careerforge.test`;
+    const step5Password = "SmokeTest123!";
+    const savedToken = token;
+
+    try {
+      // A. Fresh signup returns onboarding_completed === false.
+      const signup = await call("signup (Phase 2 Step 5)", "POST", "/api/auth/signup", {
+        auth: false,
+        body: { email: step5Email, password: step5Password, fullName: "Phase2 Step5 Candidate" },
+      });
+      const signupOnboarding = signup.json?.user?.onboarding_completed;
+      results.push({
+        name: "fresh signup returns onboarding_completed: false",
+        method: "POST",
+        path: "/api/auth/signup",
+        status: JSON.stringify(signupOnboarding),
+        ok: signupOnboarding === false,
+        ms: 0,
+        detail: signupOnboarding === false ? "" : `expected false, got ${JSON.stringify(signupOnboarding)}`,
+      });
+
+      token = signup.json?.access_token || null;
+
+      if (token) {
+        // B. GET /api/auth/me immediately after signup returns false.
+        const meBefore = await call("auth/me (Phase 2 Step 5, before onboarding)", "GET", "/api/auth/me");
+        const meBeforeVal = meBefore.json?.user?.onboarding_completed;
+        results.push({
+          name: "GET /api/auth/me before onboarding returns false",
+          method: "GET",
+          path: "/api/auth/me",
+          status: JSON.stringify(meBeforeVal),
+          ok: meBeforeVal === false,
+          ms: 0,
+          detail: meBeforeVal === false ? "" : `expected false, got ${JSON.stringify(meBeforeVal)}`,
+        });
+
+        // C. GET /api/profile immediately after signup returns false.
+        const profileBefore = await call("profile (Phase 2 Step 5, before onboarding)", "GET", "/api/profile");
+        const profileBeforeVal = profileBefore.json?.user?.onboarding_completed;
+        results.push({
+          name: "GET /api/profile before onboarding returns false",
+          method: "GET",
+          path: "/api/profile",
+          status: JSON.stringify(profileBeforeVal),
+          ok: profileBeforeVal === false,
+          ms: 0,
+          detail: profileBeforeVal === false ? "" : `expected false, got ${JSON.stringify(profileBeforeVal)}`,
+        });
+
+        // D. POST /api/onboarding completes onboarding successfully.
+        const onboard = await call("onboarding complete (Phase 2 Step 5)", "POST", "/api/onboarding", {
+          body: {
+            target_role: "Backend Engineer",
+            experience_level: "Mid-Level",
+            skills: ["TypeScript"],
+            target_salary: "120000",
+          },
+        });
+        results.push({
+          name: "POST /api/onboarding completes successfully",
+          method: "POST",
+          path: "/api/onboarding",
+          status: onboard.ok ? "ok" : onboard.status,
+          ok: onboard.ok,
+          ms: 0,
+          detail: onboard.ok ? "" : onboard.detail || "onboarding request failed",
+        });
+
+        // E. GET /api/auth/me after onboarding returns true -- and this must
+        // reflect a real PostgreSQL write, not just an in-request echo, so
+        // it's read back via a fresh GET rather than reusing the POST response.
+        const meAfter = await call("auth/me (Phase 2 Step 5, after onboarding)", "GET", "/api/auth/me");
+        const meAfterVal = meAfter.json?.user?.onboarding_completed;
+        results.push({
+          name: "GET /api/auth/me after onboarding returns true (persisted)",
+          method: "GET",
+          path: "/api/auth/me",
+          status: JSON.stringify(meAfterVal),
+          ok: meAfterVal === true,
+          ms: 0,
+          detail: meAfterVal === true ? "" : `expected true, got ${JSON.stringify(meAfterVal)}`,
+        });
+
+        // F. GET /api/profile after onboarding returns true (same persisted
+        // column, read through the second call site).
+        const profileAfter = await call("profile (Phase 2 Step 5, after onboarding)", "GET", "/api/profile");
+        const profileAfterVal = profileAfter.json?.user?.onboarding_completed;
+        results.push({
+          name: "GET /api/profile after onboarding returns true (persisted)",
+          method: "GET",
+          path: "/api/profile",
+          status: JSON.stringify(profileAfterVal),
+          ok: profileAfterVal === true,
+          ms: 0,
+          detail: profileAfterVal === true ? "" : `expected true, got ${JSON.stringify(profileAfterVal)}`,
+        });
+      } else {
+        results.push({
+          name: "onboarding_completed lifecycle (before/after)",
+          method: "-",
+          path: "-",
+          status: "SKIP",
+          ok: false,
+          ms: 0,
+          detail: "no access_token from the dedicated Phase 2 Step 5 signup",
+        });
+      }
+    } finally {
+      // Always restore the shared test user's token so every later section
+      // (Profile, Jobs, Skills, Applications, Resume, ...) is unaffected.
+      token = savedToken;
+    }
+
+    // H. Demo account check -- only exercised when DEMO_MODE is actually
+    // enabled in this environment; otherwise the disabled-state response is
+    // itself verified (403) rather than skipping silently.
+    const demo = await call("auth/demo (Phase 2 Step 5)", "POST", "/api/auth/demo", {
+      auth: false,
+      expect: [200, 403],
+    });
+    if (demo.status === 403) {
+      results.push({
+        name: "demo onboarding_completed (DEMO_MODE disabled)",
+        method: "POST",
+        path: "/api/auth/demo",
+        status: "N/A",
+        ok: true,
+        ms: 0,
+        detail: "DEMO_MODE is disabled in this environment (403 as expected) — not counted as a failure",
+      });
+    } else if (demo.status === 200) {
+      const demoVal = demo.json?.user?.onboarding_completed;
+      results.push({
+        name: "demo user reports onboarding_completed: true (pre-filled profile)",
+        method: "POST",
+        path: "/api/auth/demo",
+        status: JSON.stringify(demoVal),
+        ok: demoVal === true,
+        ms: 0,
+        detail: demoVal === true ? "" : `expected true for the pre-filled demo profile, got ${JSON.stringify(demoVal)}`,
+      });
+    }
+  }
+
   if (!token) {
     console.log(`\n${C.red}No auth token obtained — running public endpoints only.${C.reset}`);
     section("Public endpoints (unauthenticated fallback)");
