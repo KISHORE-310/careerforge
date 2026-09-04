@@ -1,6 +1,8 @@
 import { Router, Request, Response } from "express";
 import { db } from "../../db/repositories";
 import { authenticateToken, AuthenticatedRequest } from "../auth";
+import { validateBody } from "../security";
+import { RoadmapMilestoneUpdateSchema } from "../schemas";
 
 export const roadmapRouter = Router();
 
@@ -151,7 +153,11 @@ const updateMilestoneHandler = async (req: Request, res: Response) => {
     const { status } = req.body;
     const effectiveStatus = status || "completed";
 
-    const updated = await db.roadmaps.updateMilestone(milestoneId, effectiveStatus);
+    const updated = await db.roadmaps.updateMilestone(milestoneId, effectiveStatus, userId);
+    if (!updated) {
+      return res.status(404).json({ success: false, message: "Milestone not found or unauthorized." });
+    }
+
     await db.analytics.recordEvent(userId, effectiveStatus === "completed" ? "milestone_completed" : "milestone_updated", "Roadmap", {
       milestoneId,
       status: effectiveStatus,
@@ -164,5 +170,5 @@ const updateMilestoneHandler = async (req: Request, res: Response) => {
   }
 };
 
-roadmapRouter.put("/milestones/:id", authenticateToken, updateMilestoneHandler);
-roadmapRouter.post("/milestones/:id", authenticateToken, updateMilestoneHandler);
+roadmapRouter.put("/milestones/:id", authenticateToken, validateBody(RoadmapMilestoneUpdateSchema), updateMilestoneHandler);
+roadmapRouter.post("/milestones/:id", authenticateToken, validateBody(RoadmapMilestoneUpdateSchema), updateMilestoneHandler);

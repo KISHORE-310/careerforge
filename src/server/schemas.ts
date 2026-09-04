@@ -230,3 +230,15 @@ export const CareerCoachChatSchema = z.object({
   })).optional(),
 });
 
+// =====================================
+// DSA Progress & Roadmap Milestone Validation Schemas
+// =====================================
+export const DsaProgressUpdateSchema = z.object({
+  status: z.string().trim().max(50).optional(),
+  notes: z.string().max(1000, "Notes exceed 1000 characters").optional(),
+});
+
+export const RoadmapMilestoneUpdateSchema = z.object({
+  status: z.string().trim().max(50).optional(),
+});
+

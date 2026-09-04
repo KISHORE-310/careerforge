@@ -2,7 +2,7 @@ import { Router, Request, Response } from "express";
 import { db } from "../../db/repositories";
 import { authenticateToken, optionalAuth, AuthenticatedRequest } from "../auth";
 import { aiLimiter, validateBody, sanitizeAiInput } from "../security";
-import { DsaSubmitSchema } from "../schemas";
+import { DsaSubmitSchema, DsaProgressUpdateSchema } from "../schemas";
 import { aiService } from "../services/ai.service";
 
 export const dsaRouter = Router();
@@ -93,7 +93,7 @@ dsaRouter.get("/progress", authenticateToken, async (req: Request, res: Response
 });
 
 // PUT /api/dsa/progress/:topicSlug/:problemSlug
-dsaRouter.put("/progress/:topicSlug/:problemSlug", authenticateToken, async (req: Request, res: Response) => {
+dsaRouter.put("/progress/:topicSlug/:problemSlug", authenticateToken, validateBody(DsaProgressUpdateSchema), async (req: Request, res: Response) => {
   try {
     const userId = (req as AuthenticatedRequest).userId;
     const { topicSlug, problemSlug } = req.params;

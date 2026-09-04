@@ -530,12 +530,18 @@ export const db = {
         include: { milestones: { orderBy: { sortOrder: "asc" } } },
       });
     },
-    async updateMilestone(milestoneId: string, status: string) {
-      // `completedAt` has no column in the schema.
-      return prisma.roadmapMilestone.update({
-        where: { id: milestoneId },
+    // `completedAt` has no column in the schema. Scoped through the
+    // roadmap.userId relation so a caller cannot update another user's
+    // milestone by guessing/knowing its id -- updateMany's where clause
+    // only matches rows the caller actually owns; a 0-count result means
+    // "not found or not yours" without distinguishing the two to the caller.
+    async updateMilestone(milestoneId: string, status: string, userId: string) {
+      const result = await prisma.roadmapMilestone.updateMany({
+        where: { id: milestoneId, roadmap: { userId } },
         data: { status },
       });
+      if (result.count === 0) return null;
+      return prisma.roadmapMilestone.findUnique({ where: { id: milestoneId } });
     },
   },
 

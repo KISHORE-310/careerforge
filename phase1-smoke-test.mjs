@@ -1547,6 +1547,165 @@ async function run() {
     }
   }
 
+  // ---------- security: authorization (IDOR) & validation hardening ----------
+  // Final consolidated backend pass (not a numbered Phase 2 step): fixes
+  // cross-user access to interview sessions and roadmap milestones, and
+  // wires up missing request validation on the DSA progress, roadmap
+  // milestone, and career coach chat endpoints.
+  section("Security — Authorization (IDOR) & Validation Hardening");
+  {
+    // A. Start a fresh interview as the main shared test user ("the owner"),
+    // correctly capturing session_id (the start response has no `session`
+    // object -- same extraction fix already used in the Phase 2 Step 4
+    // section).
+    const ownerStart = await call("interview start (IDOR owner)", "POST", "/api/interviews/start", {
+      body: { role: "Backend Engineer", track: "Technical", company: "IDOR Test Corp", difficulty: "Intermediate" },
+      expect: [200, 201],
+    });
+    const ownerInterviewId = ownerStart.json?.session_id;
+
+    // B. Sign up a second, unrelated user ("the attacker") and swap the
+    // shared token to it for the duration of the cross-user checks, exactly
+    // as the Phase 2 Step 5/6 sections already do.
+    const attackerEmail = `phase2.idor.${Date.now()}@careerforge.test`;
+    const attackerPassword = "SmokeTest123!";
+    const savedToken = token;
+
+    const attackerSignup = await call("signup (IDOR attacker)", "POST", "/api/auth/signup", {
+      auth: false,
+      body: { email: attackerEmail, password: attackerPassword, fullName: "IDOR Attacker" },
+    });
+    token = attackerSignup.json?.access_token || null;
+
+    try {
+      if (token) {
+        // C. Attacker tries to write a message into the owner's interview.
+        if (ownerInterviewId) {
+          const crossMsg = await call("cross-user interview message rejected", "POST", `/api/interviews/${ownerInterviewId}/message`, {
+            body: { message: "Attempting to write into someone else's interview session." },
+            expect: [404],
+          });
+          results.push({
+            name: "cross-user interview message write is rejected (404)",
+            method: "POST",
+            path: `/api/interviews/${ownerInterviewId}/message`,
+            status: crossMsg.status,
+            ok: crossMsg.ok,
+            ms: 0,
+            detail: crossMsg.ok ? "" : `expected 404, got ${crossMsg.status}`,
+          });
+
+          // D. Attacker tries to evaluate/complete the owner's interview.
+          const crossEval = await call("cross-user interview evaluate rejected", "POST", `/api/interviews/${ownerInterviewId}/evaluate`, {
+            body: { messages: [{ sender: "user", message: "hi" }] },
+            expect: [404],
+          });
+          results.push({
+            name: "cross-user interview evaluate is rejected (404)",
+            method: "POST",
+            path: `/api/interviews/${ownerInterviewId}/evaluate`,
+            status: crossEval.status,
+            ok: crossEval.ok,
+            ms: 0,
+            detail: crossEval.ok ? "" : `expected 404, got ${crossEval.status}`,
+          });
+        }
+
+        // E. Attacker tries to update the owner's roadmap milestone.
+        if (ctx.milestoneId) {
+          const crossMilestone = await call("cross-user milestone update rejected", "PUT", `/api/roadmap/milestones/${ctx.milestoneId}`, {
+            body: { status: "completed" },
+            expect: [404],
+          });
+          results.push({
+            name: "cross-user roadmap milestone update is rejected (404)",
+            method: "PUT",
+            path: `/api/roadmap/milestones/${ctx.milestoneId}`,
+            status: crossMilestone.status,
+            ok: crossMilestone.ok,
+            ms: 0,
+            detail: crossMilestone.ok ? "" : `expected 404, got ${crossMilestone.status}`,
+          });
+        }
+      } else {
+        results.push({
+          name: "cross-user IDOR checks (interview message/evaluate, roadmap milestone)",
+          method: "-",
+          path: "-",
+          status: "SKIP",
+          ok: false,
+          ms: 0,
+          detail: "no access_token from the dedicated IDOR attacker signup",
+        });
+      }
+    } finally {
+      // Always restore the shared test user's token for every later section.
+      token = savedToken;
+    }
+
+    // F. Regression: the legitimate owner can still message their own
+    // interview. This route calls Gemini, which is unavailable in this
+    // environment (ai_engine: fallback_mode) -- expect either success or the
+    // AI-unavailable 500, but never the ownership-check's 404, proving the
+    // fix does not block legitimate same-user access regardless of AI config.
+    if (ownerInterviewId) {
+      const ownMsg = await call("owner interview message still works", "POST", `/api/interviews/${ownerInterviewId}/message`, {
+        body: { message: "This is my own interview session." },
+        expect: [200, 201, 500],
+      });
+      const notBlocked = ownMsg.status !== 404;
+      results.push({
+        name: "owner can still message their own interview session (not blocked by ownership check)",
+        method: "POST",
+        path: `/api/interviews/${ownerInterviewId}/message`,
+        status: ownMsg.status,
+        ok: notBlocked,
+        ms: 0,
+        detail: notBlocked ? "" : "ownership check incorrectly rejected the legitimate owner",
+      });
+    }
+
+    // G. Regression: the legitimate owner can still update their own
+    // roadmap milestone (not AI-gated, so this must cleanly succeed).
+    if (ctx.milestoneId) {
+      const ownMilestone = await call("owner milestone update still works", "PUT", `/api/roadmap/milestones/${ctx.milestoneId}`, {
+        body: { status: "completed" },
+      });
+      results.push({
+        name: "owner can still update their own roadmap milestone",
+        method: "PUT",
+        path: `/api/roadmap/milestones/${ctx.milestoneId}`,
+        status: ownMilestone.ok ? "ok" : ownMilestone.status,
+        ok: ownMilestone.ok,
+        ms: 0,
+        detail: ownMilestone.ok ? "" : "expected the owner's own milestone update to succeed",
+      });
+    }
+
+    // H. Validation hardening: DSA progress update rejects an oversized
+    // `notes` field (DsaProgressUpdateSchema caps it at 1000 characters).
+    await call("dsa progress update rejects oversized notes", "PUT", "/api/dsa/progress/arrays/two-sum", {
+      body: { status: "solved", notes: "x".repeat(2000) },
+      expect: [400],
+    });
+
+    // I. Validation hardening: roadmap milestone update rejects a
+    // non-string status.
+    if (ctx.milestoneId) {
+      await call("roadmap milestone update rejects non-string status", "PUT", `/api/roadmap/milestones/${ctx.milestoneId}`, {
+        body: { status: 12345 },
+        expect: [400],
+      });
+    }
+
+    // J. Validation hardening: coach chat rejects an empty message before
+    // ever reaching the AI call (deterministic, no GEMINI_API_KEY needed).
+    await call("coach chat rejects empty message", "POST", "/api/coach/chat", {
+      body: { message: "" },
+      expect: [400],
+    });
+  }
+
   // ---------- notifications ----------
   section("Notifications");
   {

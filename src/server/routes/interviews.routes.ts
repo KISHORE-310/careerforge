@@ -112,7 +112,16 @@ const handleInterviewMessageHandler = async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, message: "Response text is required." });
     }
 
-    if (userId && sessionId && !sessionId.startsWith("session_")) {
+    // A persisted session (real id, not the ephemeral "session_..." fallback
+    // used when unauthenticated) must belong to the caller before any
+    // message is written to it -- otherwise any authenticated user could
+    // write into another user's interview by supplying their session id.
+    const hasPersistedSession = Boolean(userId && sessionId && !sessionId.startsWith("session_"));
+    if (hasPersistedSession) {
+      const owned = await db.interviews.findById(sessionId, userId);
+      if (!owned) {
+        return res.status(404).json({ success: false, message: "Interview session not found or unauthorized." });
+      }
       await db.interviews.addMessage(sessionId, "user", sanitizeAiInput(userMsg, 4000));
     }
 
@@ -130,7 +139,7 @@ const handleInterviewMessageHandler = async (req: Request, res: Response) => {
       latestUserMessage: userMsg,
     });
 
-    if (userId && sessionId && !sessionId.startsWith("session_")) {
+    if (hasPersistedSession) {
       await db.interviews.addMessage(
         sessionId,
         "ai",
@@ -168,12 +177,22 @@ const evaluateInterviewHandler = async (req: Request, res: Response) => {
     const { messages, role = "Full Stack Engineer", track = "System Design" } = req.body;
     const userId = (req as any).userId;
 
-    let evalMessages = Array.isArray(messages) ? messages : [];
-    if (userId && sessionId && !sessionId.startsWith("session_") && evalMessages.length === 0) {
-      const stored = await db.interviews.findById(sessionId, userId);
-      if (stored?.messages) {
-        evalMessages = stored.messages.map((m) => ({ sender: m.sender, message: m.text }));
+    // A persisted session must belong to the caller before it's read from or
+    // written to -- checked once, up front, regardless of whether the client
+    // also supplied its own `messages` array, so ownership can't be bypassed
+    // by skipping the stored-messages lookup this check used to be tied to.
+    const hasPersistedSession = Boolean(userId && sessionId && !sessionId.startsWith("session_"));
+    let ownedInterview: any = null;
+    if (hasPersistedSession) {
+      ownedInterview = await db.interviews.findById(sessionId, userId);
+      if (!ownedInterview) {
+        return res.status(404).json({ success: false, message: "Interview session not found or unauthorized." });
       }
+    }
+
+    let evalMessages = Array.isArray(messages) ? messages : [];
+    if (hasPersistedSession && evalMessages.length === 0 && ownedInterview.messages) {
+      evalMessages = ownedInterview.messages.map((m: any) => ({ sender: m.sender, message: m.text }));
     }
 
     if (evalMessages.length === 0) {
@@ -189,7 +208,7 @@ const evaluateInterviewHandler = async (req: Request, res: Response) => {
       messages: evalMessages,
     });
 
-    if (userId && sessionId && !sessionId.startsWith("session_")) {
+    if (hasPersistedSession) {
       await db.interviews.saveEvaluation(sessionId, {
         overallScore: evaluation.overall_score,
         summary: evaluation.summary,

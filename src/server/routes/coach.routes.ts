@@ -1,13 +1,14 @@
 import { Router, Request, Response } from "express";
 import { db } from "../../db/repositories";
 import { authenticateToken, AuthenticatedRequest } from "../auth";
-import { aiLimiter, sanitizeAiInput } from "../security";
+import { aiLimiter, sanitizeAiInput, validateBody } from "../security";
+import { CareerCoachChatSchema } from "../schemas";
 import { aiService } from "../services/ai.service";
 
 export const coachRouter = Router();
 
 // POST /api/coach/chat
-coachRouter.post("/chat", aiLimiter, authenticateToken, async (req: Request, res: Response) => {
+coachRouter.post("/chat", aiLimiter, authenticateToken, validateBody(CareerCoachChatSchema), async (req: Request, res: Response) => {
   try {
     const userId = (req as AuthenticatedRequest).userId;
     const { message } = req.body;
