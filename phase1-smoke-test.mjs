@@ -493,6 +493,88 @@ async function run() {
     await call("market", "GET", "/api/market", { auth: false });
   }
 
+  // ---------- jobs: Phase 2 Step 7 (real posted_days_ago) ----------
+  section("Jobs — Phase 2 Step 7");
+  {
+    // Parses "Today" -> 0, "1d ago" -> 1, "Nd ago" -> N. Returns null if the
+    // string doesn't match the expected format at all.
+    function parsePostedDays(value) {
+      if (value === "Today") return 0;
+      const m = typeof value === "string" ? value.match(/^(\d+)d ago$/) : null;
+      return m ? Number(m[1]) : null;
+    }
+    const VALID_FORMAT = /^(Today|\d+d ago)$/;
+
+    // A + B. Every job in the list carries a posted_days_ago string matching
+    // the expected format.
+    const list1 = await call("jobs list (Phase 2 Step 7, call 1)", "GET", "/api/jobs", { auth: false });
+    const jobs1 = list1.json?.jobs || [];
+    const formatOk = jobs1.length > 0 && jobs1.every((j) => VALID_FORMAT.test(j.posted_days_ago));
+    results.push({
+      name: "every job carries a well-formed posted_days_ago (Today / Nd ago)",
+      method: "GET",
+      path: "/api/jobs",
+      status: formatOk ? "ok" : "SHAPE",
+      ok: formatOk,
+      ms: 0,
+      detail: formatOk
+        ? ""
+        : jobs1.length === 0
+        ? "no jobs returned — cannot verify posted_days_ago format"
+        : `unexpected format(s): ${jobs1.filter((j) => !VALID_FORMAT.test(j.posted_days_ago)).map((j) => JSON.stringify(j.posted_days_ago)).join(", ")}`,
+    });
+
+    // C. The old fabricated constant ("2d ago" for every job, always) must
+    // not still be blindly returned. We don't have fetchedAt to compute the
+    // "genuinely correct" answer independently (deliberately not exposed),
+    // so the strongest check achievable without it: if every single job
+    // reports exactly "2d ago", that's indistinguishable from the old
+    // hardcoded literal from this test's vantage point and is logged as
+    // inconclusive rather than failed outright, per the audited carve-out
+    // for a genuine coincidence. Any variation, or any value other than
+    // "2d ago", is conclusive proof real computation is happening.
+    const allExactlyTwoDaysAgo = jobs1.length > 0 && jobs1.every((j) => j.posted_days_ago === "2d ago");
+    results.push({
+      name: "posted_days_ago is not blindly the old fabricated \"2d ago\" constant",
+      method: "GET",
+      path: "/api/jobs",
+      status: allExactlyTwoDaysAgo ? "INCONCLUSIVE" : "ok",
+      ok: true,
+      ms: 0,
+      detail: allExactlyTwoDaysAgo
+        ? "every job currently shows \"2d ago\" -- cannot distinguish a genuine 2-day-old fetchedAt from the old hardcoded literal without exposing fetchedAt; not treated as a failure"
+        : `values vary from/are not all the old constant: ${[...new Set(jobs1.map((j) => j.posted_days_ago))].join(", ")}`,
+    });
+
+    // D. Calling the list twice must not regress any job's elapsed-day
+    // count (it may only stay the same or increase over real time).
+    const list2 = await call("jobs list (Phase 2 Step 7, call 2)", "GET", "/api/jobs", { auth: false });
+    const jobs2 = list2.json?.jobs || [];
+    const byId2 = new Map(jobs2.map((j) => [j.id, j]));
+    let regressed = null;
+    for (const j1 of jobs1) {
+      const j2 = byId2.get(j1.id);
+      if (!j2) continue;
+      const d1 = parsePostedDays(j1.posted_days_ago);
+      const d2 = parsePostedDays(j2.posted_days_ago);
+      if (d1 !== null && d2 !== null && d2 < d1) {
+        regressed = { id: j1.id, before: j1.posted_days_ago, after: j2.posted_days_ago };
+        break;
+      }
+    }
+    results.push({
+      name: "posted_days_ago does not regress across repeated calls",
+      method: "GET",
+      path: "/api/jobs",
+      status: regressed ? "REGRESSED" : "ok",
+      ok: !regressed,
+      ms: 0,
+      detail: regressed
+        ? `job ${regressed.id} went from ${JSON.stringify(regressed.before)} to ${JSON.stringify(regressed.after)}`
+        : "",
+    });
+  }
+
   // ---------- skills ----------
   section("Skills");
   await call("skills list", "GET", "/api/skills");

@@ -4,6 +4,16 @@ import { optionalAuth } from "../auth";
 
 export const jobsRouter = Router();
 
+// Time since CareerForge fetched/ingested this listing (Job.fetchedAt) --
+// not a claim about the employer's original posting date, which this schema
+// does not track.
+function formatPostedDaysAgo(fetchedAt: Date): string {
+  const diffDays = Math.max(0, Math.floor((Date.now() - new Date(fetchedAt).getTime()) / (1000 * 60 * 60 * 24)));
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "1d ago";
+  return `${diffDays}d ago`;
+}
+
 // GET /api/jobs
 jobsRouter.get("/", async (req: Request, res: Response) => {
   try {
@@ -34,7 +44,7 @@ jobsRouter.get("/", async (req: Request, res: Response) => {
         requirements,
         skills_required: skills,
         match_score: 92,
-        posted_days_ago: "2d ago",
+        posted_days_ago: formatPostedDaysAgo(j.fetchedAt),
       };
     });
 
