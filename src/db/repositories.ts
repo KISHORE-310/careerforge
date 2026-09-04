@@ -3,10 +3,16 @@ import { prisma } from "./prisma";
 export const db = {
   // Users & Profiles
   users: {
-    shape(user: any) {
+    // passwordHash is excluded by default -- it must never ride along on a
+    // user object that ends up in an HTTP response. The one legitimate
+    // internal consumer (login's bcrypt.compare) opts in explicitly via
+    // { includePasswordHash: true }.
+    shape(user: any, { includePasswordHash = false }: { includePasswordHash?: boolean } = {}) {
       if (!user) return null;
+      const { passwordHash, ...safeUser } = user;
       return {
-        ...user,
+        ...safeUser,
+        ...(includePasswordHash ? { passwordHash } : {}),
         name: user.fullName || user.name,
         fullName: user.fullName || user.name,
       };
@@ -17,6 +23,16 @@ export const db = {
         include: { profile: true },
       });
       return this.shape(user);
+    },
+    // Login-only: the sole caller that legitimately needs the raw hash for
+    // bcrypt.compare. Every other lookup must keep using findByEmail/findById
+    // so passwordHash never leaves this one code path.
+    async findByEmailWithPassword(email: string) {
+      const user = await prisma.user.findUnique({
+        where: { email: email.toLowerCase() },
+        include: { profile: true },
+      });
+      return this.shape(user, { includePasswordHash: true });
     },
     async findById(id: string) {
       const user = await prisma.user.findUnique({

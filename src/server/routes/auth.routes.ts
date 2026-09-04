@@ -122,7 +122,7 @@ authRouter.post(
     try {
       const { email, password } = req.body;
       const cleanEmail = email.trim().toLowerCase();
-      const user = await db.users.findByEmail(cleanEmail);
+      const user = await db.users.findByEmailWithPassword(cleanEmail);
       if (!user) {
         return res.status(401).json({ success: false, message: "Invalid email or password. Please verify credentials." });
       }

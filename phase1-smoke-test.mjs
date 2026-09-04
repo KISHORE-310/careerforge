@@ -33,6 +33,29 @@ const C = {
   yellow: "\x1b[33m", dim: "\x1b[2m", bold: "\x1b[1m",
 };
 
+// Phase 2 Step 6: recursive safety scanner. Walks a PARSED JSON value only
+// (never raw response text or source code) looking for forbidden key names
+// anywhere in the object/array tree, regardless of nesting depth. Defense in
+// depth against a shared serializer accidentally leaking a secret again.
+const SENSITIVE_RESPONSE_KEYS = ["passwordHash"];
+
+function scanForSensitiveKeys(value, path = "") {
+  const hits = [];
+  if (value === null || value === undefined) return hits;
+  if (Array.isArray(value)) {
+    value.forEach((item, i) => hits.push(...scanForSensitiveKeys(item, `${path}[${i}]`)));
+    return hits;
+  }
+  if (typeof value === "object") {
+    for (const [key, val] of Object.entries(value)) {
+      const nextPath = path ? `${path}.${key}` : key;
+      if (SENSITIVE_RESPONSE_KEYS.includes(key)) hits.push(nextPath);
+      hits.push(...scanForSensitiveKeys(val, nextPath));
+    }
+  }
+  return hits;
+}
+
 async function call(name, method, path, { body, auth = true, expect = [200, 201] } = {}) {
   const headers = { "Content-Type": "application/json" };
   if (auth && token) headers.Authorization = `Bearer ${token}`;
@@ -61,6 +84,26 @@ async function call(name, method, path, { body, auth = true, expect = [200, 201]
         ? ""
         : (json?.message || json?.error || (text || "").slice(0, 300).replace(/\s+/g, " ")),
   });
+
+  // Defense-in-depth: scan every parsed JSON response this harness ever
+  // receives, on top of the primary pass/fail check above. Adds a separate
+  // finding only when a leak is actually found; otherwise it is silent and
+  // does not alter any existing test's result.
+  if (json) {
+    const leaks = scanForSensitiveKeys(json);
+    if (leaks.length) {
+      results.push({
+        name: `SECURITY: sensitive key exposed in "${name}" response`,
+        method,
+        path,
+        status: "LEAK",
+        ok: false,
+        ms: 0,
+        detail: `forbidden key(s) found at: ${leaks.join(", ")}`,
+      });
+    }
+  }
+
   return { ok, status, json, text };
 }
 
@@ -265,6 +308,122 @@ async function run() {
         detail: demoVal === true ? "" : `expected true for the pre-filled demo profile, got ${JSON.stringify(demoVal)}`,
       });
     }
+  }
+
+  // ---------- security: Phase 2 Step 6 (passwordHash exposure) ----------
+  section("Security — Phase 2 Step 6");
+  {
+    // Dedicated fresh user, isolated from the Step 5 fixtures above, via the
+    // same token-swap-and-restore pattern used there.
+    const step6Email = `phase2.step6.${Date.now()}@careerforge.test`;
+    const step6Password = "SmokeTest123!";
+    const savedToken = token;
+
+    // D. Signup response must not contain passwordHash.
+    const signup = await call("signup (Phase 2 Step 6)", "POST", "/api/auth/signup", {
+      auth: false,
+      body: { email: step6Email, password: step6Password, fullName: "Phase2 Step6 Candidate" },
+    });
+    const signupLeaks = scanForSensitiveKeys(signup.json);
+    results.push({
+      name: "signup response does not contain passwordHash",
+      method: "POST",
+      path: "/api/auth/signup",
+      status: signupLeaks.length ? "LEAK" : "ok",
+      ok: signupLeaks.length === 0,
+      ms: 0,
+      detail: signupLeaks.length ? `found at: ${signupLeaks.join(", ")}` : "",
+    });
+
+    token = signup.json?.access_token || null;
+
+    try {
+      if (token) {
+        // B. GET /api/auth/me must not contain passwordHash.
+        const me = await call("auth/me (Phase 2 Step 6)", "GET", "/api/auth/me");
+        const meLeaks = scanForSensitiveKeys(me.json);
+        results.push({
+          name: "GET /api/auth/me response does not contain passwordHash",
+          method: "GET",
+          path: "/api/auth/me",
+          status: meLeaks.length ? "LEAK" : "ok",
+          ok: meLeaks.length === 0,
+          ms: 0,
+          detail: meLeaks.length ? `found at: ${meLeaks.join(", ")}` : "",
+        });
+
+        // C. GET /api/profile must not contain passwordHash.
+        const profile = await call("profile (Phase 2 Step 6)", "GET", "/api/profile");
+        const profileLeaks = scanForSensitiveKeys(profile.json);
+        results.push({
+          name: "GET /api/profile response does not contain passwordHash",
+          method: "GET",
+          path: "/api/profile",
+          status: profileLeaks.length ? "LEAK" : "ok",
+          ok: profileLeaks.length === 0,
+          ms: 0,
+          detail: profileLeaks.length ? `found at: ${profileLeaks.join(", ")}` : "",
+        });
+
+        // A. POST /api/onboarding must not contain passwordHash -- the
+        // confirmed leak this step fixes.
+        const onboard = await call("onboarding (Phase 2 Step 6)", "POST", "/api/onboarding", {
+          body: {
+            target_role: "Backend Engineer",
+            experience_level: "Mid-Level",
+            skills: ["TypeScript"],
+            target_salary: "120000",
+          },
+        });
+        const onboardLeaks = scanForSensitiveKeys(onboard.json);
+        results.push({
+          name: "POST /api/onboarding response does not contain passwordHash",
+          method: "POST",
+          path: "/api/onboarding",
+          status: onboardLeaks.length ? "LEAK" : "ok",
+          ok: onboardLeaks.length === 0,
+          ms: 0,
+          detail: onboardLeaks.length ? `found at: ${onboardLeaks.join(", ")}` : "",
+        });
+      } else {
+        results.push({
+          name: "passwordHash exposure checks (auth/me, profile, onboarding)",
+          method: "-",
+          path: "-",
+          status: "SKIP",
+          ok: false,
+          ms: 0,
+          detail: "no access_token from the dedicated Phase 2 Step 6 signup",
+        });
+      }
+    } finally {
+      // Always restore the shared test user's token for every later section.
+      token = savedToken;
+    }
+
+    // E. Successful login with the correct password still succeeds.
+    const goodLogin = await call("login correct password (Phase 2 Step 6)", "POST", "/api/auth/login", {
+      auth: false,
+      body: { email: step6Email, password: step6Password },
+    });
+    results.push({
+      name: "login with correct password still succeeds",
+      method: "POST",
+      path: "/api/auth/login",
+      status: goodLogin.ok ? "ok" : goodLogin.status,
+      ok: goodLogin.ok && Boolean(goodLogin.json?.access_token),
+      ms: 0,
+      detail: goodLogin.ok && goodLogin.json?.access_token ? "" : "expected a 2xx response with an access_token",
+    });
+
+    // F. Login with an incorrect password still returns the expected
+    // authentication failure (proves findByEmailWithPassword's bcrypt.compare
+    // path still works after the serializer change).
+    await call("login incorrect password (Phase 2 Step 6)", "POST", "/api/auth/login", {
+      auth: false,
+      body: { email: step6Email, password: "TotallyWrongPassword!" },
+      expect: [401],
+    });
   }
 
   if (!token) {
