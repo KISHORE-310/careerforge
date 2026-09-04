@@ -72,28 +72,38 @@ export const securityHeaders = helmet({
   frameguard: false, // Allow rendering inside AI Studio preview iframe
 });
 
+// Pure, exported so it can be unit-tested directly for both environments
+// without needing to boot a second production-mode server process.
+export function isAllowedOrigin(origin: string | undefined | null, nodeEnv: string, frontendUrl: string | null): boolean {
+  // Allow requests with no origin (e.g. mobile apps, curl, same-origin)
+  if (!origin) return true;
+
+  if (frontendUrl && origin === frontendUrl) return true;
+
+  // Local dev host & known preview-tool domains (e.g. AI Studio's dynamic
+  // Cloud Run preview iframe origins) stay allowed in every environment --
+  // this is an explicit whitelist entry, not the permissive fallback below.
+  if (
+    origin.includes("localhost") ||
+    origin.includes("127.0.0.1") ||
+    origin.includes(".run.app") ||
+    origin.includes(".google.com") ||
+    origin.includes("ais-dev") ||
+    origin.includes("ais-pre")
+  ) {
+    return true;
+  }
+
+  // Anything else: permissive outside production (preserves today's local
+  // dev / preview-tool experience), rejected in production where the
+  // whitelist above must be exhaustive. credentials: true below makes an
+  // unconditional true here a real CORS misconfiguration in production.
+  return nodeEnv !== "production";
+}
+
 export const corsMiddleware = cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (e.g. mobile apps, curl, same-origin)
-    if (!origin) return callback(null, true);
-
-    if (config.FRONTEND_URL && origin === config.FRONTEND_URL) {
-      return callback(null, true);
-    }
-
-    // In dev / preview container, allow local host & google cloud run preview URLs
-    if (
-      origin.includes("localhost") ||
-      origin.includes("127.0.0.1") ||
-      origin.includes(".run.app") ||
-      origin.includes(".google.com") ||
-      origin.includes("ais-dev") ||
-      origin.includes("ais-pre")
-    ) {
-      return callback(null, true);
-    }
-
-    return callback(null, true);
+    callback(null, isAllowedOrigin(origin, config.NODE_ENV, config.FRONTEND_URL));
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],

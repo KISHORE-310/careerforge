@@ -19,6 +19,8 @@
  * Requires Node 18+ (uses global fetch). No dependencies.
  */
 
+import { execFileSync } from "node:child_process";
+
 const BASE = (process.env.BASE_URL || "http://localhost:3000").replace(/\/$/, "");
 const stamp = Date.now();
 const EMAIL = `phase1.smoke.${stamp}@careerforge.test`;
@@ -424,6 +426,106 @@ async function run() {
       body: { email: step6Email, password: "TotallyWrongPassword!" },
       expect: [401],
     });
+  }
+
+  // ---------- security: Phase 2 Step 8 (CORS origin whitelist) ----------
+  section("Security — Phase 2 Step 8");
+  {
+    // isAllowedOrigin() lives in src/server/security.ts (TypeScript). This
+    // harness runs under plain `node`, so it can't import a .ts file
+    // directly -- instead it spawns a subprocess with node's --import
+    // tsx/esm loader (tsx is already a project devDependency, the same tool
+    // `npm run dev` uses) to import and call the real exported function with
+    // explicit environment arguments. This is the only way to deterministically
+    // exercise the production-mode rejection branch without booting a
+    // second, production-mode server.
+    let originResults = null;
+    try {
+      const out = execFileSync(
+        process.execPath,
+        [
+          "--import",
+          "tsx/esm",
+          "--eval",
+          `import('./src/server/security.ts').then(m => {
+            console.log(JSON.stringify({
+              devUnknownOrigin: m.isAllowedOrigin('https://evil.example.com', 'development', null),
+              prodUnknownOrigin: m.isAllowedOrigin('https://evil.example.com', 'production', null),
+              prodFrontendUrl: m.isAllowedOrigin('https://app.careerforge.ai', 'production', 'https://app.careerforge.ai'),
+              prodLocalhost: m.isAllowedOrigin('http://localhost:5173', 'production', null),
+              noOrigin: m.isAllowedOrigin(undefined, 'production', null),
+            }));
+          });`,
+        ],
+        { cwd: process.cwd(), encoding: "utf-8", timeout: 30000 }
+      );
+      originResults = JSON.parse(out.trim().split("\n").pop());
+    } catch (e) {
+      originResults = null;
+    }
+
+    if (originResults) {
+      const expected = {
+        devUnknownOrigin: true,
+        prodUnknownOrigin: false,
+        prodFrontendUrl: true,
+        prodLocalhost: true,
+        noOrigin: true,
+      };
+      const mismatches = Object.keys(expected).filter((k) => originResults[k] !== expected[k]);
+      results.push({
+        name: "isAllowedOrigin() enforces the whitelist in production, stays permissive in dev",
+        method: "-",
+        path: "src/server/security.ts",
+        status: mismatches.length ? "MISMATCH" : "ok",
+        ok: mismatches.length === 0,
+        ms: 0,
+        detail: mismatches.length
+          ? `unexpected result(s) for: ${mismatches.join(", ")} -- got ${JSON.stringify(originResults)}`
+          : "",
+      });
+    } else {
+      results.push({
+        name: "isAllowedOrigin() enforces the whitelist in production, stays permissive in dev",
+        method: "-",
+        path: "src/server/security.ts",
+        status: "SKIP",
+        ok: false,
+        ms: 0,
+        detail: "could not invoke isAllowedOrigin via tsx subprocess",
+      });
+    }
+
+    // Live check against the actual running dev server (which runs with
+    // NODE_ENV !== "production"): an arbitrary cross-origin request must
+    // still be reflected in Access-Control-Allow-Origin today, proving the
+    // fix didn't regress local dev / preview-tool behavior.
+    try {
+      const liveRes = await fetch(`${BASE}/api/health`, {
+        headers: { Origin: "https://evil.example.com" },
+      });
+      const allowOrigin = liveRes.headers.get("access-control-allow-origin");
+      const liveOk = allowOrigin === "https://evil.example.com";
+      results.push({
+        name: "live dev server still reflects any origin (dev-mode behavior preserved)",
+        method: "GET",
+        path: "/api/health",
+        status: allowOrigin || "MISSING",
+        ok: liveOk,
+        ms: 0,
+        detail: liveOk ? "" : `expected Access-Control-Allow-Origin to reflect the request origin in dev mode, got ${JSON.stringify(allowOrigin)}`,
+      });
+    } catch (e) {
+      results.push({
+        name: "live dev server still reflects any origin (dev-mode behavior preserved)",
+        method: "GET",
+        path: "/api/health",
+        status: "ERR",
+        ok: false,
+        ms: 0,
+        detail: e.message,
+      });
+    }
   }
 
   if (!token) {
