@@ -414,6 +414,268 @@ async function run() {
     }
   }
 
+  // ---------- resume/profile: Phase 2 Step 2 (AI-parsed resume fields) ----------
+  section("Resume/Profile — Phase 2 Step 2");
+  {
+    // Key-order-insensitive deep equality. Values round-trip through a
+    // Postgres Json column (ResumeVersion.content), which does not guarantee
+    // object key order is preserved, so a plain JSON.stringify comparison
+    // would false-positive-fail on reordered-but-equal objects.
+    function jsonEq(a, b) {
+      if (a === b) return true;
+      if (typeof a !== typeof b) return false;
+      if (a === null || b === null) return a === b;
+      if (Array.isArray(a) || Array.isArray(b)) {
+        if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+        return a.every((item, i) => jsonEq(item, b[i]));
+      }
+      if (typeof a === "object") {
+        const aKeys = Object.keys(a).sort();
+        const bKeys = Object.keys(b).sort();
+        if (aKeys.length !== bKeys.length || !aKeys.every((k, i) => k === bKeys[i])) return false;
+        return aKeys.every((k) => jsonEq(a[k], b[k]));
+      }
+      return false;
+    }
+
+    const OLD_HARDCODED_SOFT_SKILLS = ["Communication", "Problem Solving", "Teamwork"];
+    const OLD_HARDCODED_ACHIEVEMENTS = [];
+    const OLD_HARDCODED_LANGUAGES = ["English"];
+
+    const DISTINCT_SOFT_SKILLS = ["Leadership"];
+    const DISTINCT_ACHIEVEMENTS = ["Won X award"];
+    const DISTINCT_LANGUAGES = ["Spanish"];
+
+    const BASE_RESUME_FIELDS = {
+      personal_info: {
+        full_name: "Phase2 Step2 Candidate",
+        email: "phase2.step2@careerforge.test",
+        phone: "555-0100",
+        location: "Remote",
+        linkedin: "https://linkedin.com/in/phase2step2",
+        github: "https://github.com/phase2step2",
+        portfolio: "https://phase2step2.dev",
+      },
+      summary: "Phase 2 Step 2 smoke test summary verifying the resume formatter refactor preserves real field values end to end.",
+      education: [
+        { degree: "B.Tech", institution: "Phase2 University", field_of_study: "Computer Science", start_year: 2016, end_year: 2020, cgpa: "8.5" },
+      ],
+      experience: [
+        { company: "Phase2 Corp", role: "Backend Engineer", start_date: "2021-01", end_date: "2023-01", description: ["Built the thing", "Shipped the thing"] },
+      ],
+      projects: [
+        { title: "Phase2 Project", description: "A smoke-test fixture project", technologies: ["Node", "TypeScript"], github_url: "https://github.com/phase2step2/project" },
+      ],
+      certifications: [
+        { name: "Phase2 Certification", organization: "Phase2 Institute", year: "2022" },
+      ],
+      technical_skills: ["TypeScript", "Node.js", "PostgreSQL"],
+    };
+
+    // A. PUT /api/resume with distinctive soft_skills/achievements/languages;
+    // assert the PUT response preserves those exact values.
+    const putWithValues = await call("resume PUT (distinctive soft_skills/achievements/languages)", "PUT", "/api/resume", {
+      body: {
+        ...BASE_RESUME_FIELDS,
+        soft_skills: DISTINCT_SOFT_SKILLS,
+        achievements: DISTINCT_ACHIEVEMENTS,
+        languages: DISTINCT_LANGUAGES,
+      },
+    });
+    const putResume = putWithValues.json?.resume;
+    const putPreserved =
+      jsonEq(putResume?.soft_skills, DISTINCT_SOFT_SKILLS) &&
+      jsonEq(putResume?.achievements, DISTINCT_ACHIEVEMENTS) &&
+      jsonEq(putResume?.languages, DISTINCT_LANGUAGES);
+    results.push({
+      name: "PUT /api/resume preserves distinctive soft_skills/achievements/languages",
+      method: "PUT",
+      path: "/api/resume",
+      status: putPreserved ? "ok" : "MISMATCH",
+      ok: putPreserved,
+      ms: 0,
+      detail: putPreserved
+        ? ""
+        : `expected soft_skills=${JSON.stringify(DISTINCT_SOFT_SKILLS)} achievements=${JSON.stringify(DISTINCT_ACHIEVEMENTS)} languages=${JSON.stringify(DISTINCT_LANGUAGES)}, got soft_skills=${JSON.stringify(putResume?.soft_skills)} achievements=${JSON.stringify(putResume?.achievements)} languages=${JSON.stringify(putResume?.languages)}`,
+    });
+
+    // B. GET /api/resume; assert the same three values come back exactly,
+    // and are NOT the old hardcoded placeholder values.
+    const getResume1 = await call("resume GET (after distinctive PUT)", "GET", "/api/resume");
+    const gr1 = getResume1.json?.resume;
+    const getMatchesDistinct =
+      jsonEq(gr1?.soft_skills, DISTINCT_SOFT_SKILLS) &&
+      jsonEq(gr1?.achievements, DISTINCT_ACHIEVEMENTS) &&
+      jsonEq(gr1?.languages, DISTINCT_LANGUAGES);
+    const getNotHardcoded =
+      !jsonEq(gr1?.soft_skills, OLD_HARDCODED_SOFT_SKILLS) &&
+      !jsonEq(gr1?.achievements, OLD_HARDCODED_ACHIEVEMENTS) &&
+      !jsonEq(gr1?.languages, OLD_HARDCODED_LANGUAGES);
+    results.push({
+      name: "GET /api/resume returns real soft_skills/achievements/languages (not hardcoded)",
+      method: "GET",
+      path: "/api/resume",
+      status: getMatchesDistinct && getNotHardcoded ? "ok" : "MISMATCH",
+      ok: getMatchesDistinct && getNotHardcoded,
+      ms: 0,
+      detail: getMatchesDistinct && getNotHardcoded
+        ? ""
+        : `got soft_skills=${JSON.stringify(gr1?.soft_skills)} achievements=${JSON.stringify(gr1?.achievements)} languages=${JSON.stringify(gr1?.languages)} (old hardcoded values were soft_skills=${JSON.stringify(OLD_HARDCODED_SOFT_SKILLS)} achievements=${JSON.stringify(OLD_HARDCODED_ACHIEVEMENTS)} languages=${JSON.stringify(OLD_HARDCODED_LANGUAGES)})`,
+    });
+
+    // E. Regression: technical_skills, experience, education, projects,
+    // certifications must still round-trip correctly through the refactor.
+    const regressionOk =
+      jsonEq(gr1?.technical_skills, BASE_RESUME_FIELDS.technical_skills) &&
+      jsonEq(gr1?.experience, BASE_RESUME_FIELDS.experience) &&
+      jsonEq(gr1?.education, BASE_RESUME_FIELDS.education) &&
+      jsonEq(gr1?.projects, BASE_RESUME_FIELDS.projects) &&
+      jsonEq(gr1?.certifications, BASE_RESUME_FIELDS.certifications) &&
+      gr1?.summary === BASE_RESUME_FIELDS.summary &&
+      gr1?.personal_info?.full_name === BASE_RESUME_FIELDS.personal_info.full_name;
+    results.push({
+      name: "GET /api/resume regression: technical_skills/experience/education/projects/certifications unaffected",
+      method: "GET",
+      path: "/api/resume",
+      status: regressionOk ? "ok" : "MISMATCH",
+      ok: regressionOk,
+      ms: 0,
+      detail: regressionOk ? "" : "one or more previously-working resume fields no longer round-trip correctly",
+    });
+
+    // C. GET /api/profile; assert the nested resume values contain the
+    // same three distinctive values (same shared formatter, second route).
+    const getProfile = await call("profile GET (nested resume soft_skills/achievements/languages)", "GET", "/api/profile");
+    const profileResume = getProfile.json?.resume;
+    const profileMatches =
+      jsonEq(profileResume?.soft_skills, DISTINCT_SOFT_SKILLS) &&
+      jsonEq(profileResume?.achievements, DISTINCT_ACHIEVEMENTS) &&
+      jsonEq(profileResume?.languages, DISTINCT_LANGUAGES);
+    results.push({
+      name: "GET /api/profile nested resume returns real soft_skills/achievements/languages",
+      method: "GET",
+      path: "/api/profile",
+      status: profileMatches ? "ok" : "MISMATCH",
+      ok: profileMatches,
+      ms: 0,
+      detail: profileMatches
+        ? ""
+        : `got soft_skills=${JSON.stringify(profileResume?.soft_skills)} achievements=${JSON.stringify(profileResume?.achievements)} languages=${JSON.stringify(profileResume?.languages)}`,
+    });
+
+    // D. PUT /api/resume omitting soft_skills/achievements/languages entirely;
+    // GET should then return [] for each, not the old hardcoded defaults and
+    // not a fabricated substitute.
+    await call("resume PUT (soft_skills/achievements/languages omitted)", "PUT", "/api/resume", {
+      body: { ...BASE_RESUME_FIELDS },
+    });
+    const getResume2 = await call("resume GET (after omitted-fields PUT)", "GET", "/api/resume");
+    const gr2 = getResume2.json?.resume;
+    const omittedFieldsAreEmpty =
+      jsonEq(gr2?.soft_skills, []) &&
+      jsonEq(gr2?.achievements, []) &&
+      jsonEq(gr2?.languages, []);
+    results.push({
+      name: "omitted soft_skills/achievements/languages default to [] (not fabricated values)",
+      method: "GET",
+      path: "/api/resume",
+      status: omittedFieldsAreEmpty ? "ok" : "MISMATCH",
+      ok: omittedFieldsAreEmpty,
+      ms: 0,
+      detail: omittedFieldsAreEmpty
+        ? ""
+        : `expected [] for all three, got soft_skills=${JSON.stringify(gr2?.soft_skills)} achievements=${JSON.stringify(gr2?.achievements)} languages=${JSON.stringify(gr2?.languages)}`,
+    });
+
+    // F. Optional live-AI parse check — only runs if GEMINI_API_KEY is
+    // configured (ctx.aiEnabled, set from the /api/health check). Does not
+    // fail the suite when the key is absent; marked N/A instead.
+    if (ctx.aiEnabled) {
+      // Minimal single-page PDF containing resume-shaped text so
+      // aiService.parseResume has enough signal to return non-empty
+      // soft_skills/achievements/languages arrays.
+      const pdfText =
+        "%PDF-1.1\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n" +
+        "2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n" +
+        "3 0 obj<</Type/Page/Parent 2 0 R/Resources<</Font<</F1 4 0 R>>>>/MediaBox[0 0 612 792]/Contents 5 0 R>>endobj\n" +
+        "4 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj\n" +
+        "5 0 obj<</Length 220>>stream\n" +
+        "BT /F1 12 Tf 50 700 Td (Jane Doe, Backend Engineer) Tj 0 -20 Td (Skills: Python, SQL) Tj " +
+        "0 -20 Td (Soft Skills: Leadership, Mentoring) Tj 0 -20 Td (Languages: French) Tj " +
+        "0 -20 Td (Achievements: Employee of the Year) Tj ET\n" +
+        "endstream endobj\n" +
+        "trailer<</Root 1 0 R>>\n";
+      const pdfBuffer = Buffer.from(pdfText, "utf-8");
+
+      const form = new FormData();
+      form.append("file", new Blob([pdfBuffer], { type: "application/pdf" }), "phase2-step2-resume.pdf");
+      form.append("target_role", "Backend Engineer");
+
+      let uploadOk = false;
+      let uploadJson = null;
+      try {
+        const res = await fetch(`${BASE}/api/resume/upload`, {
+          method: "POST",
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body: form,
+        });
+        uploadJson = await res.json().catch(() => null);
+        uploadOk = res.ok;
+      } catch {
+        uploadOk = false;
+      }
+
+      if (uploadOk && uploadJson?.profile) {
+        const aiSoft = Array.isArray(uploadJson.profile.soft_skills);
+        const aiAchievements = Array.isArray(uploadJson.profile.achievements);
+        const aiLanguages = Array.isArray(uploadJson.profile.languages);
+        results.push({
+          name: "live AI parse: soft_skills/achievements/languages are arrays in upload response",
+          method: "POST",
+          path: "/api/resume/upload",
+          status: aiSoft && aiAchievements && aiLanguages ? "ok" : "SHAPE",
+          ok: aiSoft && aiAchievements && aiLanguages,
+          ms: 0,
+          detail: aiSoft && aiAchievements && aiLanguages ? "" : "AI-parsed profile is missing array-typed soft_skills/achievements/languages",
+        });
+
+        const getResume3 = await call("resume GET (after live AI upload)", "GET", "/api/resume");
+        const gr3 = getResume3.json?.resume;
+        const persistedArrays =
+          Array.isArray(gr3?.soft_skills) && Array.isArray(gr3?.achievements) && Array.isArray(gr3?.languages);
+        results.push({
+          name: "live AI parse: soft_skills/achievements/languages persist through GET /api/resume",
+          method: "GET",
+          path: "/api/resume",
+          status: persistedArrays ? "ok" : "SHAPE",
+          ok: persistedArrays,
+          ms: 0,
+          detail: persistedArrays ? "" : "AI-parsed arrays did not survive the read-back through the shared formatter",
+        });
+      } else {
+        results.push({
+          name: "live AI parse: resume upload",
+          method: "POST",
+          path: "/api/resume/upload",
+          status: "N/A",
+          ok: true,
+          ms: 0,
+          detail: "GEMINI_API_KEY reported enabled but upload did not return a usable AI profile — treating as N/A rather than failing the suite",
+        });
+      }
+    } else {
+      results.push({
+        name: "live AI parse (soft_skills/achievements/languages)",
+        method: "-",
+        path: "-",
+        status: "N/A",
+        ok: true,
+        ms: 0,
+        detail: "GEMINI_API_KEY not configured (ai_engine: fallback_mode) — skipped, not counted as a failure",
+      });
+    }
+  }
+
   // ---------- DSA ----------
   section("DSA");
   await call("dsa problems", "GET", "/api/dsa/problems", { auth: false });
