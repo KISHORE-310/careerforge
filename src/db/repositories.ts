@@ -310,6 +310,7 @@ export const db = {
       return prisma.application.findMany({
         where: { userId },
         orderBy: { appliedDate: "desc" },
+        include: { job: true },
       });
     },
     async findById(id: string, userId: string) {
@@ -361,6 +362,7 @@ export const db = {
           contacts: data.contactPerson !== undefined ? data.contactPerson : existing.contacts,
           jobId: data.jobId !== undefined ? data.jobId : existing.jobId,
         },
+        include: { job: true },
       });
     },
     async delete(id: string, userId: string) {

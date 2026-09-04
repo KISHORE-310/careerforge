@@ -414,6 +414,121 @@ async function run() {
     }
   }
 
+  // ---------- applications: Phase 2 Step 3 (real match_score) ----------
+  section("Applications — Phase 2 Step 3");
+  {
+    const step3CreatedIds = [];
+
+    // A. Application linked to ctx.jobId gets a deterministically computed
+    // match_score. ctx.jobId (the seeded job-vercel-frontend-platform-engineer)
+    // requires 6 skills; the Skills section earlier upserted only
+    // "TypeScript" for this test user, so 1/6 = 16.7% -> rounds to 17% ->
+    // clamped to the 40 floor. Expected value: exactly 40, never the old
+    // hardcoded 85.
+    let linkedAppId = null;
+    if (ctx.jobId) {
+      const r = await call("application create (linked jobId, Phase 2 Step 3)", "POST", "/api/applications", {
+        body: {
+          company: "Phase2 Step3 Linked Co",
+          role: "Backend Engineer",
+          jobId: ctx.jobId,
+        },
+        expect: [200, 201],
+      });
+      linkedAppId = r.json?.application?.id;
+      if (linkedAppId) step3CreatedIds.push(linkedAppId);
+      const score = r.json?.application?.match_score;
+      results.push({
+        name: "linked application gets deterministic computed match_score (40)",
+        method: "POST",
+        path: "/api/applications",
+        status: score ?? "MISSING",
+        ok: score === 40,
+        ms: 0,
+        detail: score === 40 ? "" : `expected match_score 40 (1/6 skills overlap, clamped to floor), got ${JSON.stringify(score)}`,
+      });
+    } else {
+      results.push({
+        name: "linked application gets deterministic computed match_score",
+        method: "-",
+        path: "-",
+        status: "SKIP",
+        ok: false,
+        ms: 0,
+        detail: "no job id available from jobs list — cannot exercise linked match_score test",
+      });
+    }
+
+    // B. Application with no jobId gets match_score: null, never a
+    // fabricated number (not the old hardcoded 85, not 0).
+    const rNoJob = await call("application create (no jobId, Phase 2 Step 3)", "POST", "/api/applications", {
+      body: {
+        company: "Phase2 Step3 Unlinked Co",
+        role: "Backend Engineer",
+      },
+      expect: [200, 201],
+    });
+    const noJobAppId = rNoJob.json?.application?.id;
+    if (noJobAppId) step3CreatedIds.push(noJobAppId);
+    const noJobScore = rNoJob.json?.application?.match_score;
+    results.push({
+      name: "unlinked application gets match_score: null (not fabricated)",
+      method: "POST",
+      path: "/api/applications",
+      status: noJobScore === null ? "null" : JSON.stringify(noJobScore),
+      ok: noJobScore === null,
+      ms: 0,
+      detail: noJobScore === null ? "" : `expected match_score null, got ${JSON.stringify(noJobScore)}`,
+    });
+
+    // C. GET list returns the same computed scores for both applications
+    // (exercises db.applications.listByUser's new job include).
+    if (linkedAppId || noJobAppId) {
+      const list = await call("applications list (Phase 2 Step 3 scores)", "GET", "/api/applications");
+      const apps = list.json?.applications || [];
+      const linkedInList = apps.find((a) => a.id === linkedAppId);
+      const unlinkedInList = apps.find((a) => a.id === noJobAppId);
+      const listOk =
+        (!linkedAppId || linkedInList?.match_score === 40) &&
+        (!noJobAppId || unlinkedInList?.match_score === null);
+      results.push({
+        name: "GET /api/applications list returns the same match_score values",
+        method: "GET",
+        path: "/api/applications",
+        status: listOk ? "ok" : "MISMATCH",
+        ok: listOk,
+        ms: 0,
+        detail: listOk
+          ? ""
+          : `linked list score=${JSON.stringify(linkedInList?.match_score)} (expected 40), unlinked list score=${JSON.stringify(unlinkedInList?.match_score)} (expected null)`,
+      });
+    }
+
+    // D. PUT status-only update (no jobId in the request body) on the linked
+    // application must preserve its computed match_score (exercises
+    // db.applications.update's new job include).
+    if (linkedAppId) {
+      const put = await call("application update (status only, Phase 2 Step 3)", "PUT", `/api/applications/${linkedAppId}`, {
+        body: { status: "interview" },
+      });
+      const putScore = put.json?.application?.match_score;
+      results.push({
+        name: "status-only PUT preserves linked application's match_score",
+        method: "PUT",
+        path: `/api/applications/${linkedAppId}`,
+        status: putScore ?? "MISSING",
+        ok: putScore === 40,
+        ms: 0,
+        detail: putScore === 40 ? "" : `expected match_score to remain 40 after a status-only update, got ${JSON.stringify(putScore)}`,
+      });
+    }
+
+    // Cleanup fixtures created in this section.
+    for (const id of step3CreatedIds) {
+      await call(`application cleanup delete (Phase 2 Step 3, ${id})`, "DELETE", `/api/applications/${id}`);
+    }
+  }
+
   // ---------- resume/profile: Phase 2 Step 2 (AI-parsed resume fields) ----------
   section("Resume/Profile — Phase 2 Step 2");
   {
