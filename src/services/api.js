@@ -1,8 +1,8 @@
 const API_URL = "";
 
 function getAuthHeaders() {
-  const token = localStorage.getItem("token") || "demo_jwt_token_careerforge";
-  return { Authorization: `Bearer ${token}` };
+  const token = localStorage.getItem("token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 async function handleResponse(response) {
@@ -13,7 +13,12 @@ async function handleResponse(response) {
       if (!text || !text.trim()) {
         return { success: response.ok, status: response.status };
       }
-      return JSON.parse(text);
+      const data = JSON.parse(text);
+      if (response.status === 401 && typeof window !== "undefined") {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+      }
+      return data;
     }
 
     const rawText = await response.text();
@@ -52,6 +57,29 @@ export async function signup(formData) {
     body: JSON.stringify(formData),
   });
   return await handleResponse(response);
+}
+
+export async function demoLogin() {
+  const response = await fetch(`${API_URL}/api/auth/demo`, { method: "POST" });
+  return await handleResponse(response);
+}
+
+export async function getCurrentUser() {
+  const response = await fetch(`${API_URL}/api/auth/me`, { headers: getAuthHeaders() });
+  return await handleResponse(response);
+}
+
+export async function logout() {
+  try {
+    const response = await fetch(`${API_URL}/api/auth/logout`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+    });
+    return await handleResponse(response);
+  } finally {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+  }
 }
 
 export async function getProfile() {

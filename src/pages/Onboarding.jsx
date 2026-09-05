@@ -33,6 +33,7 @@ function Onboarding() {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const [formData, setFormData] = useState({
     career_goal: "Land a Senior Engineering role at a Tier-1 tech company within 90 days",
@@ -55,17 +56,20 @@ function Onboarding() {
 
   const handleFinish = async () => {
     setLoading(true);
+    setError("");
     try {
       if (formData.resumeFile) {
-        await uploadResume(formData.resumeFile, formData.target_role);
+        const upload = await uploadResume(formData.resumeFile, formData.target_role);
+        if (!upload.success) throw new Error(upload.message || "Resume upload failed.");
       }
-      await completeOnboarding({
+      const result = await completeOnboarding({
         career_goal: formData.career_goal,
         target_role: formData.target_role,
         experience_level: formData.experience_level,
         target_salary: formData.target_salary,
         skills: formData.skills,
       });
+      if (!result.success) throw new Error(result.message || "Unable to complete onboarding.");
 
       // Update local storage user
       const existing = JSON.parse(localStorage.getItem("user") || "{}");
@@ -80,8 +84,7 @@ function Onboarding() {
 
       navigate("/dashboard");
     } catch (err) {
-      console.error(err);
-      navigate("/dashboard");
+      setError(err.message || "Unable to complete onboarding. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -297,6 +300,8 @@ function Onboarding() {
             </div>
           </div>
         )}
+
+        {error && <p role="alert" className="mt-5 rounded-lg border border-rose-500/30 bg-rose-950/30 p-3 text-xs text-rose-200">{error}</p>}
 
         {/* Action Buttons */}
         <div className="flex items-center justify-between pt-6 border-t border-stone-800/80 mt-8">

@@ -39,6 +39,9 @@ function Signup() {
         if (res.token || res.access_token) {
           localStorage.setItem("token", res.token || res.access_token);
         }
+        if (res.user) {
+          localStorage.setItem("user", JSON.stringify(res.user));
+        }
         setSuccess(true);
         setTimeout(() => {
           navigate("/onboarding");
@@ -46,16 +49,10 @@ function Signup() {
       } else if (res.message) {
         setError(res.message);
       } else {
-        setSuccess(true);
-        setTimeout(() => {
-          navigate("/onboarding");
-        }, 1200);
+        setError("Registration did not return a valid session. Please try again.");
       }
     } catch (err) {
-      setSuccess(true);
-      setTimeout(() => {
-        navigate("/onboarding");
-      }, 1200);
+      setError("Unable to reach the registration service. Please try again.");
     } finally {
       setLoading(false);
     }

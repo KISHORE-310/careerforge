@@ -4,6 +4,7 @@ import Topbar from "../dashboard/Topbar";
 import MobileNav from "../common/MobileNav";
 import CareerCoachDrawer from "../common/CareerCoachDrawer";
 import { Link, NavLink, useNavigate } from "react-router-dom";
+import { logout as endSession } from "../../services/api";
 import {
   X,
   LayoutDashboard,
@@ -31,9 +32,8 @@ function AppLayout({ children }) {
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [coachOpen, setCoachOpen] = useState(false);
 
-  const logout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+  const logout = async () => {
+    await endSession();
     navigate("/login");
   };
 

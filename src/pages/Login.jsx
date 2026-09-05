@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Sparkles, ArrowRight, Lock, Mail, AlertCircle } from "lucide-react";
-import { login } from "../services/api";
+import { demoLogin, login } from "../services/api";
 
 function Login() {
   const navigate = useNavigate();
@@ -37,26 +37,36 @@ function Login() {
         if (res.user) {
           localStorage.setItem("user", JSON.stringify(res.user));
         }
-        navigate("/dashboard");
+        navigate(res.user?.onboarding_completed ? "/dashboard" : "/onboarding", { replace: true });
       } else if (res.message) {
         setError(res.message);
       } else {
-        // Fallback for demo mode
-        localStorage.setItem("token", "demo_jwt_token_careerforge");
-        navigate("/dashboard");
+        setError("Login did not return a valid session. Please try again.");
       }
     } catch (err) {
-      // If server or offline, allow smooth demo sign in
-      localStorage.setItem("token", "demo_jwt_token_careerforge");
-      navigate("/dashboard");
+      setError("Unable to reach the authentication service. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDemoLogin = () => {
-    localStorage.setItem("token", "demo_jwt_token_careerforge");
-    navigate("/dashboard");
+  const handleDemoLogin = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await demoLogin();
+      if (!res.success || !res.access_token) {
+        setError(res.message || "Demo mode is not available.");
+        return;
+      }
+      localStorage.setItem("token", res.access_token);
+      localStorage.setItem("user", JSON.stringify(res.user));
+      navigate("/dashboard", { replace: true });
+    } catch {
+      setError("Unable to start demo mode. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -153,6 +163,7 @@ function Login() {
             <button
               type="button"
               onClick={handleDemoLogin}
+              disabled={loading}
               className="w-full py-2 px-3 rounded-xl bg-stone-900/80 border border-stone-800 hover:border-[#d4af37]/50 text-stone-300 hover:text-white text-xs font-medium transition flex items-center justify-center gap-2"
             >
               <Sparkles size={13} className="text-[#d4af37]" />

@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from "react-router-dom";
+import ProtectedRoute from "./routes/ProtectedRoute";
 
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
@@ -30,6 +31,7 @@ function App() {
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
+      <Route element={<ProtectedRoute />}>
       <Route path="/onboarding" element={<Onboarding />} />
 
       {/* Command Center */}
@@ -63,6 +65,7 @@ function App() {
       <Route path="/coach" element={<CareerCoach />} />
       <Route path="/profile" element={<Profile />} />
       <Route path="/settings" element={<Settings />} />
+      </Route>
 
       {/* Catch-all Fallback */}
       <Route path="*" element={<Navigate to="/dashboard" replace />} />

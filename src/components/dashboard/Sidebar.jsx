@@ -21,6 +21,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { NavLink, useNavigate, Link } from "react-router-dom";
+import { logout as endSession } from "../../services/api";
 
 function Sidebar() {
   const navigate = useNavigate();
@@ -45,9 +46,8 @@ function Sidebar() {
     } catch {}
   }, []);
 
-  const logout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+  const logout = async () => {
+    await endSession();
     navigate("/login");
   };
 

@@ -14,7 +14,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { getNotifications, markAllNotificationsRead } from "../../services/api";
+import { getNotifications, logout as endSession, markAllNotificationsRead } from "../../services/api";
 
 function Topbar({ onToggleMobileMenu, onOpenCoach }) {
   const navigate = useNavigate();
@@ -69,9 +69,8 @@ function Topbar({ onToggleMobileMenu, onOpenCoach }) {
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+  const logout = async () => {
+    await endSession();
     navigate("/login");
   };
 
