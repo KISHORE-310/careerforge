@@ -677,6 +677,301 @@ async function run() {
     });
   }
 
+  // ---------- jobs: Hardcoded Data Fix (A1 real match scores) ----------
+  section("Jobs — Hardcoded Data Fix (A1 real match scores)");
+  {
+    // The Vercel job seeded by prisma/seed.ts (job-vercel-frontend-platform-
+    // engineer, which ctx.jobId resolves to -- confirmed by the Phase 2
+    // Step 3 block above) requires exactly these 6 skills. Reusing that same
+    // known fixture instead of inventing a second one.
+    const KNOWN_JOB_SKILLS = ["React", "Next.js", "TypeScript", "Web Performance", "Tailwind CSS", "Vite"];
+    const savedToken = token;
+    let scoreA = null;
+    let scoreB = null;
+
+    try {
+      // A. Unauthenticated job list must never fabricate a score -- every
+      // job's match_score must be null, never the old hardcoded 92.
+      const publicList = await call("jobs list (Phase A1, unauthenticated)", "GET", "/api/jobs", { auth: false });
+      const publicJobs = publicList.json?.jobs || [];
+      const publicAllNull = publicJobs.length > 0 && publicJobs.every((j) => j.match_score === null);
+      results.push({
+        name: "unauthenticated GET /api/jobs never fabricates match_score (all null)",
+        method: "GET",
+        path: "/api/jobs",
+        status: publicAllNull ? "ok" : "FABRICATED",
+        ok: publicAllNull,
+        ms: 0,
+        detail: publicAllNull
+          ? ""
+          : publicJobs.length === 0
+          ? "no jobs returned — cannot verify"
+          : `unexpected match_score value(s): ${[...new Set(publicJobs.map((j) => j.match_score))].join(", ")}`,
+      });
+
+      // B1. Fresh user, no skills at all.
+      const userAEmail = `phase3.a1.usera.${Date.now()}@careerforge.test`;
+      const userBEmail = `phase3.a1.userb.${Date.now()}@careerforge.test`;
+      const pw = "SmokeTest123!";
+
+      const signupA = await call("signup (Phase A1, user A — no skills)", "POST", "/api/auth/signup", {
+        auth: false,
+        body: { email: userAEmail, password: pw, fullName: "Phase A1 User A" },
+      });
+      token = signupA.json?.access_token || null;
+
+      let allNumericAndInRangeA = false;
+      if (token) {
+        const listA = await call("jobs list (Phase A1, user A authenticated)", "GET", "/api/jobs");
+        const jobsA = listA.json?.jobs || [];
+        allNumericAndInRangeA =
+          jobsA.length > 0 &&
+          jobsA.every((j) => typeof j.match_score === "number" && j.match_score >= 0 && j.match_score <= 100);
+        const jobA = jobsA.find((j) => j.id === ctx.jobId);
+        scoreA = jobA ? jobA.match_score : null;
+      }
+      results.push({
+        name: "authenticated user receives a computed numeric match_score in range (not fabricated)",
+        method: "GET",
+        path: "/api/jobs",
+        status: allNumericAndInRangeA ? "ok" : "SHAPE",
+        ok: allNumericAndInRangeA,
+        ms: 0,
+        detail: allNumericAndInRangeA ? "" : "one or more jobs did not carry a numeric match_score in [0,100]",
+      });
+
+      // B2. Second fresh user, upserted with every skill the known job
+      // requires -- a materially different skill profile from user A.
+      const signupB = await call("signup (Phase A1, user B — matching skills)", "POST", "/api/auth/signup", {
+        auth: false,
+        body: { email: userBEmail, password: pw, fullName: "Phase A1 User B" },
+      });
+      token = signupB.json?.access_token || null;
+
+      if (token) {
+        await call("skills upsert (Phase A1, user B — full match)", "PUT", "/api/skills", {
+          body: { skills: KNOWN_JOB_SKILLS.map((name) => ({ name, proficiency: 90, category: "Technical" })) },
+        });
+        const listB = await call("jobs list (Phase A1, user B authenticated)", "GET", "/api/jobs");
+        const jobsB = listB.json?.jobs || [];
+        const jobB = jobsB.find((j) => j.id === ctx.jobId);
+        scoreB = jobB ? jobB.match_score : null;
+      }
+
+      const bothNumeric = typeof scoreA === "number" && typeof scoreB === "number";
+      results.push({
+        name: "two users with materially different skills get different match_score for the same job",
+        method: "GET",
+        path: "/api/jobs",
+        status: bothNumeric ? `A=${scoreA} B=${scoreB}` : "MISSING",
+        ok: bothNumeric && scoreB > scoreA,
+        ms: 0,
+        detail: bothNumeric
+          ? scoreB > scoreA
+            ? ""
+            : `expected user B (full skill match) to score higher than user A (no skills); got A=${scoreA}, B=${scoreB}`
+          : `could not resolve ctx.jobId in both users' job lists (ctx.jobId=${ctx.jobId})`,
+      });
+    } finally {
+      // Always restore the shared test user's token for every later section.
+      token = savedToken;
+    }
+
+    // C. GET /api/jobs/:id must still work and still return its own
+    // pre-existing computed score and fit analysis -- unrelated to this fix,
+    // and must not regress.
+    if (ctx.jobId) {
+      const detailRes = await call("job detail (Phase A1, regression check)", "GET", `/api/jobs/${ctx.jobId}`);
+      const overall = detailRes.json?.job?.match_score;
+      const fitOverall = detailRes.json?.fit_analysis?.overall_match;
+      const detailOk = typeof overall === "number" && typeof fitOverall === "number";
+      results.push({
+        name: "GET /api/jobs/:id still returns a computed match_score and fit_analysis (no regression)",
+        method: "GET",
+        path: `/api/jobs/${ctx.jobId}`,
+        status: detailOk ? "ok" : "SHAPE",
+        ok: detailOk,
+        ms: 0,
+        detail: detailOk
+          ? ""
+          : `job.match_score=${JSON.stringify(overall)}, fit_analysis.overall_match=${JSON.stringify(fitOverall)}`,
+      });
+    }
+  }
+
+  // ---------- companies: Hardcoded Data Fix (A2 real company directory) ----------
+  section("Companies — Hardcoded Data Fix (A2 real company directory)");
+  {
+    // db.companies (TypeScript) can't be imported directly by this plain-node
+    // harness, so a throwaway Company row is inserted/removed through a tsx
+    // subprocess -- the same technique the CORS check above uses to exercise
+    // real source modules. A row is created with a name that could never
+    // appear in the old hardcoded sampleCompanies array, fetched over the
+    // live HTTP endpoint, then deleted again, proving GET /api/companies
+    // reads Postgres rather than returning a literal.
+    const MARKER_ID = `phase-a2-smoke-${stamp}`;
+    const MARKER_NAME = `Phase A2 Smoke Test Co ${stamp}`;
+
+    function runPrismaScript(script) {
+      try {
+        const out = execFileSync(
+          process.execPath,
+          ["--import", "tsx/esm", "--eval", script],
+          { cwd: process.cwd(), encoding: "utf-8", timeout: 30000 }
+        );
+        return { ok: true, out };
+      } catch (e) {
+        return { ok: false, out: e.message };
+      }
+    }
+
+    const created = runPrismaScript(
+      `import('./src/db/prisma.ts').then(async (m) => {
+        await m.prisma.company.create({
+          data: { id: ${JSON.stringify(MARKER_ID)}, name: ${JSON.stringify(MARKER_NAME)}, techStack: [] },
+        });
+        await m.prisma.$disconnect();
+        console.log("created");
+      }).catch((e) => { console.error(e); process.exit(1); });`
+    );
+
+    if (created.ok) {
+      const list = await call("companies (Phase A2, DB-backed check)", "GET", "/api/companies", { auth: false });
+      const companies = list.json?.companies || [];
+      const found = companies.find((c) => c.id === MARKER_ID || c.name === MARKER_NAME);
+      results.push({
+        name: "GET /api/companies reflects a live-inserted Company row (DB-backed, not a literal array)",
+        method: "GET",
+        path: "/api/companies",
+        status: found ? "ok" : "MISSING",
+        ok: Boolean(found),
+        ms: 0,
+        detail: found ? "" : `inserted company ${MARKER_NAME} did not appear in the response`,
+      });
+
+      // Response shape carries the real Company columns, not the old
+      // per-company literal fields.
+      if (found) {
+        const shapeOk =
+          "rating" in found && "open_roles" in found && "culture_score" in found &&
+          "interview_difficulty" in found && "tech_stack" in found;
+        results.push({
+          name: "inserted company's response shape matches formatCompany's real-column mapping",
+          method: "GET",
+          path: "/api/companies",
+          status: shapeOk ? "ok" : "SHAPE",
+          ok: shapeOk,
+          ms: 0,
+          detail: shapeOk ? "" : `unexpected shape: ${JSON.stringify(found)}`,
+        });
+      }
+
+      runPrismaScript(
+        `import('./src/db/prisma.ts').then(async (m) => {
+          await m.prisma.company.delete({ where: { id: ${JSON.stringify(MARKER_ID)} } });
+          await m.prisma.$disconnect();
+          console.log("deleted");
+        }).catch((e) => { console.error(e); process.exit(1); });`
+      );
+    } else {
+      results.push({
+        name: "GET /api/companies reflects a live-inserted Company row (DB-backed, not a literal array)",
+        method: "-",
+        path: "-",
+        status: "SKIP",
+        ok: false,
+        ms: 0,
+        detail: `could not insert a throwaway Company row via tsx subprocess: ${created.out}`,
+      });
+    }
+
+    // The three real seeded companies (Stripe/Anthropic/Vercel) must still be
+    // present -- no regression from the DB-backed rewrite.
+    const list2 = await call("companies (Phase A2, seeded companies present)", "GET", "/api/companies", { auth: false });
+    const names = (list2.json?.companies || []).map((c) => c.name);
+    const seededOk = ["Stripe", "Anthropic", "Vercel"].every((n) => names.includes(n));
+    results.push({
+      name: "seeded companies (Stripe/Anthropic/Vercel) are present in GET /api/companies",
+      method: "GET",
+      path: "/api/companies",
+      status: seededOk ? "ok" : "MISSING",
+      ok: seededOk,
+      ms: 0,
+      detail: seededOk ? "" : `expected Stripe/Anthropic/Vercel, got: ${names.join(", ")}`,
+    });
+  }
+
+  // ---------- market: Hardcoded Data Fix (A3 derived market data) ----------
+  section("Market — Hardcoded Data Fix (A3 derived market data)");
+  {
+    const OLD_HARDCODED_SKILLS = ["Distributed Systems", "LLM / AI Orchestration", "TypeScript / Full Stack"];
+
+    const r = await call("market (Phase A3)", "GET", "/api/market", { auth: false });
+    const market = r.json?.market;
+
+    // A. demand_index must be honestly null, not the old fabricated 87 (no
+    // external labor-market signal exists to compute it truthfully).
+    results.push({
+      name: "market.demand_index is honestly null (not fabricated 87)",
+      method: "GET",
+      path: "/api/market",
+      status: JSON.stringify(market?.demand_index),
+      ok: market?.demand_index === null,
+      ms: 0,
+      detail: market?.demand_index === null ? "" : `expected null, got ${JSON.stringify(market?.demand_index)}`,
+    });
+
+    // B. top_paying_skills must be derived from the real seeded Job catalog,
+    // not the old static 3-entry literal.
+    const skills = Array.isArray(market?.top_paying_skills) ? market.top_paying_skills : [];
+    const matchesOldLiteral =
+      skills.length === OLD_HARDCODED_SKILLS.length &&
+      skills.every((s, i) => s.skill === OLD_HARDCODED_SKILLS[i]);
+    results.push({
+      name: "top_paying_skills is not the old hardcoded 3-entry literal",
+      method: "GET",
+      path: "/api/market",
+      status: matchesOldLiteral ? "STALE" : "ok",
+      ok: !matchesOldLiteral,
+      ms: 0,
+      detail: matchesOldLiteral ? `still exactly the old literal: ${JSON.stringify(skills)}` : "",
+    });
+
+    // C. Every entry has a well-formed avg_salary and an honestly-null
+    // growth_pct (no historical snapshots exist to compute a trend from).
+    const shapeOk =
+      skills.length > 0 &&
+      skills.every((s) => typeof s.skill === "string" && /^\$[\d,]+$/.test(s.avg_salary) && s.growth_pct === null);
+    results.push({
+      name: "top_paying_skills entries are well-formed with growth_pct honestly null",
+      method: "GET",
+      path: "/api/market",
+      status: shapeOk ? "ok" : "SHAPE",
+      ok: shapeOk,
+      ms: 0,
+      detail: shapeOk ? "" : `unexpected shape: ${JSON.stringify(skills)}`,
+    });
+
+    // D. Deterministic check tied to the actual seeded data: the seeded
+    // Anthropic job ("$220k - $300k") has the highest salary of the three
+    // seeded jobs, so its skills (e.g. "Python") must lead top_paying_skills
+    // with an avg_salary of exactly $260,000 (the midpoint) -- not a
+    // coincidental match to any of the old hardcoded dollar figures.
+    const topEntry = skills[0];
+    const topIsFromAnthropicJob = topEntry && ["Python", "LLMs", "RAG", "Vector DBs", "PyTorch"].includes(topEntry.skill);
+    results.push({
+      name: "top_paying_skills is led by the seeded Anthropic job's skills at its real $260,000 midpoint",
+      method: "GET",
+      path: "/api/market",
+      status: topEntry ? `${topEntry.skill}: ${topEntry.avg_salary}` : "MISSING",
+      ok: Boolean(topIsFromAnthropicJob) && topEntry?.avg_salary === "$260,000",
+      ms: 0,
+      detail: topIsFromAnthropicJob && topEntry?.avg_salary === "$260,000"
+        ? ""
+        : `expected the top entry to be one of the Anthropic job's skills at $260,000, got ${JSON.stringify(topEntry)}`,
+    });
+  }
+
   // ---------- skills ----------
   section("Skills");
   await call("skills list", "GET", "/api/skills");
@@ -1380,6 +1675,152 @@ async function run() {
         ms: 0,
         detail: "generate succeeded but no milestones returned"
       });
+    }
+  }
+
+  // ---------- hardcoded data fixes: Phase A (A4 target salary, A5 application
+  // salary/location fallbacks, A6 roadmap source label) ----------
+  section("Hardcoded Data Fixes — Phase A (A4/A5/A6)");
+  {
+    // Dedicated fresh user, isolated from every other section's fixtures, via
+    // the same token-swap-and-restore pattern used by the Phase 2 Step 5/6
+    // blocks above.
+    const phaseAEmail = `phase3.a.${Date.now()}@careerforge.test`;
+    const phaseAPassword = "SmokeTest123!";
+    const savedToken = token;
+
+    try {
+      const signup = await call("signup (Phase A)", "POST", "/api/auth/signup", {
+        auth: false,
+        body: { email: phaseAEmail, password: phaseAPassword, fullName: "Phase A Candidate" },
+      });
+      token = signup.json?.access_token || null;
+
+      if (token) {
+        // A4-1. A fresh user with no targetSalary set must not receive the
+        // old fabricated "$140,000" value from GET /api/profile.
+        const profile = await call("profile (Phase A, no target salary)", "GET", "/api/profile");
+        const profileSalary = profile.json?.user?.target_salary;
+        results.push({
+          name: "GET /api/profile does not fabricate target_salary ($140,000) when unset",
+          method: "GET",
+          path: "/api/profile",
+          status: JSON.stringify(profileSalary),
+          ok: profileSalary === "" || profileSalary === null,
+          ms: 0,
+          detail: profileSalary === "" || profileSalary === null
+            ? ""
+            : `expected empty/null target_salary, got ${JSON.stringify(profileSalary)}`,
+        });
+
+        // A4-2. Same check for GET /api/auth/me, which had its own copy of
+        // the same fabricated fallback.
+        const me = await call("auth/me (Phase A, no target salary)", "GET", "/api/auth/me");
+        const meSalary = me.json?.user?.target_salary;
+        results.push({
+          name: "GET /api/auth/me does not fabricate target_salary ($140,000) when unset",
+          method: "GET",
+          path: "/api/auth/me",
+          status: JSON.stringify(meSalary),
+          ok: meSalary === "" || meSalary === null,
+          ms: 0,
+          detail: meSalary === "" || meSalary === null
+            ? ""
+            : `expected empty/null target_salary, got ${JSON.stringify(meSalary)}`,
+        });
+
+        // A4-3. Regression guard: once a real target salary is set, it must
+        // still format correctly (and must not coincidentally equal the old
+        // fabricated constant).
+        await call("profile update (Phase A, set target salary)", "PUT", "/api/profile", {
+          body: { targetSalary: "180000" },
+        });
+        const profileAfter = await call("profile (Phase A, after setting target salary)", "GET", "/api/profile");
+        const salaryAfter = profileAfter.json?.user?.target_salary;
+        const salaryAfterOk = typeof salaryAfter === "string" && salaryAfter.startsWith("$") && salaryAfter !== "$140,000";
+        results.push({
+          name: "target_salary still formats correctly once set",
+          method: "GET",
+          path: "/api/profile",
+          status: salaryAfter ?? "MISSING",
+          ok: salaryAfterOk,
+          ms: 0,
+          detail: salaryAfterOk ? "" : `expected a real $-formatted salary, got ${JSON.stringify(salaryAfter)}`,
+        });
+
+        // A5-1/2. An application created without salary/location must not
+        // receive the old fabricated "$150,000" / "Remote" fallbacks.
+        const app = await call("application create (Phase A, no salary/location)", "POST", "/api/applications", {
+          body: { company: "Phase A Fallback Co", role: "Backend Engineer" },
+          expect: [200, 201],
+        });
+        const appSalary = app.json?.application?.salary;
+        const appLocation = app.json?.application?.location;
+        results.push({
+          name: "application create does not fabricate salary ($150,000) when unset",
+          method: "POST",
+          path: "/api/applications",
+          status: JSON.stringify(appSalary),
+          ok: appSalary === "",
+          ms: 0,
+          detail: appSalary === "" ? "" : `expected empty salary, got ${JSON.stringify(appSalary)}`,
+        });
+        results.push({
+          name: "application create does not fabricate location (Remote) when unset",
+          method: "POST",
+          path: "/api/applications",
+          status: JSON.stringify(appLocation),
+          ok: appLocation === "",
+          ms: 0,
+          detail: appLocation === "" ? "" : `expected empty location, got ${JSON.stringify(appLocation)}`,
+        });
+
+        // A5-3. The list endpoint must not re-introduce a different fallback
+        // than the create endpoint.
+        const appId = app.json?.application?.id;
+        if (appId) {
+          const list = await call("applications list (Phase A)", "GET", "/api/applications");
+          const found = list.json?.applications?.find((a) => a.id === appId);
+          const listOk = Boolean(found) && found.salary === "" && found.location === "";
+          results.push({
+            name: "GET /api/applications list does not fabricate salary/location either",
+            method: "GET",
+            path: "/api/applications",
+            status: listOk ? "ok" : "MISMATCH",
+            ok: listOk,
+            ms: 0,
+            detail: listOk ? "" : `salary=${JSON.stringify(found?.salary)}, location=${JSON.stringify(found?.location)}`,
+          });
+          await call(`application cleanup delete (Phase A, ${appId})`, "DELETE", `/api/applications/${appId}`);
+        }
+
+        // A6. A freshly auto-generated roadmap is a static starter template,
+        // not a skill-gap analysis, and must be labeled accordingly.
+        const roadmap = await call("roadmap get (Phase A, fresh auto-generated)", "GET", "/api/roadmap");
+        const roadmapSource = roadmap.json?.roadmap?.source;
+        results.push({
+          name: 'fresh auto-generated roadmap is labeled source: "template"',
+          method: "GET",
+          path: "/api/roadmap",
+          status: roadmapSource ?? "MISSING",
+          ok: roadmapSource === "template",
+          ms: 0,
+          detail: roadmapSource === "template" ? "" : `expected source "template", got ${JSON.stringify(roadmapSource)}`,
+        });
+      } else {
+        results.push({
+          name: "Hardcoded Data Fixes — Phase A checks",
+          method: "-",
+          path: "-",
+          status: "SKIP",
+          ok: false,
+          ms: 0,
+          detail: "no access_token from the dedicated Phase A signup",
+        });
+      }
+    } finally {
+      // Always restore the shared test user's token for every later section.
+      token = savedToken;
     }
   }
 

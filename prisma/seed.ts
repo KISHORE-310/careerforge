@@ -6,6 +6,70 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("Seeding development data...");
 
+  // 0. Company directory for the three companies already represented by the
+  // seeded jobs below. GET /api/companies reads this table directly (see
+  // src/server/routes/jobs.routes.ts's formatCompany) -- these are the only
+  // companies referenced anywhere else in the seed data, so no additional
+  // companies are invented here.
+  const sampleCompanies = [
+    {
+      id: "company-stripe",
+      name: "Stripe",
+      industry: "Financial Infrastructure",
+      headquarters: "San Francisco, CA",
+      size: "5,000+",
+      rating: 4.8,
+      recommendRate: 94,
+      hiringVelocity: "High",
+      avgSalary: "$180k - $240k",
+      techStack: ["Ruby", "TypeScript", "React", "Go", "PostgreSQL", "AWS"],
+      culture: "Fast-paced, engineering-led, high ownership.",
+      description: "Financial infrastructure for the internet. Stripe builds APIs powering payments globally.",
+      openRolesCount: 1,
+    },
+    {
+      id: "company-anthropic",
+      name: "Anthropic",
+      industry: "Artificial Intelligence",
+      headquarters: "San Francisco, CA",
+      size: "500-1,000",
+      rating: 4.9,
+      recommendRate: 98,
+      hiringVelocity: "Very High",
+      avgSalary: "$220k - $300k",
+      techStack: ["Python", "PyTorch", "TypeScript", "Rust", "JAX", "Distributed Computing"],
+      culture: "Research-driven, safety-focused, high technical bar.",
+      description: "AI safety and research company dedicated to building reliable, interpretable, and steerable AI systems.",
+      openRolesCount: 1,
+    },
+    {
+      id: "company-vercel",
+      name: "Vercel",
+      industry: "Developer Tools / Cloud Infrastructure",
+      headquarters: "San Francisco, CA",
+      size: "300-500",
+      rating: 4.7,
+      recommendRate: 92,
+      hiringVelocity: "High",
+      avgSalary: "$165k - $215k",
+      techStack: ["Next.js", "React", "TypeScript", "Rust", "Edge Infrastructure"],
+      culture: "Remote-first, developer experience obsessed.",
+      description: "The Frontend Cloud platform enabling developers to build and deploy high-speed web apps.",
+      openRolesCount: 1,
+    },
+  ];
+
+  const companyIdByName: Record<string, string> = {};
+  for (const company of sampleCompanies) {
+    const { id, ...rest } = company;
+    await prisma.company.upsert({
+      where: { id },
+      update: rest,
+      create: { id, ...rest },
+    });
+    companyIdByName[company.name] = id;
+  }
+
   // 1. Job catalog.
   // Aligned to the schema: `companyName` (not `company`), a single `salary`
   // string (not salaryMin/salaryMax/salaryText), `skillsRequired` (not
@@ -78,10 +142,11 @@ async function main() {
 
   for (const job of sampleJobs) {
     const { id, ...rest } = job;
+    const companyId = companyIdByName[job.companyName];
     await prisma.job.upsert({
       where: { id },
-      update: rest,
-      create: { id, ...rest },
+      update: { ...rest, companyId },
+      create: { id, ...rest, companyId },
     });
   }
 

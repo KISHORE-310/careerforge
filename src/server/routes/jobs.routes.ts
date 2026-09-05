@@ -1,6 +1,9 @@
 import { Router, Request, Response } from "express";
 import { db } from "../../db/repositories";
 import { optionalAuth } from "../auth";
+import { buildCandidateContext, scoreJobMatch } from "../services/matching";
+import { formatResumeResponse } from "../lib/resume";
+import { parseSalaryRange } from "../lib/data";
 
 export const jobsRouter = Router();
 
@@ -15,13 +18,29 @@ function formatPostedDaysAgo(fetchedAt: Date): string {
 }
 
 // GET /api/jobs
-jobsRouter.get("/", async (req: Request, res: Response) => {
+jobsRouter.get("/", optionalAuth, async (req: Request, res: Response) => {
   try {
     const { query, role, type } = req.query;
     const jobs = await db.jobs.list({
       search: (query as string) || (role as string),
       type: type as string,
     });
+
+    // Candidate context is built once per request (not once per job) from
+    // the authenticated user's real skills/profile/resume, then reused by
+    // scoreJobMatch for every job below. Unauthenticated requests never get
+    // a fabricated score -- match_score stays null.
+    const userId = (req as any).userId;
+    let candidate: Awaited<ReturnType<typeof buildCandidateContext>> | null = null;
+    if (userId) {
+      const [user, skills, resumeRecord] = await Promise.all([
+        db.users.findById(userId),
+        db.skills.listByUser(userId),
+        db.resumes.getPrimary(userId),
+      ]);
+      const resume = formatResumeResponse(resumeRecord, user);
+      candidate = await buildCandidateContext({ skills, profile: user?.profile, resume });
+    }
 
     const formatted = jobs.map((j) => {
       // `requirements` and `skillsRequired` are native Json columns and are
@@ -30,6 +49,17 @@ jobsRouter.get("/", async (req: Request, res: Response) => {
       // (there are no salaryMin/salaryMax/salaryText columns).
       const skills = Array.isArray(j.skillsRequired) ? j.skillsRequired : [];
       const requirements = Array.isArray(j.requirements) ? j.requirements : [];
+      const match_score = candidate
+        ? scoreJobMatch(candidate, {
+            title: j.title,
+            description: j.description,
+            skillsRequired: skills,
+            experience: j.experience,
+            location: j.location,
+            workplace: j.workplace,
+            salary: j.salary,
+          }).overall
+        : null;
       return {
         id: j.id,
         title: j.title,
@@ -43,7 +73,7 @@ jobsRouter.get("/", async (req: Request, res: Response) => {
         description: j.description,
         requirements,
         skills_required: skills,
-        match_score: 92,
+        match_score,
         posted_days_ago: formatPostedDaysAgo(j.fetchedAt),
       };
     });
@@ -110,68 +140,112 @@ jobsRouter.get("/:id", optionalAuth, async (req: Request, res: Response) => {
 export const companiesRouter = Router();
 export const marketRouter = Router();
 
-const sampleCompanies = [
-  {
-    id: "comp_1",
-    name: "Stripe",
+// Maps a Company row (db.companies.list()'s `jobs` relation already filtered
+// to isExpired: false) onto the response shape the frontend expects. Every
+// field is sourced from a real column -- no per-company literal remains.
+// `logo` is the one exception: the schema has no logo column, so the same
+// placeholder used elsewhere in this file is kept as-is (Phase 2 replaces
+// it) rather than solved here.
+function formatCompany(c: Awaited<ReturnType<typeof db.companies.list>>[number]) {
+  return {
+    id: c.id,
+    name: c.name,
     logo: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=60",
-    rating: 4.8,
-    open_roles: 14,
-    culture_score: 94,
-    interview_difficulty: "High",
-    headquarters: "San Francisco, CA",
-    description: "Financial infrastructure for the internet. Stripe builds APIs powering payments globally.",
-    tech_stack: ["Ruby", "TypeScript", "React", "Go", "PostgreSQL", "AWS"],
-  },
-  {
-    id: "comp_2",
-    name: "Anthropic",
-    logo: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=60",
-    rating: 4.9,
-    open_roles: 9,
-    culture_score: 98,
-    interview_difficulty: "Very High",
-    headquarters: "San Francisco, CA",
-    description: "AI safety and research company dedicated to building reliable, interpretable, and steerable AI systems.",
-    tech_stack: ["Python", "PyTorch", "TypeScript", "Rust", "JAX", "Distributed Computing"],
-  },
-  {
-    id: "comp_3",
-    name: "Vercel",
-    logo: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=60",
-    rating: 4.7,
-    open_roles: 8,
-    culture_score: 92,
-    interview_difficulty: "High",
-    headquarters: "San Francisco, CA",
-    description: "The Frontend Cloud platform enabling developers to build and deploy high-speed web apps.",
-    tech_stack: ["Next.js", "React", "TypeScript", "Rust", "Edge Infrastructure"],
-  },
-];
+    rating: c.rating,
+    // Live count of this company's currently non-expired jobs rather than a
+    // static column, so it can't go stale relative to the Job table.
+    open_roles: c.jobs.length,
+    culture_score: c.recommendRate,
+    interview_difficulty: c.hiringVelocity,
+    headquarters: c.headquarters,
+    description: c.description,
+    tech_stack: Array.isArray(c.techStack) ? c.techStack : [],
+  };
+}
 
-const sampleMarketData = {
-  demand_index: 87,
-  top_paying_skills: [
-    { skill: "Distributed Systems", avg_salary: "$195,000", growth_pct: "+24%" },
-    { skill: "LLM / AI Orchestration", avg_salary: "$210,000", growth_pct: "+62%" },
-    { skill: "TypeScript / Full Stack", avg_salary: "$175,000", growth_pct: "+18%" },
-  ],
-};
+// Derives a top-paying-skills signal from CareerForge's own stored Job
+// catalog (skillsRequired + salary) instead of a static literal.
+// `demand_index` and each skill's `growth_pct` are intentionally left null:
+// an honest market-wide demand score or salary trend needs an external
+// labor-market data source (real posting volume, historical salary
+// snapshots) that this internal job catalog can't truthfully represent on
+// its own -- computing an arbitrary function of our own handful of listings
+// and labeling it "market demand" would just swap one fabricated number for
+// another, not fix the underlying problem.
+async function computeMarketInsights() {
+  const jobs = await db.jobs.list({ limit: 200 });
 
-companiesRouter.get(["/", "/companies"], (_req: Request, res: Response) => {
-  res.json({ success: true, companies: sampleCompanies });
+  const bySkill = new Map<string, number[]>();
+  for (const job of jobs) {
+    const { min, max } = parseSalaryRange(job.salary);
+    if (min == null) continue;
+    const mid = max != null ? (min + max) / 2 : min;
+
+    const skills = Array.isArray(job.skillsRequired) ? job.skillsRequired : [];
+    for (const skill of skills) {
+      if (typeof skill !== "string" || !skill.trim()) continue;
+      const list = bySkill.get(skill) || [];
+      list.push(mid);
+      bySkill.set(skill, list);
+    }
+  }
+
+  const top_paying_skills = [...bySkill.entries()]
+    .map(([skill, salaries]) => ({
+      skill,
+      avgSalaryValue: salaries.reduce((a, b) => a + b, 0) / salaries.length,
+    }))
+    .sort((a, b) => b.avgSalaryValue - a.avgSalaryValue)
+    .slice(0, 5)
+    .map(({ skill, avgSalaryValue }) => ({
+      skill,
+      // Explicit "en-US" -- toLocaleString() with no locale argument follows
+      // the host's default ICU locale, which on some systems groups digits
+      // Indian-style ("2,60,000") instead of "260,000".
+      avg_salary: `$${Math.round(avgSalaryValue).toLocaleString("en-US")}`,
+      growth_pct: null,
+    }));
+
+  return {
+    demand_index: null,
+    top_paying_skills,
+  };
+}
+
+companiesRouter.get(["/", "/companies"], async (_req: Request, res: Response) => {
+  try {
+    const companies = await db.companies.list();
+    res.json({ success: true, companies: companies.map(formatCompany) });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: "Failed to retrieve companies." });
+  }
 });
 
-marketRouter.get(["/", "/market"], (_req: Request, res: Response) => {
-  res.json({ success: true, market: sampleMarketData });
+marketRouter.get(["/", "/market"], async (_req: Request, res: Response) => {
+  try {
+    const market = await computeMarketInsights();
+    res.json({ success: true, market });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: "Failed to retrieve market intelligence." });
+  }
 });
 
 // GET /api/companies (via jobs router fallback)
-jobsRouter.get(["/meta/companies", "/companies"], (_req: Request, res: Response) => {
-  res.json({ success: true, companies: sampleCompanies });
+jobsRouter.get(["/meta/companies", "/companies"], async (_req: Request, res: Response) => {
+  try {
+    const companies = await db.companies.list();
+    res.json({ success: true, companies: companies.map(formatCompany) });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: "Failed to retrieve companies." });
+  }
 });
 
 // GET /api/market (via jobs router fallback)
-jobsRouter.get(["/meta/market", "/market"], (_req: Request, res: Response) => {
-  res.json({ success: true, market: sampleMarketData });
+jobsRouter.get(["/meta/market", "/market"], async (_req: Request, res: Response) => {
+  try {
+    const market = await computeMarketInsights();
+    res.json({ success: true, market });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: "Failed to retrieve market intelligence." });
+  }
 });

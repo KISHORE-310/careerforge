@@ -79,6 +79,10 @@ roadmapRouter.get("/", authenticateToken, async (req: Request, res: Response) =>
       roadmap = await db.roadmaps.createWithMilestones(userId, {
         targetRole: user?.profile?.targetRole || "Full Stack Engineer",
         milestones: generated,
+        // This is a static starter template, not a skill-gap analysis --
+        // label its provenance honestly rather than falling back to the
+        // repository's "skill_gap" default.
+        source: "template",
       });
     }
 

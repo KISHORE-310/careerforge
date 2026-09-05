@@ -25,7 +25,7 @@ profileRouter.get("/", authenticateToken, async (req: Request, res: Response) =>
       full_name: user.name,
       email: user.email,
       target_role: user.profile?.targetRole || "Software Engineer",
-      target_salary: user.profile?.targetSalary ? `$${user.profile.targetSalary.toLocaleString()}` : "$140,000",
+      target_salary: user.profile?.targetSalary ? `$${user.profile.targetSalary.toLocaleString()}` : "",
       experience_level: user.profile?.experienceLevel || "Mid-Level",
       bio: user.profile?.bio || "",
       location: user.profile?.location || "",
