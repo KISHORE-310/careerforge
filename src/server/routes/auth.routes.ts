@@ -65,7 +65,7 @@ authRouter.post(
   validateBody(SignupSchema),
   async (req: Request, res: Response) => {
     try {
-      const { full_name, email, password } = req.body;
+      const { full_name, name, email, password } = req.body;
       const cleanEmail = email.trim().toLowerCase();
       const existing = await db.users.findByEmail(cleanEmail);
       if (existing) {
@@ -73,7 +73,7 @@ authRouter.post(
       }
 
       const hashedPassword = await bcrypt.hash(password, 10);
-      const displayName = (full_name || "").trim() || "Candidate";
+      const displayName = (full_name || name || "").trim() || "Candidate";
 
       const newUser = await db.users.create({
         email: cleanEmail,

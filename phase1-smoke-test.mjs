@@ -160,6 +160,103 @@ async function run() {
     if (me.json?.user?.id) ctx.userId = me.json.user.id;
   }
 
+  // ---------- authentication: signup name field fix ----------
+  // The real Signup.jsx form submits { name, email, password } -- SignupSchema
+  // previously only recognized full_name, so `name` was silently stripped and
+  // every real signup got "Candidate" stored regardless of what was typed.
+  section("Authentication — Signup Name Field Fix");
+  {
+    const savedToken = token;
+
+    try {
+      // A. { name, email, password } (no full_name key) must store and
+      // return that name, not "Candidate".
+      const nameEmail = `phase3.signupname.${Date.now()}@careerforge.test`;
+      const distinctiveName = "Zephyr Quilliam-Ashworth";
+      const signupWithName = await call("signup ({ name }, Signup.jsx's real shape)", "POST", "/api/auth/signup", {
+        auth: false,
+        body: { name: distinctiveName, email: nameEmail, password: PASSWORD },
+      });
+      const returnedName = signupWithName.json?.user?.full_name;
+      results.push({
+        name: "signup with { name } stores and returns that name (not \"Candidate\")",
+        method: "POST",
+        path: "/api/auth/signup",
+        status: returnedName ?? "MISSING",
+        ok: returnedName === distinctiveName,
+        ms: 0,
+        detail: returnedName === distinctiveName ? "" : `expected ${JSON.stringify(distinctiveName)}, got ${JSON.stringify(returnedName)}`,
+      });
+
+      token = signupWithName.json?.access_token || null;
+      if (token) {
+        const me = await call("auth/me (Signup Name Fix, { name })", "GET", "/api/auth/me");
+        const meName = me.json?.user?.full_name;
+        results.push({
+          name: "GET /api/auth/me reflects the stored name from a { name }-only signup",
+          method: "GET",
+          path: "/api/auth/me",
+          status: meName ?? "MISSING",
+          ok: meName === distinctiveName,
+          ms: 0,
+          detail: meName === distinctiveName ? "" : `expected ${JSON.stringify(distinctiveName)}, got ${JSON.stringify(meName)}`,
+        });
+      } else {
+        results.push({
+          name: "GET /api/auth/me reflects the stored name from a { name }-only signup",
+          method: "-",
+          path: "-",
+          status: "SKIP",
+          ok: false,
+          ms: 0,
+          detail: "no access_token from the { name } signup",
+        });
+      }
+
+      // B. Regression: { full_name, email, password } (no name key) must
+      // still work exactly as before.
+      const fullNameEmail = `phase3.signupfullname.${Date.now()}@careerforge.test`;
+      const distinctiveFullName = "Marguerite Okonkwo-Delacroix";
+      const signupWithFullName = await call("signup ({ full_name }, regression)", "POST", "/api/auth/signup", {
+        auth: false,
+        body: { full_name: distinctiveFullName, email: fullNameEmail, password: PASSWORD },
+      });
+      const returnedFullName = signupWithFullName.json?.user?.full_name;
+      results.push({
+        name: "signup with { full_name } still works (regression)",
+        method: "POST",
+        path: "/api/auth/signup",
+        status: returnedFullName ?? "MISSING",
+        ok: returnedFullName === distinctiveFullName,
+        ms: 0,
+        detail: returnedFullName === distinctiveFullName
+          ? ""
+          : `expected ${JSON.stringify(distinctiveFullName)}, got ${JSON.stringify(returnedFullName)}`,
+      });
+
+      // C. Neither field supplied still falls back to "Candidate" (unchanged
+      // default behavior).
+      const neitherEmail = `phase3.signupneither.${Date.now()}@careerforge.test`;
+      const signupWithNeither = await call("signup (neither name nor full_name, default fallback)", "POST", "/api/auth/signup", {
+        auth: false,
+        body: { email: neitherEmail, password: PASSWORD },
+      });
+      const defaultName = signupWithNeither.json?.user?.full_name;
+      results.push({
+        name: "signup with neither name nor full_name still defaults to \"Candidate\"",
+        method: "POST",
+        path: "/api/auth/signup",
+        status: defaultName ?? "MISSING",
+        ok: defaultName === "Candidate",
+        ms: 0,
+        detail: defaultName === "Candidate" ? "" : `expected "Candidate", got ${JSON.stringify(defaultName)}`,
+      });
+    } finally {
+      // Always restore the shared test user's token for every later section.
+      token = savedToken;
+    }
+  }
+
   // ---------- auth/onboarding: Phase 2 Step 5 (real onboardingCompleted) ----------
   section("Auth/Onboarding — Phase 2 Step 5");
   {

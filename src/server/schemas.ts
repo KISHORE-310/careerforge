@@ -11,6 +11,10 @@ export const SignupSchema = z.object({
     .min(8, "Password must be at least 8 characters long")
     .max(128, "Password is too long"),
   full_name: z.string().trim().max(100).optional(),
+  // The Signup page's form field is named `name`, not `full_name`. Accepted
+  // as an alias so the name the user actually typed isn't silently stripped
+  // by this schema and replaced with the "Candidate" fallback.
+  name: z.string().trim().max(100).optional(),
 });
 
 export const LoginSchema = z.object({
