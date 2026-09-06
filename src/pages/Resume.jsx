@@ -30,6 +30,7 @@ function Resume() {
   const [aiInputBullet, setAiInputBullet] = useState("");
   const [aiTargetRole, setAiTargetRole] = useState("Senior Full Stack Engineer");
   const [aiSuggestions, setAiSuggestions] = useState([]);
+  const [aiError, setAiError] = useState("");
   const [selectedExpIdx, setSelectedExpIdx] = useState(0);
 
   useEffect(() => {
@@ -68,16 +69,20 @@ function Resume() {
   const handleAiRewrite = async () => {
     if (!aiInputBullet.trim()) return;
     setAiLoading(true);
+    setAiError("");
     try {
       const res = await aiRewriteResume({
-        bullet: aiInputBullet,
+        section: "experience",
+        content: aiInputBullet,
         target_role: aiTargetRole,
       });
       if (res.success) {
-        setAiSuggestions(res.rewritten_bullets || []);
+        setAiSuggestions([res.improved, ...(res.alternatives || [])].filter(Boolean));
+      } else {
+        setAiError(res.message || "AI rewrite could not be generated.");
       }
     } catch (err) {
-      console.error(err);
+      setAiError(err.message || "AI rewrite could not be generated.");
     } finally {
       setAiLoading(false);
     }
@@ -182,7 +187,8 @@ function Resume() {
         </div>
 
         {/* Top ATS Score Summary Bar */}
-        <div className="apple-liquid-glass rounded-2xl p-4 sm:p-5 border border-[#d4af37]/30 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+          {aiError && <p role="alert" className="rounded-lg border border-rose-500/30 bg-rose-950/30 p-3 text-xs text-rose-200">{aiError}</p>}
+          <div className="apple-liquid-glass rounded-2xl p-4 sm:p-5 border border-[#d4af37]/30 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 rounded-2xl bg-black/60 border border-[#d4af37]/40 flex flex-col items-center justify-center text-center shrink-0">
               <span className="text-xl font-bold font-mono text-white leading-none">{score}</span>

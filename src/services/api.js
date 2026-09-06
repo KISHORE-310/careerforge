@@ -181,7 +181,7 @@ export async function aiRewriteResume(payload) {
 
 export async function getJobs(params = {}) {
   const query = new URLSearchParams(params).toString();
-  const response = await fetch(`${API_URL}/api/jobs?${query}`);
+  const response = await fetch(`${API_URL}/api/jobs?${query}`, { headers: getAuthHeaders() });
   return await handleResponse(response);
 }
 
