@@ -331,6 +331,55 @@ export const db = {
         },
       });
     },
+    async upsertLive(jobData: any) {
+      const externalId = String(jobData.externalId || "").trim();
+      if (!externalId) throw new Error("A live job requires a stable external identifier.");
+      return prisma.job.upsert({
+        where: { source_externalId: { source: "live", externalId } },
+        update: {
+          title: jobData.title,
+          companyName: jobData.companyName,
+          location: jobData.location || "Remote",
+          salary: jobData.salary || "",
+          type: jobData.type || "Full-time",
+          workplace: jobData.workplace || "Remote",
+          department: jobData.department || "",
+          description: jobData.description || "",
+          requirements: jobData.requirements || [],
+          skillsRequired: jobData.skillsRequired || [],
+          benefits: jobData.benefits || [],
+          experience: jobData.experience || "",
+          sourceUrl: jobData.sourceUrl || "",
+          expiresAt: jobData.expiresAt || null,
+          fetchedAt: new Date(),
+          isExpired: false,
+        },
+        create: {
+          externalId,
+          title: jobData.title,
+          companyName: jobData.companyName,
+          location: jobData.location || "Remote",
+          salary: jobData.salary || "",
+          type: jobData.type || "Full-time",
+          workplace: jobData.workplace || "Remote",
+          department: jobData.department || "",
+          description: jobData.description || "",
+          requirements: jobData.requirements || [],
+          skillsRequired: jobData.skillsRequired || [],
+          benefits: jobData.benefits || [],
+          experience: jobData.experience || "",
+          sourceUrl: jobData.sourceUrl || "",
+          expiresAt: jobData.expiresAt || null,
+          source: "live",
+        },
+      });
+    },
+    async expireStaleLive(externalIdPrefix: string, cutoff: Date) {
+      return prisma.job.updateMany({
+        where: { source: "live", externalId: { startsWith: externalIdPrefix }, fetchedAt: { lt: cutoff }, isExpired: false },
+        data: { isExpired: true },
+      });
+    },
   },
   companies: {
     async list() {

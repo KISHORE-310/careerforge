@@ -73,6 +73,8 @@ jobsRouter.get("/", optionalAuth, async (req: Request, res: Response) => {
         description: j.description,
         requirements,
         skills_required: skills,
+        source: j.source,
+        source_url: j.sourceUrl,
         match_score,
         posted_days_ago: formatPostedDaysAgo(j.fetchedAt),
       };
@@ -120,6 +122,8 @@ jobsRouter.get("/:id", optionalAuth, async (req: Request, res: Response) => {
         salary_range: job.salary || "",
         description: job.description,
         skills_required: skillsReq,
+        source: job.source,
+        source_url: job.sourceUrl,
         match_score: overallScore,
       },
       fit_analysis: {

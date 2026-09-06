@@ -13,6 +13,7 @@
     "db:migrate": "prisma migrate deploy",
     "db:migrate:dev": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
+    "jobs:sync": "tsx scripts/ingest-jobs.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },
