@@ -1,5 +1,6 @@
 import express, { Request, Response } from "express";
 import path from "path";
+import { randomUUID } from "crypto";
 import { createServer as createViteServer } from "vite";
 
 import { config } from "./src/server/config";
@@ -32,6 +33,17 @@ const PORT = config.PORT;
 // Enable reverse proxy trust for accurate IP resolution behind Cloud Run / load balancers
 app.set("trust proxy", 1);
 
+app.use((req, res, next) => {
+  const requestId = req.header("x-request-id") || randomUUID();
+  (req as Request & { requestId?: string }).requestId = requestId;
+  res.setHeader("x-request-id", requestId);
+  const startedAt = Date.now();
+  res.on("finish", () => {
+    if (req.path.startsWith("/api")) console.info(JSON.stringify({ level: "info", event: "api_request", requestId, method: req.method, path: req.path, status: res.statusCode, durationMs: Date.now() - startedAt }));
+  });
+  next();
+});
+
 // 1. Security Headers & CORS
 app.use(securityHeaders);
 app.use(corsMiddleware);
@@ -52,13 +64,23 @@ app.get(["/health", "/api/health"], async (_req: Request, res: Response) => {
     dbStatus = "disconnected";
   }
 
-  res.json({
-    status: "ok",
+  const healthy = dbStatus === "connected";
+  res.status(healthy ? 200 : 503).json({
+    status: healthy ? "ok" : "degraded",
     environment: config.NODE_ENV,
     database: dbStatus,
     ai_engine: config.GEMINI_API_KEY ? "configured" : "fallback_mode",
     timestamp: new Date().toISOString(),
   });
+});
+
+app.get(["/ready", "/api/ready"], async (_req: Request, res: Response) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ status: "ready" });
+  } catch {
+    res.status(503).json({ status: "not_ready" });
+  }
 });
 
 // 5. Mount Domain Routers (Modular API Architecture)

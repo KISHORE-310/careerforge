@@ -182,8 +182,9 @@ export function sanitizeAiInput(text: string, maxLength = 6000): string {
 // Safe Global Error Handler
 // =====================================
 
-export function globalErrorHandler(err: any, _req: Request, res: Response, _next: NextFunction) {
-  console.error("Unhandled Server Error:", err?.message || err);
+export function globalErrorHandler(err: any, req: Request, res: Response, _next: NextFunction) {
+  const requestId = (req as Request & { requestId?: string }).requestId;
+  console.error(JSON.stringify({ level: "error", event: "unhandled_error", requestId, method: req.method, path: req.path, message: err?.message || "Unknown error" }));
 
   // Avoid leaking internal details, database credentials, or secret keys in response
   const statusCode = err.statusCode || err.status || 500;
@@ -195,5 +196,6 @@ export function globalErrorHandler(err: any, _req: Request, res: Response, _next
   res.status(statusCode).json({
     success: false,
     message: safeMessage,
+    request_id: requestId,
   });
 }
