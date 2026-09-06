@@ -15,6 +15,37 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
 });
 
+const COMMON_SKILLS = [
+  "JavaScript", "TypeScript", "React", "Next.js", "Node.js", "Express", "Python", "Java", "C++",
+  "SQL", "PostgreSQL", "MongoDB", "Redis", "Docker", "Kubernetes", "AWS", "Azure", "GCP",
+  "Git", "GraphQL", "REST", "FastAPI", "Django", "Spring Boot", "TensorFlow", "PyTorch",
+  "Machine Learning", "System Design", "Kafka", "Linux",
+];
+
+function parseResumeLocally(text: string) {
+  const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const email = text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0] || "";
+  const phone = text.match(/(?:\+?\d[\d\s().-]{7,}\d)/)?.[0]?.trim() || "";
+  const linkedin = text.match(/https?:\/\/(?:www\.)?linkedin\.com\/[^\s)]+/i)?.[0] || "";
+  const github = text.match(/https?:\/\/(?:www\.)?github\.com\/[^\s)]+/i)?.[0] || "";
+  const lower = text.toLowerCase();
+  const technical_skills = COMMON_SKILLS.filter((skill) => lower.includes(skill.toLowerCase()));
+  const contactLineIndexes = new Set(lines.map((line, index) =>
+    (email && line.includes(email)) || (phone && line.includes(phone)) || /linkedin|github|portfolio/i.test(line) ? index : -1
+  ).filter((index) => index >= 0));
+  const full_name = lines.find((line, index) =>
+    index < 5 && !contactLineIndexes.has(index) && !/@|https?:\/\//i.test(line) && /^[A-Za-z][A-Za-z .'-]{2,80}$/.test(line)
+  ) || "Candidate";
+  const summaryCandidates = lines.filter((line) => line.length >= 80 && line.length <= 700 && !/@|https?:\/\//i.test(line));
+
+  return {
+    personal_info: { full_name, email, phone, location: "", linkedin, github, portfolio: "" },
+    summary: summaryCandidates[0] || "",
+    education: [], experience: [], projects: [], certifications: [],
+    technical_skills, soft_skills: [], achievements: [], languages: [],
+  };
+}
+
 export function calculateResumeScore(profile: any) {
   if (!profile) {
     return {
@@ -257,7 +288,10 @@ resumeRouter.post(
         });
       }
 
-      const profile = await aiService.parseResume(extractedText, targetRole);
+      const usingLocalParser = !process.env.GEMINI_API_KEY;
+      const profile = usingLocalParser
+        ? parseResumeLocally(extractedText)
+        : await aiService.parseResume(extractedText, targetRole);
 
       if (!profile || !profile.personal_info) {
         return res.status(502).json({
@@ -295,19 +329,19 @@ resumeRouter.post(
 
       res.json({
         success: true,
-        message: "Resume processed successfully.",
+        message: usingLocalParser
+          ? "Resume processed with local text extraction. Add GEMINI_API_KEY to enable AI-enhanced parsing."
+          : "Resume processed successfully.",
+        parser_mode: usingLocalParser ? "local" : "gemini",
         profile,
         resume_score: resumeScore,
         target_role: targetRole,
       });
     } catch (error: any) {
       console.error("[Resume Upload Error]:", error?.message || error);
-      const isMissingKey = error?.message?.includes("GEMINI_API_KEY");
       res.status(500).json({
         success: false,
-        message: isMissingKey
-          ? "Resume AI Parsing requires GEMINI_API_KEY to be configured in server environment."
-          : error?.message || "Resume processing failed.",
+        message: error?.message || "Resume processing failed.",
       });
     }
   }
