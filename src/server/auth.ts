@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
-import { config, isDemoModeAllowed } from "./config";
+import { config } from "./config";
 import { db } from "../db/repositories";
 
 export interface AuthenticatedRequest extends Request {
@@ -32,52 +32,6 @@ export async function authenticateToken(req: Request, res: Response, next: NextF
   }
 
   const token = authHeader.replace("Bearer ", "").trim();
-
-  // Demo Token Bypass Check
-  if (token === "demo_jwt_token_careerforge") {
-    if (!isDemoModeAllowed()) {
-      return res.status(403).json({
-        success: false,
-        message: "Demo authentication is disabled on this server.",
-      });
-    }
-
-    // Look up or create demo user safely in development
-    let demoUser = await db.users.findByEmail("demo@careerforge.ai");
-    if (!demoUser) {
-      try {
-        demoUser = await db.users.create({
-          email: "demo@careerforge.ai",
-          name: "Alex Morgan",
-          passwordHash: "demo_hash",
-          profile: {
-            title: "Senior Full Stack Engineer",
-            targetRole: "Senior Full Stack Engineer",
-            targetSalary: 165000,
-            experienceLevel: "Senior",
-            location: "San Francisco, CA",
-            bio: "Passionate software architect building high-scale distributed systems.",
-            github: "https://github.com/alexmorgan-dev",
-            linkedin: "https://linkedin.com/in/alexmorgan-dev",
-          },
-        });
-      } catch {
-        demoUser = (await db.users.findByEmail("demo@careerforge.ai")) || null;
-      }
-    }
-
-    if (!demoUser) {
-      return res.status(401).json({
-        success: false,
-        message: "Demo user not initialized. Please log in or sign up.",
-      });
-    }
-
-    (req as AuthenticatedRequest).userId = demoUser.id;
-    (req as AuthenticatedRequest).userEmail = demoUser.email;
-    (req as AuthenticatedRequest).user = demoUser;
-    return next();
-  }
 
   try {
     const decoded = jwt.verify(token, config.JWT_SECRET) as { sub: string; email?: string };
@@ -118,29 +72,18 @@ export async function optionalAuth(req: Request, _res: Response, next: NextFunct
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith("Bearer ")) {
     const token = authHeader.replace("Bearer ", "").trim();
-    if (token === "demo_jwt_token_careerforge") {
-      if (isDemoModeAllowed()) {
-        const demoUser = await db.users.findByEmail("demo@careerforge.ai");
-        if (demoUser) {
-          (req as AuthenticatedRequest).userId = demoUser.id;
-          (req as AuthenticatedRequest).userEmail = demoUser.email;
-          (req as AuthenticatedRequest).user = demoUser;
+    try {
+      const decoded = jwt.verify(token, config.JWT_SECRET) as { sub: string; email?: string };
+      if (decoded && decoded.sub) {
+        const user = await db.users.findById(decoded.sub);
+        if (user) {
+          (req as AuthenticatedRequest).userId = user.id;
+          (req as AuthenticatedRequest).userEmail = user.email;
+          (req as AuthenticatedRequest).user = user;
         }
       }
-    } else {
-      try {
-        const decoded = jwt.verify(token, config.JWT_SECRET) as { sub: string; email?: string };
-        if (decoded && decoded.sub) {
-          const user = await db.users.findById(decoded.sub);
-          if (user) {
-            (req as AuthenticatedRequest).userId = user.id;
-            (req as AuthenticatedRequest).userEmail = user.email;
-            (req as AuthenticatedRequest).user = user;
-          }
-        }
-      } catch {
-        // Safe to ignore for optional auth
-      }
+    } catch {
+      // Safe to ignore for optional auth.
     }
   }
   next();

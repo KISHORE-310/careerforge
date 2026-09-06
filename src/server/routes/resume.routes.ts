@@ -2,7 +2,7 @@ import { Router, Request, Response } from "express";
 import multer from "multer";
 import pdfParse from "pdf-parse";
 import { db } from "../../db/repositories";
-import { authenticateToken, optionalAuth, AuthenticatedRequest } from "../auth";
+import { authenticateToken, AuthenticatedRequest } from "../auth";
 import { uploadLimiter, aiLimiter, validateBody, validatePdfFile, sanitizeAiInput } from "../security";
 import { ResumeSchema, AIRewriteSchema } from "../schemas";
 import { aiService } from "../services/ai.service";
@@ -223,6 +223,7 @@ resumeRouter.put("/", authenticateToken, async (req: Request, res: Response) => 
 resumeRouter.post(
   "/ai-rewrite",
   aiLimiter,
+  authenticateToken,
   validateBody(AIRewriteSchema),
   async (req: Request, res: Response) => {
     try {
@@ -252,13 +253,13 @@ resumeRouter.post(
 resumeRouter.post(
   ["/", "/upload"],
   uploadLimiter,
-  optionalAuth,
+  authenticateToken,
   upload.single("file"),
   async (req: Request, res: Response) => {
     try {
       const file = req.file;
       const targetRole = sanitizeAiInput((req.body.target_role as string) || "Full Stack Engineer", 100);
-      const userId = (req as any).userId;
+      const userId = (req as AuthenticatedRequest).userId;
 
       const fileValidation = validatePdfFile(file);
       if (!fileValidation.isValid) {
@@ -302,30 +303,28 @@ resumeRouter.post(
 
       const resumeScore = calculateResumeScore(profile);
 
-      if (userId) {
-        await db.resumes.upsertResume(userId, {
+      await db.resumes.upsertResume(userId, {
           ...profile,
           atsScore: resumeScore.resume_score,
           evaluation: resumeScore,
           parsedText: extractedText,
-        });
+      });
 
-        if (Array.isArray(profile.technical_skills)) {
-          for (const skill of profile.technical_skills) {
-            if (typeof skill === "string" && skill.trim()) {
-              await db.skills.upsert(userId, {
-                name: skill.trim(),
-                proficiency: 80,
-                source: "Resume",
-              });
-            }
+      if (Array.isArray(profile.technical_skills)) {
+        for (const skill of profile.technical_skills) {
+          if (typeof skill === "string" && skill.trim()) {
+            await db.skills.upsert(userId, {
+              name: skill.trim(),
+              proficiency: 80,
+              source: "Resume",
+            });
           }
         }
-
-        await db.analytics.recordEvent(userId, "resume_uploaded", "Resume", {
-          atsScore: resumeScore.resume_score,
-        });
       }
+
+      await db.analytics.recordEvent(userId, "resume_uploaded", "Resume", {
+        atsScore: resumeScore.resume_score,
+      });
 
       res.json({
         success: true,

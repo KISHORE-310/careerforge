@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { db } from "../../db/repositories";
-import { authenticateToken, optionalAuth, AuthenticatedRequest } from "../auth";
+import { authenticateToken, AuthenticatedRequest } from "../auth";
 import { aiLimiter, validateBody } from "../security";
 import { ApplicationCreateSchema, ApplicationUpdateSchema, AICoverLetterSchema } from "../schemas";
 import { aiService } from "../services/ai.service";
@@ -189,7 +189,7 @@ applicationsRouter.delete("/:id", authenticateToken, async (req: Request, res: R
 applicationsRouter.post(
   ["/ai/generate", "/generate", "/ai-generate", "/"],
   aiLimiter,
-  optionalAuth,
+  authenticateToken,
   validateBody(AICoverLetterSchema),
   async (req: Request, res: Response) => {
     try {

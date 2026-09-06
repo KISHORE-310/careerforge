@@ -26,7 +26,7 @@ import { coachRouter } from "./src/server/routes/coach.routes";
 import { notificationsRouter } from "./src/server/routes/notifications.routes";
 import { analyticsRouter } from "./src/server/routes/analytics.routes";
 
-const app = express();
+export const app = express();
 const PORT = config.PORT;
 
 // Enable reverse proxy trust for accurate IP resolution behind Cloud Run / load balancers
@@ -121,4 +121,8 @@ async function startServer() {
   });
 }
 
-startServer();
+// Tests import the configured Express application directly; they must not
+// bind a TCP port or initialize Vite's development middleware.
+if (!process.env.VITEST) {
+  startServer();
+}

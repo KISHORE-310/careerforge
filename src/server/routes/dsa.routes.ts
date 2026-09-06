@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { db } from "../../db/repositories";
-import { authenticateToken, optionalAuth, AuthenticatedRequest } from "../auth";
+import { authenticateToken, AuthenticatedRequest } from "../auth";
 import { aiLimiter, validateBody, sanitizeAiInput } from "../security";
 import { DsaSubmitSchema, DsaProgressUpdateSchema } from "../schemas";
 import { aiService } from "../services/ai.service";
@@ -134,7 +134,7 @@ dsaRouter.delete("/progress", authenticateToken, async (req: Request, res: Respo
 dsaRouter.post(
   "/submit",
   aiLimiter,
-  optionalAuth,
+  authenticateToken,
   validateBody(DsaSubmitSchema),
   async (req: Request, res: Response) => {
     try {
