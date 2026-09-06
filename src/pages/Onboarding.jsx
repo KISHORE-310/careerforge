@@ -13,7 +13,7 @@ import {
   BrainCircuit,
   ArrowRight,
 } from "lucide-react";
-import { completeOnboarding, uploadResume } from "../services/api";
+import { completeOnboarding, saveResume, uploadResume } from "../services/api";
 
 const TARGET_ROLES = [
   "Senior Full Stack Engineer",
@@ -34,6 +34,7 @@ function Onboarding() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [parsedResume, setParsedResume] = useState(null);
 
   const [formData, setFormData] = useState({
     career_goal: "Land a Senior Engineering role at a Tier-1 tech company within 90 days",
@@ -59,8 +60,19 @@ function Onboarding() {
     setError("");
     try {
       if (formData.resumeFile) {
-        const upload = await uploadResume(formData.resumeFile, formData.target_role);
-        if (!upload.success) throw new Error(upload.message || "Resume upload failed.");
+        if (!parsedResume) {
+          const upload = await uploadResume(formData.resumeFile, formData.target_role, false);
+          if (!upload.success) throw new Error(upload.message || "Resume upload failed.");
+          const profile = upload.profile || {};
+          setParsedResume(profile);
+          setFormData((current) => ({
+            ...current,
+            skills: [...new Set([...(current.skills || []), ...(profile.technical_skills || [])])].slice(0, 50),
+          }));
+          return;
+        }
+        const saved = await saveResume(parsedResume);
+        if (!saved.success) throw new Error(saved.message || "Resume review could not be saved.");
       }
       const result = await completeOnboarding({
         career_goal: formData.career_goal,
@@ -278,6 +290,7 @@ function Onboarding() {
                 accept="application/pdf"
                 onChange={(e) => {
                   if (e.target.files && e.target.files[0]) {
+                    setParsedResume(null);
                     setFormData({ ...formData, resumeFile: e.target.files[0] });
                   }
                 }}
@@ -291,6 +304,21 @@ function Onboarding() {
                 {formData.resumeFile ? "Change File" : "Select PDF File"}
               </label>
             </div>
+
+            {parsedResume && (
+              <div className="space-y-3 rounded-xl border border-[#d4af37]/35 bg-[#d4af37]/5 p-4">
+                <div>
+                  <p className="text-xs font-semibold text-[#f5d77f]">Review extracted details before saving</p>
+                  <p className="mt-1 text-[11px] text-stone-400">Nothing has been added to your profile yet. Correct the AI extraction, then confirm it.</p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <input value={parsedResume.personal_info?.full_name || ""} onChange={(e) => setParsedResume({ ...parsedResume, personal_info: { ...(parsedResume.personal_info || {}), full_name: e.target.value } })} placeholder="Full name" className="rounded-lg border border-stone-700 bg-stone-950 px-3 py-2 text-xs text-white" />
+                  <input value={parsedResume.personal_info?.email || ""} onChange={(e) => setParsedResume({ ...parsedResume, personal_info: { ...(parsedResume.personal_info || {}), email: e.target.value } })} placeholder="Email" className="rounded-lg border border-stone-700 bg-stone-950 px-3 py-2 text-xs text-white" />
+                </div>
+                <textarea value={parsedResume.summary || ""} onChange={(e) => setParsedResume({ ...parsedResume, summary: e.target.value })} placeholder="Professional summary" rows={3} className="w-full rounded-lg border border-stone-700 bg-stone-950 px-3 py-2 text-xs text-white" />
+                <input value={(parsedResume.technical_skills || []).join(", ")} onChange={(e) => setParsedResume({ ...parsedResume, technical_skills: e.target.value.split(",").map((skill) => skill.trim()).filter(Boolean).slice(0, 100) })} placeholder="Skills, separated by commas" className="w-full rounded-lg border border-stone-700 bg-stone-950 px-3 py-2 text-xs text-white" />
+              </div>
+            )}
 
             <div className="p-3.5 rounded-xl bg-[#d4af37]/10 border border-[#d4af37]/30 flex items-center gap-3">
               <BrainCircuit size={20} className="text-[#d4af37] shrink-0" />
@@ -329,7 +357,7 @@ function Onboarding() {
               disabled={loading}
               className="flex items-center gap-1.5 px-6 py-2.5 rounded-xl bg-[#d4af37] text-black text-xs font-bold hover:bg-[#f5d77f] transition shadow-xl disabled:opacity-50"
             >
-              {loading ? "Synthesizing Profile..." : "Synthesize & Launch Dashboard"}
+              {loading ? "Processing..." : parsedResume ? "Confirm Resume & Launch" : "Review Resume & Launch"}
               <ArrowRight size={16} />
             </button>
           )}

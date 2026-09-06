@@ -149,10 +149,11 @@ export async function saveResume(resume) {
   return await handleResponse(response);
 }
 
-export async function uploadResume(file, targetRole) {
+export async function uploadResume(file, targetRole, persist = false) {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("target_role", targetRole || "Senior Full Stack Engineer");
+  formData.append("persist", String(persist));
 
   const response = await fetch(`${API_URL}/api/upload-resume`, {
     method: "POST",

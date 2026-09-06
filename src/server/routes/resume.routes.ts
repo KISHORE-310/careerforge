@@ -259,6 +259,7 @@ resumeRouter.post(
     try {
       const file = req.file;
       const targetRole = sanitizeAiInput((req.body.target_role as string) || "Full Stack Engineer", 100);
+      const persist = req.body.persist === "true";
       const userId = (req as AuthenticatedRequest).userId;
 
       const fileValidation = validatePdfFile(file);
@@ -303,28 +304,30 @@ resumeRouter.post(
 
       const resumeScore = calculateResumeScore(profile);
 
-      await db.resumes.upsertResume(userId, {
+      if (persist) {
+        await db.resumes.upsertResume(userId, {
           ...profile,
           atsScore: resumeScore.resume_score,
           evaluation: resumeScore,
           parsedText: extractedText,
-      });
+        });
 
-      if (Array.isArray(profile.technical_skills)) {
-        for (const skill of profile.technical_skills) {
-          if (typeof skill === "string" && skill.trim()) {
-            await db.skills.upsert(userId, {
-              name: skill.trim(),
-              proficiency: 80,
-              source: "Resume",
-            });
+        if (Array.isArray(profile.technical_skills)) {
+          for (const skill of profile.technical_skills) {
+            if (typeof skill === "string" && skill.trim()) {
+              await db.skills.upsert(userId, {
+                name: skill.trim(),
+                proficiency: 80,
+                source: "Resume",
+              });
+            }
           }
         }
-      }
 
-      await db.analytics.recordEvent(userId, "resume_uploaded", "Resume", {
-        atsScore: resumeScore.resume_score,
-      });
+        await db.analytics.recordEvent(userId, "resume_uploaded", "Resume", {
+          atsScore: resumeScore.resume_score,
+        });
+      }
 
       res.json({
         success: true,
@@ -332,6 +335,7 @@ resumeRouter.post(
           ? "Resume processed with local text extraction. Add GEMINI_API_KEY to enable AI-enhanced parsing."
           : "Resume processed successfully.",
         parser_mode: usingLocalParser ? "local" : "gemini",
+        requires_review: !persist,
         profile,
         resume_score: resumeScore,
         target_role: targetRole,
