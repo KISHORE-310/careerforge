@@ -3,10 +3,33 @@ import bcrypt from "bcryptjs";
 import { db } from "../../db/repositories";
 import { config, isDemoModeAllowed } from "../config";
 import { authLimiter, validateBody } from "../security";
-import { createToken, authenticateToken, AuthenticatedRequest } from "../auth";
+import { createToken, createRefreshToken, hashRefreshToken, authenticateToken, AuthenticatedRequest } from "../auth";
 import { SignupSchema, LoginSchema } from "../schemas";
 
 export const authRouter = Router();
+
+const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const REFRESH_COOKIE = "careerforge_refresh";
+
+function readRefreshToken(req: Request): string | null {
+  if (typeof req.body?.refresh_token === "string") return req.body.refresh_token;
+  const cookie = req.headers.cookie?.split(";").map((entry) => entry.trim())
+    .find((entry) => entry.startsWith(`${REFRESH_COOKIE}=`));
+  return cookie ? decodeURIComponent(cookie.slice(REFRESH_COOKIE.length + 1)) : null;
+}
+
+async function issueSession(res: Response, user: { id: string; email: string }) {
+  const refreshToken = createRefreshToken();
+  await db.refreshTokens.create(user.id, hashRefreshToken(refreshToken), new Date(Date.now() + REFRESH_TOKEN_TTL_MS));
+  res.cookie(REFRESH_COOKIE, refreshToken, {
+    httpOnly: true,
+    secure: config.NODE_ENV === "production",
+    sameSite: "strict",
+    maxAge: REFRESH_TOKEN_TTL_MS,
+    path: "/api/auth",
+  });
+  return createToken(user.id, user.email);
+}
 
 // Demo Authentication (controlled by DEMO_MODE)
 authRouter.post(["/demo", "/auth/demo"], authLimiter, async (_req: Request, res: Response) => {
@@ -39,7 +62,7 @@ authRouter.post(["/demo", "/auth/demo"], authLimiter, async (_req: Request, res:
       demoUser = await db.users.findById(demoUser.id);
     }
 
-    const token = createToken(demoUser.id, demoUser.email);
+    const token = await issueSession(res, demoUser);
     return res.json({
       success: true,
       message: "Logged in as demo candidate.",
@@ -94,7 +117,7 @@ authRouter.post(
         link: "/profile",
       });
 
-      const token = createToken(newUser.id, cleanEmail);
+      const token = await issueSession(res, newUser);
       return res.status(201).json({
         success: true,
         message: "Account created successfully.",
@@ -132,7 +155,7 @@ authRouter.post(
         return res.status(401).json({ success: false, message: "Invalid email or password. Please verify credentials." });
       }
 
-      const token = createToken(user.id, cleanEmail);
+      const token = await issueSession(res, user);
       return res.json({
         success: true,
         message: "Login successful!",
@@ -152,12 +175,37 @@ authRouter.post(
   }
 );
 
-// Logout Route
-authRouter.post(["/logout", "/auth/logout"], (_req: Request, res: Response) => {
-  res.json({
-    success: true,
-    message: "Logged out successfully. Token cleared.",
-  });
+// Rotate refresh tokens. A consumed token is deleted before its replacement is
+// issued, so a replayed token cannot mint another session.
+authRouter.post(["/refresh", "/auth/refresh"], authLimiter, async (req: Request, res: Response) => {
+  const rawToken = readRefreshToken(req);
+  if (!rawToken) return res.status(401).json({ success: false, message: "Refresh token is required." });
+  try {
+    const tokenHash = hashRefreshToken(rawToken);
+    const stored = await db.refreshTokens.findValid(tokenHash);
+    if (!stored) return res.status(401).json({ success: false, message: "Refresh session is invalid or expired." });
+    await db.refreshTokens.revoke(tokenHash);
+    const user = db.users.shape(stored.user);
+    const token = await issueSession(res, user);
+    return res.json({ success: true, access_token: token, token_type: "bearer" });
+  } catch {
+    return res.status(500).json({ success: false, message: "Unable to refresh session." });
+  }
+});
+
+// Logout revokes the current server-side session. `logout-all` is available
+// for account-security controls and invalidates every device session.
+authRouter.post(["/logout", "/auth/logout"], async (req: Request, res: Response) => {
+  const rawToken = readRefreshToken(req);
+  if (rawToken) await db.refreshTokens.revoke(hashRefreshToken(rawToken));
+  res.clearCookie(REFRESH_COOKIE, { path: "/api/auth" });
+  res.json({ success: true, message: "Logged out successfully." });
+});
+
+authRouter.post(["/logout-all", "/auth/logout-all"], authenticateToken, async (req: Request, res: Response) => {
+  await db.refreshTokens.revokeAllForUser((req as AuthenticatedRequest).userId);
+  res.clearCookie(REFRESH_COOKIE, { path: "/api/auth" });
+  res.json({ success: true, message: "All active sessions have been revoked." });
 });
 
 // Current User Profile (`/api/auth/me`)

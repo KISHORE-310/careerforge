@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
+import { createHash, randomBytes } from "crypto";
 import { config } from "./config";
 import { db } from "../db/repositories";
 
@@ -10,7 +11,7 @@ export interface AuthenticatedRequest extends Request {
 }
 
 export function createToken(userId: string, email: string): string {
-  // Standard 7-day token expiration
+  // Short-lived access tokens limit the impact of a stolen bearer token.
   return jwt.sign(
     {
       sub: userId,
@@ -18,8 +19,16 @@ export function createToken(userId: string, email: string): string {
       iat: Math.floor(Date.now() / 1000),
     },
     config.JWT_SECRET,
-    { expiresIn: "7d" }
+    { expiresIn: "15m" }
   );
+}
+
+export function createRefreshToken(): string {
+  return randomBytes(48).toString("base64url");
+}
+
+export function hashRefreshToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
 }
 
 export async function authenticateToken(req: Request, res: Response, next: NextFunction) {

@@ -65,8 +65,21 @@ export async function demoLogin() {
 }
 
 export async function getCurrentUser() {
-  const response = await fetch(`${API_URL}/api/auth/me`, { headers: getAuthHeaders() });
+  let response = await fetch(`${API_URL}/api/auth/me`, { headers: getAuthHeaders() });
+  if (response.status === 401) {
+    const refreshed = await refreshSession();
+    if (refreshed.success) {
+      response = await fetch(`${API_URL}/api/auth/me`, { headers: getAuthHeaders() });
+    }
+  }
   return await handleResponse(response);
+}
+
+export async function refreshSession() {
+  const response = await fetch(`${API_URL}/api/auth/refresh`, { method: "POST", credentials: "same-origin" });
+  const data = await handleResponse(response);
+  if (data.success && data.access_token) localStorage.setItem("token", data.access_token);
+  return data;
 }
 
 export async function logout() {

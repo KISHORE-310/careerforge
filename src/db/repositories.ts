@@ -118,6 +118,27 @@ export const db = {
     },
   },
 
+  refreshTokens: {
+    async create(userId: string, tokenHash: string, expiresAt: Date) {
+      return prisma.refreshToken.create({ data: { userId, tokenHash, expiresAt } });
+    },
+    async findValid(tokenHash: string) {
+      return prisma.refreshToken.findFirst({
+        where: { tokenHash, expiresAt: { gt: new Date() } },
+        include: { user: { include: { profile: true } } },
+      });
+    },
+    async revoke(tokenHash: string) {
+      return prisma.refreshToken.deleteMany({ where: { tokenHash } });
+    },
+    async revokeAllForUser(userId: string) {
+      return prisma.refreshToken.deleteMany({ where: { userId } });
+    },
+    async removeExpired() {
+      return prisma.refreshToken.deleteMany({ where: { expiresAt: { lte: new Date() } } });
+    },
+  },
+
   // Resumes & Versions
   resumes: {
     flattenRecord(resume: any, version: any) {
