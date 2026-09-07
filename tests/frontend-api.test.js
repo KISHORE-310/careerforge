@@ -9,7 +9,11 @@ function jsonResponse(body, status = 200) {
 }
 
 describe("frontend API contracts", () => {
-  beforeEach(() => { storage.clear(); globalThis.fetch = vi.fn(); });
+  beforeEach(() => {
+    storage.clear();
+    globalThis.window = globalThis;
+    globalThis.fetch = vi.fn();
+  });
 
   it("clears a stale route-protection token after a failed session check", async () => {
     storage.set("token", "expired"); storage.set("user", "candidate");
