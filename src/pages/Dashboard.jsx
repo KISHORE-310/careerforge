@@ -425,8 +425,8 @@ function Dashboard() {
                         </span>
                       </div>
                       <div className="flex items-center justify-between text-[10px] text-stone-500 pt-2 border-t border-stone-800/80">
-                        <span>Match: <strong className="text-stone-300 font-mono">{app.match_score || 85}%</strong></span>
-                        <span className="truncate max-w-[140px]">{app.next_step || "Under Review"}</span>
+                        <span>Match: <strong className="text-stone-300 font-mono">{app.match_score == null ? "Not available" : `${app.match_score}%`}</strong></span>
+                        <span className="truncate max-w-[140px]">{app.next_step || "No next step set"}</span>
                       </div>
                     </div>
                   ))}
@@ -495,7 +495,7 @@ function Dashboard() {
         </div>
 
         {/* Interactive Readiness Velocity Chart */}
-        <ReadinessAreaChart currentScore={readinessScore} />
+        <ReadinessAreaChart currentScore={readinessScore} history={analytics?.readiness_history || []} />
 
         {/* 52-Week Practice & Execution Heatmap */}
         <ActivityHeatmap
@@ -520,7 +520,7 @@ function Dashboard() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {recommendedJobs.map((job) => (
+            {recommendedJobs.length ? recommendedJobs.map((job) => (
               <div
                 key={job.id}
                 className="gold-card rounded-xl p-4 flex flex-col justify-between space-y-4"
@@ -561,7 +561,7 @@ function Dashboard() {
                   </Link>
                 </div>
               </div>
-            ))}
+            )) : <div className="md:col-span-3 rounded-xl border border-dashed border-stone-800 p-8 text-center text-xs text-stone-400">No high-match openings are available yet. Add skills or return after the next job sync.</div>}
           </div>
         </div>
       </div>

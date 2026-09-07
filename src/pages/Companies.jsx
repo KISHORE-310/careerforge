@@ -13,23 +13,31 @@ import {
   Sparkles,
 } from "lucide-react";
 import { getCompanies } from "../services/api";
+import { EmptyPanel, ErrorPanel, LoadingPanel } from "../components/common/AsyncPanel";
 
 function Companies() {
   const [companies, setCompanies] = useState([]);
   const [search, setSearch] = useState("");
   const [selectedCompany, setSelectedCompany] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     async function load() {
+      setLoading(true); setError("");
       try {
         const res = await getCompanies();
         if (res && res.success) {
           setCompanies(Array.isArray(res.companies) ? res.companies : []);
         } else {
           setCompanies([]);
+          setError(res?.message || "Unable to load companies.");
         }
       } catch (err) {
         console.error(err);
+        setError("Unable to load companies. Please try again.");
+      } finally {
+        setLoading(false);
       }
     }
     load();
@@ -73,7 +81,7 @@ function Companies() {
         </div>
 
         {/* Company Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        {loading ? <LoadingPanel label="Loading company profiles…" /> : error ? <ErrorPanel message={error} onRetry={() => window.location.reload()} /> : filtered.length === 0 ? <EmptyPanel title="No companies found" description="Try a different search or return after the next catalog update." /> : <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filtered.map((comp) => (
             <div
               key={comp.id}
@@ -156,18 +164,18 @@ function Companies() {
               </div>
             </div>
           ))}
-        </div>
+        </div>}
 
         {/* Company Detail Modal */}
         {selectedCompany && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div role="dialog" aria-modal="true" aria-labelledby="company-dialog-title" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
             <div className="apple-liquid-glass rounded-2xl max-w-lg w-full p-6 space-y-4 border border-[#d4af37]/40 shadow-2xl">
               <div className="flex items-start justify-between">
                 <div>
-                  <h3 className="text-lg font-serif-header text-white">{selectedCompany.name}</h3>
+                  <h3 id="company-dialog-title" className="text-lg font-serif-header text-white">{selectedCompany.name}</h3>
                   <p className="text-xs text-[#f5d77f] font-mono">{selectedCompany.headquarters || "Location unavailable"} • {selectedCompany.source === "live" ? "Live source" : "Curated profile"}</p>
                 </div>
-                <button
+                <button aria-label="Close company details"
                   onClick={() => setSelectedCompany(null)}
                   className="p-1 rounded-lg text-stone-400 hover:text-white"
                 >

@@ -289,11 +289,11 @@ function Applications() {
 
         {/* Add Modal */}
         {showAddModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div role="dialog" aria-modal="true" aria-labelledby="application-dialog-title" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
             <div className="apple-liquid-glass rounded-2xl max-w-md w-full p-6 space-y-4 border border-[#d4af37]/40 shadow-2xl">
               <div className="flex items-center justify-between">
-                <h3 className="text-base font-serif-header text-white">Track New Application</h3>
-                <button onClick={() => setShowAddModal(false)} className="text-stone-400 hover:text-white">
+                <h3 id="application-dialog-title" className="text-base font-serif-header text-white">Track New Application</h3>
+                <button aria-label="Close application dialog" onClick={() => setShowAddModal(false)} className="text-stone-400 hover:text-white">
                   <X size={16} />
                 </button>
               </div>

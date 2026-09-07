@@ -19,6 +19,7 @@ import {
   Check,
 } from "lucide-react";
 import { getJobs, addApplication } from "../services/api";
+import { EmptyPanel, ErrorPanel, LoadingPanel } from "../components/common/AsyncPanel";
 
 function Jobs() {
   const [searchParams] = useSearchParams();
@@ -30,12 +31,15 @@ function Jobs() {
   const [trackingLoading, setTrackingLoading] = useState(false);
   const [trackedSuccess, setTrackedSuccess] = useState(false);
   const [actionError, setActionError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
     fetchJobs();
   }, [filterType, minMatch]);
 
   const fetchJobs = async () => {
+    setLoading(true); setLoadError("");
     try {
       const params = {};
       if (filterType !== "all") params.type = filterType;
@@ -49,9 +53,13 @@ function Jobs() {
         }
       } else {
         setJobs([]);
+        setLoadError(res?.message || "Unable to load jobs.");
       }
     } catch (err) {
       console.error(err);
+      setLoadError("Unable to load jobs. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -166,7 +174,7 @@ function Jobs() {
             </div>
 
             <div className="space-y-3">
-              {filteredJobs.map((job) => {
+              {loading ? <LoadingPanel label="Loading job listings…" /> : loadError ? <ErrorPanel message={loadError} onRetry={fetchJobs} /> : filteredJobs.length === 0 ? <EmptyPanel title="No jobs found" description="Try another search or return after the next source sync." /> : filteredJobs.map((job) => {
                 const isSelected = selectedJob?.id === job.id;
                 return (
                   <div

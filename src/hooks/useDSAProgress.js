@@ -4,11 +4,14 @@ import { getDSACatalog, getDSAProgress, updateDSAProgress, resetDSAProgress } fr
 export function useDSAProgress() {
   const [progressState, setProgressState] = useState({ problems: {} });
   const [catalog, setCatalog] = useState({ topics: [], problems: {} });
+  const [catalogLoading, setCatalogLoading] = useState(true);
+  const [catalogError, setCatalogError] = useState("");
 
   useEffect(() => {
     getDSACatalog().then((result) => {
       if (result?.success) setCatalog({ topics: result.topics || [], problems: result.problems || {} });
-    }).catch(() => {});
+      else setCatalogError(result?.message || "Unable to load the practice catalog.");
+    }).catch(() => setCatalogError("Unable to load the practice catalog.")).finally(() => setCatalogLoading(false));
     getDSAProgress().then((result) => {
       if (result.success) {
         const problems = {};
@@ -111,6 +114,8 @@ export function useDSAProgress() {
     resetProgress,
     topics,
     catalog,
+    catalogLoading,
+    catalogError,
     stats,
   };
 }

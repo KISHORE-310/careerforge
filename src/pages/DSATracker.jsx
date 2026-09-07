@@ -16,9 +16,10 @@ import {
 import { useDSAProgress } from "../hooks/useDSAProgress";
 import { reviewCode } from "../services/api";
 import { Link } from "react-router-dom";
+import { ErrorPanel, LoadingPanel } from "../components/common/AsyncPanel";
 
 function DSATracker() {
-  const { resetProgress, stats, topics } = useDSAProgress();
+  const { resetProgress, stats, topics, catalogLoading, catalogError } = useDSAProgress();
   const [activeTab, setActiveTab] = useState("roadmap"); // "roadmap" | "playground"
   const [codeSnippet, setCodeSnippet] = useState(`function twoSum(nums: number[], target: number): number[] {
   const map = new Map<number, number>();
@@ -103,6 +104,7 @@ function DSATracker() {
           </div>
         </div>
 
+        {catalogLoading ? <LoadingPanel label="Loading curated DSA catalog…" /> : catalogError ? <ErrorPanel message={catalogError} onRetry={() => window.location.reload()} /> : <>
         {/* Top Metric Strip */}
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-3.5">
           <div className="gold-card rounded-xl p-4">
@@ -271,6 +273,7 @@ function DSATracker() {
             </div>
           </div>
         )}
+        </>}
       </div>
     </AppLayout>
   );
