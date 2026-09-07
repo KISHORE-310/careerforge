@@ -11,26 +11,37 @@ import {
   ChevronRight,
   ShieldCheck,
 } from "lucide-react";
-import { askCareerCoach } from "../services/api";
+import { askCareerCoach, getApplications, getCurrentUser, getResume } from "../services/api";
 
 function CareerCoach() {
-  const [messages, setMessages] = useState([
-    {
-      sender: "ai",
-      text: "Welcome to your Dedicated AI Career Advisory. I have full real-time access to your target profile as **Senior Full Stack Engineer**, your 94% ATS resume, and your 3 active applications.\n\nWhat career milestone or technical challenge can we tackle right now?",
-      timestamp: "Just now",
-    },
-  ]);
+  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef(null);
 
   const presets = [
-    { title: "System Design Strategy", desc: "How should I structure the distributed caching layer for Stripe?" },
-    { title: "Compensation Negotiation", desc: "How to negotiate a $210k base + $80k equity offer effectively?" },
+    { title: "System Design Strategy", desc: "How should I structure a distributed caching layer for my target role?" },
+    { title: "Compensation Negotiation", desc: "How should I prepare for compensation negotiation for my target role?" },
     { title: "Behavioral STAR Pitch", desc: "Help me formulate a STAR story for resolving a severe production outage." },
     { title: "Skill Gap Priority", desc: "Which 2 skills will yield the largest salary jump for senior roles?" },
   ];
+
+  useEffect(() => {
+    async function initializeCoach() {
+      const [user, resume, applications] = await Promise.all([getCurrentUser(), getResume(), getApplications()]);
+      const name = user?.user?.full_name || "there";
+      const role = user?.user?.target_role || "your target role";
+      const score = resume?.evaluation?.resume_score;
+      const applicationCount = Array.isArray(applications?.applications) ? applications.applications.length : 0;
+      const context = [
+        `Welcome, ${name}. I can use your saved CareerForge profile for advice about ${role}.`,
+        score != null ? `Your current resume score is ${score}/100.` : "Upload or complete a resume to add resume-specific advice.",
+        `You currently have ${applicationCount} tracked application${applicationCount === 1 ? "" : "s"}.`,
+      ].join(" ");
+      setMessages([{ sender: "ai", text: `${context}\n\nWhat would you like to work on?`, timestamp: "Just now" }]);
+    }
+    initializeCoach().catch(() => setMessages([{ sender: "ai", text: "Welcome to CareerForge AI Career Coach. Ask about your resume, interviews, applications, or learning plan.", timestamp: "Just now" }]));
+  }, []);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -54,7 +65,8 @@ function CareerCoach() {
 
     try {
       const res = await askCareerCoach(q, messages);
-      const reply = res.reply || "Based on your background, focusing on fault-tolerant architecture will maximize your impact.";
+      const reply = res.reply;
+      if (!res.success || !reply) throw new Error(res.message || "Career coach could not respond.");
       setMessages((prev) => [
         ...prev,
         {
@@ -68,7 +80,7 @@ function CareerCoach() {
         ...prev,
         {
           sender: "ai",
-          text: "I analyzed your request: make sure to emphasize your metrics, such as reducing p99 latency by 45% and leading cross-functional teams.",
+          text: "I could not reach the career coach right now. Please try again shortly.",
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         },
       ]);

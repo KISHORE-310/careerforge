@@ -17,7 +17,9 @@ import {
 } from "lucide-react";
 import { generateApplicationAI } from "../services/api";
 
-const PRESETS = [
+// Editable writing examples only; these do not represent the user's profile,
+// applications, or employment history.
+const EXAMPLE_TEMPLATES = [
   {
     title: "Senior Full Stack @ Stripe",
     company: "Stripe",
@@ -46,10 +48,10 @@ const PRESETS = [
 
 function ApplicationAI() {
   const [docType, setDocType] = useState("cover_letter");
-  const [company, setCompany] = useState("Stripe");
-  const [role, setRole] = useState("Senior Full Stack Engineer");
+  const [company, setCompany] = useState("");
+  const [role, setRole] = useState("");
   const [tone, setTone] = useState("Metric-Focused & Confident");
-  const [keyPoints, setKeyPoints] = useState("Designed high-throughput Kafka microservices and reduced p99 latency by 45% using Redis and Go.");
+  const [keyPoints, setKeyPoints] = useState("");
   const [loading, setLoading] = useState(false);
   const [generatedContent, setGeneratedContent] = useState("");
   const [copied, setCopied] = useState(false);
@@ -133,7 +135,7 @@ function ApplicationAI() {
         {/* Quick Presets Row */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1">
           <span className="text-[11px] font-mono text-stone-500 shrink-0">Quick Presets:</span>
-          {PRESETS.map((preset, idx) => (
+          {EXAMPLE_TEMPLATES.map((preset, idx) => (
             <button
               key={idx}
               onClick={() => handleApplyPreset(preset)}

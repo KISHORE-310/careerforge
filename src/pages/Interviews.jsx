@@ -37,7 +37,7 @@ function Interviews() {
   const [sessions, setSessions] = useState([]);
   const [activeSession, setActiveSession] = useState(null);
   const [selectedTrack, setSelectedTrack] = useState("System Design");
-  const [targetCompany, setTargetCompany] = useState("Stripe");
+  const [targetCompany, setTargetCompany] = useState("");
   const [userAnswer, setUserAnswer] = useState("");
   const [loading, setLoading] = useState(false);
   const [evaluating, setEvaluating] = useState(false);

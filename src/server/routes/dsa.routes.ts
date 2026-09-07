@@ -81,6 +81,7 @@ dsaRouter.get("/progress", authenticateToken, async (req: Request, res: Response
       const key = `${item.topicSlug}:${item.problemSlug}`;
       progress[key] = {
         status: item.status,
+        bookmarked: item.bookmarked,
         notes: item.notes || "",
         lastUpdated: item.updatedAt.toISOString(),
       };
@@ -97,7 +98,7 @@ dsaRouter.put("/progress/:topicSlug/:problemSlug", authenticateToken, validateBo
   try {
     const userId = (req as AuthenticatedRequest).userId;
     const { topicSlug, problemSlug } = req.params;
-    const { status, notes } = req.body;
+    const { status, notes, bookmarked } = req.body;
 
     // DsaProgress is keyed by (userId, topicSlug, problemSlug). The schema has
     // no `title` or `difficulty` column, so those request fields are ignored.
@@ -106,6 +107,7 @@ dsaRouter.put("/progress/:topicSlug/:problemSlug", authenticateToken, validateBo
       problemSlug,
       status: status || "solved",
       notes: sanitizeAiInput(notes || "", 1000),
+      bookmarked,
     });
 
     await db.analytics.recordEvent(userId, "dsa_solved", "DSA", {

@@ -67,7 +67,7 @@ function DSATracker() {
               Coding Lab & Algorithm Mastery
             </h1>
             <p className="text-xs text-stone-400 font-light mt-0.5">
-              Curated pattern tracks, time/space complexity analyzers, and real-time AI code reviews.
+              Curated practice catalog, persisted progress, and AI code reviews. Company tags are study-context examples, not live hiring data.
             </p>
           </div>
 
@@ -103,7 +103,7 @@ function DSATracker() {
           <div className="gold-card rounded-xl p-4">
             <span className="text-[11px] text-stone-400">Total Solved</span>
             <h3 className="text-xl font-bold font-mono text-white mt-0.5">{stats.totalSolved} / {stats.totalProblems}</h3>
-            <span className="text-[10px] text-emerald-400 font-mono">Top 10% Velocity</span>
+            <span className="text-[10px] text-stone-400 font-mono">Based on your saved progress</span>
           </div>
 
           <div className="gold-card rounded-xl p-4">
@@ -121,7 +121,7 @@ function DSATracker() {
           <div className="gold-card rounded-xl p-4 flex items-center justify-between">
             <div>
               <span className="text-[11px] text-stone-400">Reset Session</span>
-              <p className="text-[10px] text-stone-500 mt-0.5">Clear local progress</p>
+              <p className="text-[10px] text-stone-500 mt-0.5">Clear saved progress</p>
             </div>
             <button
               onClick={resetProgress}

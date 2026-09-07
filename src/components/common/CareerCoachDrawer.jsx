@@ -6,7 +6,7 @@ function CareerCoachDrawer({ isOpen, onClose }) {
   const [messages, setMessages] = useState([
     {
       sender: "ai",
-      text: "Hello Kishore! I'm your CareerForge Strategic Coach. I have direct context on your target role as **Senior Full Stack Engineer**, your active applications at Stripe & Anthropic, and your skill roadmap.\n\nHow can I help you elevate your career today?",
+      text: "Welcome to CareerForge AI Career Coach. I use your saved profile, resume, skills, and tracked applications when you ask for advice. How can I help?",
       timestamp: "Just now",
     },
   ]);
@@ -15,7 +15,7 @@ function CareerCoachDrawer({ isOpen, onClose }) {
   const scrollRef = useRef(null);
 
   const quickPrompts = [
-    "How can I tailor my resume for Stripe's backend role?",
+    "How can I tailor my resume for a backend role?",
     "What are my highest priority skill gaps to close?",
     "Give me 3 STAR behavioral interview questions",
     "How should I negotiate equity for a Senior role?",
@@ -43,7 +43,8 @@ function CareerCoachDrawer({ isOpen, onClose }) {
 
     try {
       const res = await askCareerCoach(q, messages);
-      const aiReply = res.reply || "I analyzed your request and recommend focusing on your core distributed systems metrics.";
+      if (!res.success || !res.reply) throw new Error(res.message || "Career coach could not respond.");
+      const aiReply = res.reply;
       setMessages((prev) => [
         ...prev,
         {
@@ -57,7 +58,7 @@ function CareerCoachDrawer({ isOpen, onClose }) {
         ...prev,
         {
           sender: "ai",
-          text: "I experienced a temporary connection hiccup, but based on your profile: keep highlighting your 45ms latency reduction and system design capabilities.",
+          text: "I could not reach the career coach right now. Please try again shortly.",
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         },
       ]);

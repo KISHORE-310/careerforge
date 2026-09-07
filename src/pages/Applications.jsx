@@ -203,7 +203,7 @@ function Applications() {
                         {/* Quick stage mover */}
                         <div className="pt-1.5 border-t border-stone-800/60 flex items-center justify-between">
                           <span className="text-[9px] font-mono text-stone-500">
-                            Fit: {app.match_score || 90}%
+                            Fit: {app.match_score == null ? "Not available" : `${app.match_score}%`}
                           </span>
 
                           <select

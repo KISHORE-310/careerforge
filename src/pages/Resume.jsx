@@ -136,7 +136,8 @@ function Resume() {
     );
   }
 
-  const score = evaluation?.resume_score || 94;
+  const score = evaluation?.resume_score ?? null;
+  const breakdown = evaluation?.breakdown || {};
 
   return (
     <AppLayout>
@@ -191,18 +192,20 @@ function Resume() {
           <div className="apple-liquid-glass rounded-2xl p-4 sm:p-5 border border-[#d4af37]/30 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 rounded-2xl bg-black/60 border border-[#d4af37]/40 flex flex-col items-center justify-center text-center shrink-0">
-              <span className="text-xl font-bold font-mono text-white leading-none">{score}</span>
+              <span className="text-xl font-bold font-mono text-white leading-none">{score ?? "—"}</span>
               <span className="text-[8px] uppercase tracking-wider text-[#f5d77f] font-bold">ATS Score</span>
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-sm font-semibold text-white">ATS Pass Probability: High Caliber</h3>
+                <h3 className="text-sm font-semibold text-white">{evaluation?.grade || "Resume evaluation pending"}</h3>
                 <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-950/80 text-emerald-400 border border-emerald-800 font-mono">
-                  Grade A+
+                  {score != null ? `${score}/100` : "No score"}
                 </span>
               </div>
               <p className="text-xs text-stone-400 font-light mt-0.5">
-                Keyword Density: 94% • Impact Quantification: 92% • Section Completeness: 100%
+                {score != null
+                  ? `Contact: ${breakdown.personal_information ?? 0} • Summary: ${breakdown.summary ?? 0} • Experience: ${breakdown.experience ?? 0} • Skills: ${breakdown.technical_skills ?? 0}`
+                  : "Save your resume to calculate an evidence-based evaluation."}
               </p>
             </div>
           </div>
