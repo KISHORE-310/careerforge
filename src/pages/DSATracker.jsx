@@ -258,7 +258,7 @@ function DSATracker() {
                     </div>
 
                     <div className="p-3 rounded-xl bg-emerald-950/40 border border-emerald-800/60 text-emerald-300">
-                      <span className="font-semibold block mb-1">Tier-1 Interviewer Tip:</span>
+                      <span className="font-semibold block mb-1">AI Improvement Suggestion:</span>
                       <p className="font-light">{(codeReview.suggestions || []).join(" ") || "No additional suggestions were returned."}</p>
                     </div>
                   </div>

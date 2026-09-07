@@ -551,7 +551,7 @@ function Dashboard() {
 
                 <div className="flex items-center justify-between pt-3 border-t border-stone-800/80">
                   <span className="text-xs font-medium text-stone-200 font-mono">
-                    {job.salary_range ? job.salary_range.split(" - ")[0] : (job.salary || "$150,000")}
+                    {job.salary_range || job.salary || "Not disclosed"}
                   </span>
                   <Link
                     to="/jobs"

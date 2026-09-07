@@ -104,7 +104,7 @@ function Landing() {
             </div>
             <h3 className="text-sm font-semibold text-white">System Design & STAR Mock Lab</h3>
             <p className="text-xs text-stone-400 font-light leading-relaxed">
-              Interactive conversational interview simulation calibrated for Stripe, Anthropic, and Tier-1 loops with live rubric scoring.
+              Interactive technical and behavioral interview practice with structured rubric feedback.
             </p>
           </div>
 
