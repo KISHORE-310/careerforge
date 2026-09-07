@@ -1,11 +1,14 @@
 import { useState, useEffect } from "react";
-import dsaProblems, { dsaTopics } from "../data/dsa";
-import { getDSAProgress, updateDSAProgress, resetDSAProgress } from "../services/api";
+import { getDSACatalog, getDSAProgress, updateDSAProgress, resetDSAProgress } from "../services/api";
 
 export function useDSAProgress() {
   const [progressState, setProgressState] = useState({ problems: {} });
+  const [catalog, setCatalog] = useState({ topics: [], problems: {} });
 
   useEffect(() => {
+    getDSACatalog().then((result) => {
+      if (result?.success) setCatalog({ topics: result.topics || [], problems: result.problems || {} });
+    }).catch(() => {});
     getDSAProgress().then((result) => {
       if (result.success) {
         const problems = {};
@@ -60,8 +63,8 @@ export function useDSAProgress() {
   let totalMinutes = 0;
   let solvedMinutes = 0;
 
-  const topics = dsaTopics.map((topic) => {
-    const topicProblemList = dsaProblems[topic.slug] || [];
+  const topics = catalog.topics.map((topic) => {
+    const topicProblemList = catalog.problems[topic.slug] || [];
     const count = topicProblemList.length;
     let solvedInTopic = 0;
 
@@ -107,6 +110,7 @@ export function useDSAProgress() {
     setProblemNote,
     resetProgress,
     topics,
+    catalog,
     stats,
   };
 }

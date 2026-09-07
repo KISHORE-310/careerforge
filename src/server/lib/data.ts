@@ -34,6 +34,12 @@ export function parseSalaryRange(text?: string | null): { min: number | null; ma
   return { min: Math.min(...nums), max: Math.max(...nums) };
 }
 
+export function normalizeSalaryRange(text?: string | number | null): string {
+  const { min, max } = parseSalaryRange(String(text || ""));
+  if (min == null) return "";
+  return max != null && max !== min ? `$${min.toLocaleString()} - $${max.toLocaleString()}` : `$${min.toLocaleString()}`;
+}
+
 export function formatUsd(value?: number | null): string | null {
   if (value == null || Number.isNaN(Number(value))) return null;
   return `$${Math.round(Number(value)).toLocaleString()}`;

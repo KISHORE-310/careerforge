@@ -56,7 +56,7 @@ function Companies() {
               Target Company Intelligence
             </h1>
             <p className="text-xs text-stone-400 font-light mt-0.5">
-              Engineering culture benchmarks, compensation bands, verified tech stacks, and hiring velocity.
+              Curated company reference data and active roles indexed by CareerForge. Live job listings are source-attributed.
             </p>
           </div>
 
@@ -88,9 +88,9 @@ function Companies() {
                     <div>
                       <h3 className="text-sm font-semibold text-white flex items-center gap-1.5">
                         {comp.name}
-                        {comp.verified_fit_score >= 90 && (
+                        {comp.source === "live" && (
                           <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-950/60 border border-emerald-800/80 text-emerald-400 font-mono">
-                            Top Fit
+                            Live source
                           </span>
                         )}
                       </h3>
@@ -98,13 +98,11 @@ function Companies() {
                     </div>
                   </div>
 
-                  <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-[#d4af37]/20 text-[#f5d77f] border border-[#d4af37]/30">
-                    {comp.verified_fit_score}% Fit
-                  </span>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-stone-900 text-stone-400 border border-stone-800">{comp.source === "live" ? "Live" : "Curated"}</span>
                 </div>
 
                 <p className="text-xs text-stone-400 mt-3 font-light leading-relaxed">
-                  {comp.culture_summary}
+                  {comp.description || comp.culture || "No company profile summary is available."}
                 </p>
 
                 {/* Metrics Table */}
@@ -112,14 +110,14 @@ function Companies() {
                   <div className="p-2 rounded-lg bg-stone-900/60 border border-stone-800/60">
                     <span className="text-[10px] text-stone-500 block">Hiring Velocity</span>
                     <span className="font-semibold text-emerald-400 flex items-center gap-1 mt-0.5">
-                      <TrendingUp size={11} /> {comp.hiring_velocity}
+                      <TrendingUp size={11} /> {comp.interview_difficulty || "Not available"}
                     </span>
                   </div>
 
                   <div className="p-2 rounded-lg bg-stone-900/60 border border-stone-800/60">
                     <span className="text-[10px] text-stone-500 block">Senior Band</span>
                     <span className="font-semibold text-stone-200 font-mono mt-0.5 block">
-                      {comp.median_comp}
+                      {comp.avg_salary || "Not available"}
                     </span>
                   </div>
                 </div>
@@ -146,7 +144,7 @@ function Companies() {
               <div className="pt-3 border-t border-stone-800/80 flex items-center justify-between">
                 <span className="text-xs text-stone-400 flex items-center gap-1.5">
                   <Briefcase size={13} className="text-[#d4af37]" />
-                  <strong className="text-stone-200">{comp.open_roles_count}</strong> active engineering roles
+                  <strong className="text-stone-200">{comp.open_roles ?? 0}</strong> active engineering roles
                 </span>
 
                 <button
@@ -167,7 +165,7 @@ function Companies() {
               <div className="flex items-start justify-between">
                 <div>
                   <h3 className="text-lg font-serif-header text-white">{selectedCompany.name}</h3>
-                  <p className="text-xs text-[#f5d77f] font-mono">{selectedCompany.headquarters} • {selectedCompany.hiring_velocity} Hiring</p>
+                  <p className="text-xs text-[#f5d77f] font-mono">{selectedCompany.headquarters || "Location unavailable"} • {selectedCompany.source === "live" ? "Live source" : "Curated profile"}</p>
                 </div>
                 <button
                   onClick={() => setSelectedCompany(null)}
@@ -179,7 +177,7 @@ function Companies() {
 
               <div className="p-3.5 rounded-xl bg-stone-900 border border-stone-800 text-xs text-stone-300 leading-relaxed">
                 <span className="font-semibold text-white block mb-1">Culture & Assessment Strategy:</span>
-                {selectedCompany.culture_summary}
+                {selectedCompany.description || selectedCompany.culture || "No company profile summary is available."}
               </div>
 
               <div>
@@ -194,7 +192,7 @@ function Companies() {
               </div>
 
               <div className="flex items-center justify-between pt-4 border-t border-stone-800">
-                <span className="text-xs text-stone-400">Compensation: <strong className="text-white font-mono">{selectedCompany.median_comp}</strong></span>
+                <span className="text-xs text-stone-400">Compensation: <strong className="text-white font-mono">{selectedCompany.avg_salary || "Not available"}</strong></span>
                 <button
                   onClick={() => setSelectedCompany(null)}
                   className="px-4 py-1.5 rounded-xl bg-[#d4af37] text-black text-xs font-semibold hover:bg-[#f5d77f]"

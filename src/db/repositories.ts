@@ -96,6 +96,7 @@ export const db = {
           github: data.github,
           linkedin: data.linkedin,
           portfolio: data.portfolio,
+          careerGoal: data.careerGoal ?? data.career_goal,
         },
         create: {
           userId,
@@ -107,6 +108,8 @@ export const db = {
           phone: data.phone || "",
           github: data.github || "",
           linkedin: data.linkedin || "",
+          portfolio: data.portfolio || "",
+          careerGoal: data.careerGoal || data.career_goal || "",
         },
       });
     },
@@ -114,6 +117,19 @@ export const db = {
       return prisma.user.update({
         where: { id: userId },
         data: { onboardingCompleted: true },
+      });
+    },
+  },
+
+  settings: {
+    async get(userId: string) {
+      return prisma.userSettings.upsert({ where: { userId }, update: {}, create: { userId } });
+    },
+    async update(userId: string, data: { jobMatchAlerts?: boolean; interviewReminders?: boolean; weeklyDigest?: boolean }) {
+      return prisma.userSettings.upsert({
+        where: { userId },
+        update: data,
+        create: { userId, ...data },
       });
     },
   },

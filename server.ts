@@ -26,6 +26,7 @@ import { dsaRouter } from "./src/server/routes/dsa.routes";
 import { coachRouter } from "./src/server/routes/coach.routes";
 import { notificationsRouter } from "./src/server/routes/notifications.routes";
 import { analyticsRouter } from "./src/server/routes/analytics.routes";
+import { settingsRouter } from "./src/server/routes/settings.routes";
 
 export const app = express();
 const PORT = config.PORT;
@@ -103,6 +104,7 @@ app.use("/api/dsa", dsaRouter);
 app.use("/api/coding", coachRouter);
 app.use("/api/coach", coachRouter);
 app.use("/api/notifications", notificationsRouter);
+app.use("/api/settings", settingsRouter);
 app.use("/api/analytics", analyticsRouter);
 app.use("/api/progress", analyticsRouter);
 

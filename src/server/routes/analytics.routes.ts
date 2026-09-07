@@ -1,5 +1,6 @@
 import { Router, Request, Response } from "express";
 import { db } from "../../db/repositories";
+import { prisma } from "../../db/prisma";
 import { authenticateToken, AuthenticatedRequest } from "../auth";
 import { calculateResumeScore } from "./resume.routes";
 
@@ -228,6 +229,18 @@ analyticsRouter.get(["/", "/dashboard", "/analytics", "/progress/analytics"], au
       ? Math.round((resumeWeight + skillsWeight + interviewWeight + dsaWeight) / activeWeights)
       : 0;
 
+    // Persist one honest readiness snapshot per UTC day. This provides a real
+    // history for future trend charts without creating a row on every refresh.
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+    const existingSnapshot = await prisma.careerSnapshot.findFirst({ where: { userId, createdAt: { gte: today, lt: tomorrow } } });
+    if (!existingSnapshot) {
+      await prisma.careerSnapshot.create({ data: { userId, metrics: { career_readiness_score: overallReadiness, resume_ats_score: parsedResume ? evaluation.resume_score : null, dsa_solved_count: dsaSolvedCount, application_count: applications.length } } });
+    }
+    const readinessHistory = await prisma.careerSnapshot.findMany({ where: { userId }, orderBy: { createdAt: "asc" }, take: 90, select: { createdAt: true, metrics: true } });
+
     // Real 365-day activity calendar
     // AnalyticsEvent stores the event name in `type` and the category inside
     // the `payload` Json column, with `createdAt` as the timestamp.
@@ -270,6 +283,7 @@ analyticsRouter.get(["/", "/dashboard", "/analytics", "/progress/analytics"], au
           solved_count: dsaSolvedCount,
           attempted_count: dsaList.length,
         },
+        readiness_history: readinessHistory.map((snapshot) => ({ date: snapshot.createdAt.toISOString().slice(0, 10), score: (snapshot.metrics as any)?.career_readiness_score ?? null })),
         activity_calendar: activityData,
       },
       recent_events: recentEvents.map((e: any) => ({

@@ -39,6 +39,7 @@ export const ProfileUpdateSchema = z.object({
   github: z.string().trim().max(255).optional(),
   linkedin: z.string().trim().max(255).optional(),
   portfolio: z.string().trim().max(255).optional(),
+  career_goal: z.string().trim().max(2000).optional(),
 });
 
 export const OnboardingSchema = z.object({
@@ -241,6 +242,12 @@ export const DsaProgressUpdateSchema = z.object({
   status: z.string().trim().max(50).optional(),
   notes: z.string().max(1000, "Notes exceed 1000 characters").optional(),
   bookmarked: z.boolean().optional(),
+});
+
+export const SettingsUpdateSchema = z.object({
+  job_match_alerts: z.boolean().optional(),
+  interview_reminders: z.boolean().optional(),
+  weekly_digest: z.boolean().optional(),
 });
 
 export const RoadmapMilestoneUpdateSchema = z.object({

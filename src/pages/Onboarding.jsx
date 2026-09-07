@@ -37,11 +37,11 @@ function Onboarding() {
   const [parsedResume, setParsedResume] = useState(null);
 
   const [formData, setFormData] = useState({
-    career_goal: "Land a Senior Engineering role at a Tier-1 tech company within 90 days",
-    target_role: "Senior Full Stack Engineer",
-    experience_level: "Senior (4-6 years)",
-    target_salary: "$160,000 - $200,000",
-    skills: ["TypeScript", "React", "Node.js", "PostgreSQL", "System Design", "Docker"],
+    career_goal: "",
+    target_role: "",
+    experience_level: "",
+    target_salary: "",
+    skills: [],
     resumeFile: null,
   });
 

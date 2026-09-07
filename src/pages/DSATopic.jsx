@@ -11,20 +11,20 @@ import {
 import AppLayout from "../components/layout/AppLayout";
 import ProblemList from "../components/dsa/ProblemList";
 
-import dsaProblems, { dsaTopics } from "../data/dsa";
 import { useDSAProgress } from "../hooks/useDSAProgress";
 
 function DSATopic() {
   const { topic } = useParams();
-  const problems = dsaProblems[topic] || [];
-  const topicMeta = dsaTopics.find((item) => item.slug === topic);
   const {
     getProblemProgress,
     setProblemNote,
     setProblemStatus,
     toggleBookmark,
     topics,
+    catalog,
   } = useDSAProgress();
+  const problems = catalog.problems[topic] || [];
+  const topicMeta = catalog.topics.find((item) => item.slug === topic);
   const topicStats = topics.find((item) => item.slug === topic);
   const totalMinutes = problems.reduce(
     (total, problem) => total + problem.estimatedTime,

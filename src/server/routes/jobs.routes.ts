@@ -64,8 +64,7 @@ jobsRouter.get("/", optionalAuth, async (req: Request, res: Response) => {
         id: j.id,
         title: j.title,
         company: j.companyName,
-        // No logo column in the schema. Placeholder retained; Phase 2 replaces it.
-        company_logo: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=60",
+    company_logo: null,
         location: j.location,
         type: j.type,
         workplace: j.workplace,
@@ -163,6 +162,9 @@ function formatCompany(c: Awaited<ReturnType<typeof db.companies.list>>[number])
     interview_difficulty: c.hiringVelocity,
     headquarters: c.headquarters,
     description: c.description,
+    culture: c.culture,
+    avg_salary: c.avgSalary,
+    source: c.source,
     tech_stack: Array.isArray(c.techStack) ? c.techStack : [],
   };
 }

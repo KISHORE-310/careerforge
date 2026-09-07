@@ -4,8 +4,14 @@ import { authenticateToken, AuthenticatedRequest } from "../auth";
 import { aiLimiter, validateBody, sanitizeAiInput } from "../security";
 import { DsaSubmitSchema, DsaProgressUpdateSchema } from "../schemas";
 import { aiService } from "../services/ai.service";
+// @ts-ignore JavaScript catalog is exposed through this API during the catalog migration.
+import dsaProblems, { dsaTopics } from "../../data/dsa/index.js";
 
 export const dsaRouter = Router();
+
+dsaRouter.get("/catalog", (_req: Request, res: Response) => {
+  res.json({ success: true, source: "curated", topics: dsaTopics, problems: dsaProblems });
+});
 
 const DEFAULT_DSA_PROBLEMS = [
   {

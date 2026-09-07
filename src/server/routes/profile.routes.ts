@@ -4,6 +4,7 @@ import { authenticateToken, AuthenticatedRequest } from "../auth";
 import { validateBody } from "../security";
 import { ProfileUpdateSchema, OnboardingSchema } from "../schemas";
 import { formatResumeResponse } from "../lib/resume";
+import { normalizeSalaryRange } from "../lib/data";
 
 export const profileRouter = Router();
 
@@ -25,7 +26,7 @@ profileRouter.get("/", authenticateToken, async (req: Request, res: Response) =>
       full_name: user.name,
       email: user.email,
       target_role: user.profile?.targetRole || "Software Engineer",
-      target_salary: user.profile?.targetSalary ? `$${user.profile.targetSalary.toLocaleString()}` : "",
+      target_salary: normalizeSalaryRange(user.profile?.targetSalary),
       experience_level: user.profile?.experienceLevel || "Mid-Level",
       bio: user.profile?.bio || "",
       location: user.profile?.location || "",
@@ -66,7 +67,7 @@ profileRouter.put(
           full_name: user?.name,
           email: user?.email,
           target_role: updatedProfile.targetRole,
-          target_salary: updatedProfile.targetSalary ? `$${updatedProfile.targetSalary.toLocaleString()}` : "",
+          target_salary: normalizeSalaryRange(updatedProfile.targetSalary),
           experience_level: updatedProfile.experienceLevel,
           bio: updatedProfile.bio,
           location: updatedProfile.location,
@@ -89,12 +90,13 @@ profileRouter.post(
   async (req: Request, res: Response) => {
     try {
       const userId = (req as AuthenticatedRequest).userId;
-      const { target_role, experience_level, skills, target_salary } = req.body;
+      const { target_role, experience_level, skills, target_salary, career_goal } = req.body;
 
       await db.users.updateProfile(userId, {
         targetRole: target_role,
         experienceLevel: experience_level,
-        targetSalary: target_salary ? parseInt(String(target_salary).replace(/\D/g, "")) : undefined,
+        targetSalary: normalizeSalaryRange(target_salary),
+        careerGoal: career_goal || "",
       });
 
       if (Array.isArray(skills)) {

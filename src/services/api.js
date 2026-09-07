@@ -408,6 +408,22 @@ export async function markAllNotificationsRead() {
   return await handleResponse(response);
 }
 
+export async function getSettings() {
+  const response = await fetch(`${API_URL}/api/settings`, { headers: getAuthHeaders() });
+  return await handleResponse(response);
+}
+
+export async function updateSettings(data) {
+  const response = await fetch(`${API_URL}/api/settings`, { method: "PUT", headers: { "Content-Type": "application/json", ...getAuthHeaders() }, body: JSON.stringify(data) });
+  return await handleResponse(response);
+}
+
+export async function exportAccountData() {
+  const response = await fetch(`${API_URL}/api/settings/export`, { headers: getAuthHeaders() });
+  if (!response.ok) return await handleResponse(response);
+  return { success: true, data: await response.json() };
+}
+
 export async function getProgressAnalytics() {
   const response = await fetch(`${API_URL}/api/progress/analytics`, {
     headers: { ...getAuthHeaders() },
@@ -423,6 +439,11 @@ export async function getDSAProgress() {
   const response = await fetch(`${API_URL}/api/dsa/progress`, {
     headers: { ...getAuthHeaders() },
   });
+  return await handleResponse(response);
+}
+
+export async function getDSACatalog() {
+  const response = await fetch(`${API_URL}/api/dsa/catalog`);
   return await handleResponse(response);
 }
 
