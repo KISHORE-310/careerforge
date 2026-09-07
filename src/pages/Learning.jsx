@@ -20,6 +20,8 @@ function Learning() {
   const [selectedModule, setSelectedModule] = useState(null);
   const [quizAnswer, setQuizAnswer] = useState(null);
   const [quizSubmitted, setQuizSubmitted] = useState(false);
+  const quiz = selectedModule?.quiz;
+  const quizOptions = Array.isArray(quiz?.options) ? quiz.options : [];
 
   useEffect(() => {
     fetchLearning();
@@ -159,7 +161,7 @@ function Learning() {
                   className="px-3.5 py-1.5 rounded-lg bg-stone-900 hover:bg-[#d4af37] hover:text-black text-xs font-semibold text-stone-200 transition flex items-center gap-1"
                 >
                   <Sparkles size={13} />
-                  Take Assessment
+                  {mod.quiz?.question && Array.isArray(mod.quiz?.options) ? "Take Assessment" : "Assessment unavailable"}
                 </button>
               </div>
             </div>
@@ -187,36 +189,32 @@ function Learning() {
                 </button>
               </div>
 
-              <div className="p-4 rounded-xl bg-stone-900 border border-stone-800 space-y-3">
+              {quiz?.question && quizOptions.length > 0 ? <div className="p-4 rounded-xl bg-stone-900 border border-stone-800 space-y-3">
                 <p className="text-xs font-semibold text-stone-100">
-                  Question: In Kafka, how does a consumer group ensure strictly ordered processing across partitions?
+                  Question: {quiz.question}
                 </p>
 
                 <div className="space-y-2 text-xs">
-                  {[
-                    { id: 0, text: "A. By assigning multiple consumers to read from the exact same partition concurrently." },
-                    { id: 1, text: "B. Each partition within a topic is consumed by exactly one consumer instance in the group." },
-                    { id: 2, text: "C. By using round-robin polling without message keys." },
-                  ].map((opt) => (
+                  {quizOptions.map((opt, index) => (
                     <button
-                      key={opt.id}
-                      onClick={() => setQuizAnswer(opt.id)}
+                      key={index}
+                      onClick={() => setQuizAnswer(index)}
                       className={`w-full p-2.5 rounded-lg border text-left transition ${
                         quizAnswer === opt.id
                           ? "bg-[#d4af37]/20 border-[#d4af37] text-white"
                           : "bg-stone-950 border-stone-800 text-stone-300 hover:border-stone-700"
                       }`}
                     >
-                      {opt.text}
+                      {typeof opt === "string" ? opt : opt.text}
                     </button>
                   ))}
                 </div>
-              </div>
+              </div> : <div className="rounded-xl border border-dashed border-stone-800 p-5 text-xs text-stone-400">This resource has no persisted assessment yet.</div>}
 
-              {quizSubmitted && (
+              {quizSubmitted && quiz && (
                 <div className="p-3 rounded-xl bg-emerald-950/40 border border-emerald-800 text-xs text-emerald-300 flex items-center gap-2">
                   <CheckCircle2 size={16} />
-                  <span>Correct! Key-partition mapping guarantees strict intra-partition FIFO ordering.</span>
+                  <span>{quiz.explanation || (quizAnswer === quiz.correct_answer ? "Correct." : "Answer recorded.")}</span>
                 </div>
               )}
 
@@ -229,7 +227,7 @@ function Learning() {
                 </button>
                 <button
                   onClick={() => setQuizSubmitted(true)}
-                  disabled={quizAnswer === null}
+                  disabled={quizAnswer === null || !quiz?.question}
                   className="px-4 py-2 rounded-xl bg-[#d4af37] text-black font-bold text-xs hover:bg-[#f5d77f] disabled:opacity-50"
                 >
                   Submit Assessment

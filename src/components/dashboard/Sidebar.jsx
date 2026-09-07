@@ -26,9 +26,9 @@ import { logout as endSession } from "../../services/api";
 function Sidebar() {
   const navigate = useNavigate();
   const [userProfile, setUserProfile] = useState({
-    full_name: "Kishore Reddy",
-    target_role: "Senior Full Stack Engineer",
-    avatar: "KR",
+    full_name: "Candidate",
+    target_role: "Profile not configured",
+    avatar: "CF",
   });
 
   useEffect(() => {
@@ -40,7 +40,7 @@ function Sidebar() {
           ...prev,
           full_name: u.full_name || prev.full_name,
           target_role: u.target_role || prev.target_role,
-          avatar: (u.full_name || "KR").slice(0, 2).toUpperCase(),
+          avatar: (u.full_name || "CF").slice(0, 2).toUpperCase(),
         }));
       }
     } catch {}

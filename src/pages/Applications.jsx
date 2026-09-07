@@ -30,10 +30,10 @@ function Applications() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newApp, setNewApp] = useState({
     company: "",
-    role: "Senior Full Stack Engineer",
+    role: "",
     status: "Wishlist",
-    salary_range: "$180,000 - $220,000",
-    next_step: "Submit tailored resume",
+    salary_range: "",
+    next_step: "",
     notes: "",
   });
 
@@ -65,10 +65,10 @@ function Applications() {
         setShowAddModal(false);
         setNewApp({
           company: "",
-          role: "Senior Full Stack Engineer",
+          role: "",
           status: "Wishlist",
-          salary_range: "$180,000 - $220,000",
-          next_step: "Submit tailored resume",
+          salary_range: "",
+          next_step: "",
           notes: "",
         });
       }

@@ -23,11 +23,16 @@ function Topbar({ onToggleMobileMenu, onOpenCoach }) {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [user, setUser] = useState({ full_name: "Candidate", email: "" });
   const notifRef = useRef(null);
   const userRef = useRef(null);
 
   useEffect(() => {
     fetchNotifs();
+    try {
+      const stored = JSON.parse(localStorage.getItem("user") || "{}");
+      setUser({ full_name: stored.full_name || "Candidate", email: stored.email || "" });
+    } catch {}
   }, []);
 
   const fetchNotifs = async () => {
@@ -211,15 +216,15 @@ function Topbar({ onToggleMobileMenu, onOpenCoach }) {
               className="flex items-center gap-2 rounded-full border border-stone-800 bg-black/50 p-1 hover:border-[#d4af37]/40 transition"
             >
               <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#d4af37] to-[#80671c] text-black flex items-center justify-center text-[11px] font-bold">
-                KR
+                {(user.full_name || "CF").slice(0, 2).toUpperCase()}
               </div>
             </button>
 
             {showUserMenu && (
               <div className="absolute right-0 mt-2 w-48 rounded-xl bg-[#111111] border border-stone-800 shadow-2xl p-2 z-50 text-stone-200">
                 <div className="px-3 py-2 border-b border-stone-800 mb-1">
-                  <p className="text-xs font-medium text-stone-200">Kishore Reddy</p>
-                  <p className="text-[10px] text-stone-500">demo@careerforge.ai</p>
+                  <p className="text-xs font-medium text-stone-200">{user.full_name}</p>
+                  {user.email && <p className="text-[10px] text-stone-500">{user.email}</p>}
                 </div>
                 <Link
                   to="/profile"

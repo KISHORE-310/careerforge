@@ -68,7 +68,7 @@ function Dashboard() {
 
   const readinessScore = analytics?.career_readiness_score ?? 0;
   const resumeScore = resumeData?.evaluation?.resume_score ?? analytics?.resume_ats_score;
-  const targetRole = profile?.target_role || profile?.profile?.targetRole || "Full Stack Engineer";
+  const targetRole = profile?.target_role || profile?.profile?.targetRole || "Not configured";
   const targetSalary = analytics?.target_salary || (profile?.profile?.targetSalary ? `$${profile.profile.targetSalary.toLocaleString()}` : null);
 
   const interviewApps = useMemo(() => {
@@ -188,14 +188,6 @@ function Dashboard() {
         link: "/learning",
       }))
       .slice(0, 3);
-
-    if (gaps.length === 0) {
-      return [
-        { name: "System Design Patterns", priority: "Recommended", link: "/learning" },
-        { name: "Distributed Caching", priority: "Recommended", link: "/learning" },
-        { name: "Cloud Architecture", priority: "Recommended", link: "/learning" },
-      ];
-    }
 
     return gaps;
   }, [profile, resumeData, recommendedJobs, roadmapData]);
@@ -337,7 +329,7 @@ function Dashboard() {
             <div>
               <p className="text-xs text-stone-400 font-light">Target Compensation</p>
               <h3 className="text-2xl font-bold text-white font-mono mt-0.5">
-                {targetSalary || "$130k - $170k"}
+                {targetSalary || <span className="text-lg text-stone-500 font-normal">Not set</span>}
               </h3>
               <p className="text-[11px] text-emerald-400 mt-1 flex items-center gap-1">
                 <TrendingUp size={11} /> {targetRole}

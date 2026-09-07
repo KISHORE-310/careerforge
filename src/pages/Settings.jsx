@@ -12,28 +12,9 @@ import {
 } from "lucide-react";
 
 function Settings() {
-  const [emailNotifs, setEmailNotifs] = useState(true);
-  const [interviewReminders, setInterviewReminders] = useState(true);
-  const [marketAlerts, setMarketAlerts] = useState(true);
-  const [saved, setSaved] = useState(false);
-
-  const handleSave = (e) => {
-    e.preventDefault();
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-  };
-
-  const handleExportData = () => {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(
-      JSON.stringify({ user: "Kishore Reddy", exported_at: new Date().toISOString() }, null, 2)
-    );
-    const downloadAnchor = document.createElement("a");
-    downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", "careerforge_data_export.json");
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
-  };
+  const [emailNotifs, setEmailNotifs] = useState(false);
+  const [interviewReminders, setInterviewReminders] = useState(false);
+  const [marketAlerts, setMarketAlerts] = useState(false);
 
   return (
     <AppLayout>
@@ -53,7 +34,7 @@ function Settings() {
           </p>
         </div>
 
-        <form onSubmit={handleSave} className="space-y-6">
+        <div className="space-y-6">
           {/* Notifications Card */}
           <div className="apple-liquid-glass rounded-2xl p-6 border border-[#d4af37]/25 shadow-xl space-y-4">
             <h3 className="text-sm font-semibold text-white flex items-center gap-2">
@@ -70,7 +51,7 @@ function Settings() {
                 <input
                   type="checkbox"
                   checked={marketAlerts}
-                  onChange={(e) => setMarketAlerts(e.target.checked)}
+                  onChange={(e) => setMarketAlerts(e.target.checked)} disabled
                   className="accent-[#d4af37] w-4 h-4 cursor-pointer"
                 />
               </label>
@@ -83,7 +64,7 @@ function Settings() {
                 <input
                   type="checkbox"
                   checked={interviewReminders}
-                  onChange={(e) => setInterviewReminders(e.target.checked)}
+                  onChange={(e) => setInterviewReminders(e.target.checked)} disabled
                   className="accent-[#d4af37] w-4 h-4 cursor-pointer"
                 />
               </label>
@@ -96,7 +77,7 @@ function Settings() {
                 <input
                   type="checkbox"
                   checked={emailNotifs}
-                  onChange={(e) => setEmailNotifs(e.target.checked)}
+                  onChange={(e) => setEmailNotifs(e.target.checked)} disabled
                   className="accent-[#d4af37] w-4 h-4 cursor-pointer"
                 />
               </label>
@@ -125,26 +106,14 @@ function Settings() {
                 <span className="text-xs font-medium text-stone-200 block">Export Full Career Archive</span>
                 <span className="text-[11px] text-stone-400 font-light">Download your resume versions, applications, notes, and DSA progress as JSON.</span>
               </div>
-              <button
-                type="button"
-                onClick={handleExportData}
-                className="px-4 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 border border-stone-700 text-xs font-medium text-stone-200 transition"
-              >
-                Export JSON
-              </button>
+              <span className="text-xs text-stone-500">Not available yet</span>
             </div>
           </div>
 
-          <div className="flex justify-end pt-2">
-            <button
-              type="submit"
-              className="px-6 py-2.5 rounded-xl bg-[#d4af37] text-black font-bold text-xs hover:bg-[#f5d77f] transition flex items-center gap-1.5 shadow-xl"
-            >
-              {saved ? <Check size={15} /> : <Save size={15} />}
-              {saved ? "Saved" : "Save Preferences"}
-            </button>
+          <div className="rounded-xl border border-dashed border-stone-800 p-3 text-xs text-stone-400">
+            Notification preferences and full data export require backend endpoints and are intentionally disabled until they can persist real account data.
           </div>
-        </form>
+        </div>
       </div>
     </AppLayout>
   );

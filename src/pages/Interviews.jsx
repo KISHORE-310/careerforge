@@ -260,12 +260,8 @@ function Interviews() {
           res.evaluation ||
           res.rubric ||
           res.session?.evaluation ||
-          res.session?.feedback || {
-            score: 86,
-            strengths: "Structured communication, clear trade-off analysis, and proactive edge case identification.",
-            areas_for_improvement: "Provide deeper quantification of latency metrics and discuss failover recovery mechanisms.",
-            model_answer: "For this scenario, an optimal architecture separates the write-heavy ingress queue with Kafka and uses partitioned Redis clusters with sliding-window counters for sub-millisecond rate checks.",
-          };
+          res.session?.feedback;
+        if (!report) throw new Error("The interview completed but no evaluation was returned.");
         setEvaluationReport(report);
         const updatedSession = {
           ...activeSession,
@@ -595,7 +591,7 @@ function Interviews() {
                     <div className="flex items-center justify-between p-3 rounded-xl bg-black/40 border border-[#d4af37]/30">
                       <span>Overall Caliber Score</span>
                       <span className="text-lg font-bold font-mono text-[#f5d77f]">
-                        {evaluationReport.score || 86} / 100
+                        {evaluationReport.score ?? "—"} / 100
                       </span>
                     </div>
 

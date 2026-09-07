@@ -29,6 +29,7 @@ function Jobs() {
   const [minMatch, setMinMatch] = useState(0);
   const [trackingLoading, setTrackingLoading] = useState(false);
   const [trackedSuccess, setTrackedSuccess] = useState(false);
+  const [actionError, setActionError] = useState("");
 
   useEffect(() => {
     fetchJobs();
@@ -66,18 +67,21 @@ function Jobs() {
 
   const handleTrackApplication = async (job) => {
     setTrackingLoading(true);
+    setActionError("");
     try {
-      await addApplication({
+      const result = await addApplication({
         company: job.company,
         role: job.title,
         status: "Wishlist",
         salary_range: job.salary,
         notes: `Matched via Jobs Intelligence with ${job.match_score}% fit score.`,
       });
+      if (!result?.success) throw new Error(result?.message || "Could not track this job.");
       setTrackedSuccess(true);
       setTimeout(() => setTrackedSuccess(false), 3000);
     } catch (err) {
       console.error(err);
+      setActionError(err.message || "Could not track this job.");
     } finally {
       setTrackingLoading(false);
     }
@@ -86,6 +90,7 @@ function Jobs() {
   return (
     <AppLayout>
       <div className="space-y-6">
+        {actionError && <p role="alert" className="rounded-xl border border-rose-500/30 bg-rose-950/30 p-3 text-xs text-rose-200">{actionError}</p>}
         {/* Page Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -247,20 +252,18 @@ function Jobs() {
                   <div className="space-y-1">
                     <div className="flex justify-between text-[11px] text-stone-400">
                       <span>Tech Stack Coverage</span>
-                      <span className="font-mono text-stone-200">95%</span>
+                      <span className="font-mono text-stone-200">Not calculated</span>
                     </div>
                     <div className="h-1.5 w-full bg-stone-900 rounded-full overflow-hidden">
-                      <div className="h-full bg-[#d4af37] rounded-full" style={{ width: "95%" }} />
                     </div>
                   </div>
 
                   <div className="space-y-1">
                     <div className="flex justify-between text-[11px] text-stone-400">
                       <span>Seniority & Scope Alignment</span>
-                      <span className="font-mono text-stone-200">90%</span>
+                      <span className="font-mono text-stone-200">Not calculated</span>
                     </div>
                     <div className="h-1.5 w-full bg-stone-900 rounded-full overflow-hidden">
-                      <div className="h-full bg-[#f5d77f] rounded-full" style={{ width: "90%" }} />
                     </div>
                   </div>
                 </div>
@@ -303,7 +306,7 @@ function Jobs() {
                     AI Resume Recommendation
                   </div>
                   <p className="text-[11px] text-stone-400 font-light leading-relaxed">
-                    Emphasize your PostgreSQL query tuning experience and system scalability metrics when submitting to {selectedJob.company}.
+                    {selectedJob.key_strengths?.length ? selectedJob.key_strengths.join(" · ") : "No tailored recommendation is available for this listing yet."}
                   </p>
                 </div>
 
@@ -327,15 +330,15 @@ function Jobs() {
                     )}
                   </button>
 
-                  <a
-                    href="https://stripe.com/jobs"
+                  {selectedJob.apply_url || selectedJob.source_url || selectedJob.url ? <a
+                    href={selectedJob.apply_url || selectedJob.source_url || selectedJob.url}
                     target="_blank"
                     rel="noreferrer"
                     className="flex-1 py-2 rounded-xl bg-[#d4af37] text-black text-xs font-bold hover:bg-[#f5d77f] transition flex items-center justify-center gap-1.5 shadow-lg"
                   >
                     Apply on Site
                     <ExternalLink size={13} />
-                  </a>
+                  </a> : <span className="flex-1 py-2 rounded-xl bg-stone-900 text-center text-xs text-stone-500">Application link unavailable</span>}
                 </div>
               </div>
             ) : (

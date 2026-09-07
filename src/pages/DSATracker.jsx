@@ -33,9 +33,11 @@ function DSATracker() {
 }`);
   const [codeReview, setCodeReview] = useState(null);
   const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewError, setReviewError] = useState("");
 
   const handleReviewCode = async () => {
     setReviewLoading(true);
+    setReviewError("");
     try {
       const res = await reviewCode({
         problem_title: "Two Sum / Hash Map Lookup",
@@ -43,10 +45,13 @@ function DSATracker() {
         code: codeSnippet,
       });
       if (res.success) {
-        setCodeReview(res.review);
+        setCodeReview(res);
+      } else {
+        setReviewError(res.message || "Code review could not be completed.");
       }
     } catch (err) {
       console.error(err);
+      setReviewError("Code review could not be completed. Please try again.");
     } finally {
       setReviewLoading(false);
     }
@@ -133,7 +138,7 @@ function DSATracker() {
         </div>
 
         {/* DSA Mastery & Pattern Distribution Charts */}
-        <DSAPerformanceChart />
+        <DSAPerformanceChart stats={stats} topics={topics} />
 
         {activeTab === "roadmap" ? (
           <div className="space-y-6">
@@ -233,6 +238,7 @@ function DSATracker() {
                   </h4>
                 </div>
 
+                {reviewError && <p role="alert" className="rounded-lg border border-rose-500/30 bg-rose-950/30 p-3 text-xs text-rose-200">{reviewError}</p>}
                 {codeReview ? (
                   <div className="space-y-3 text-xs">
                     <div className="grid grid-cols-2 gap-2">
@@ -248,12 +254,12 @@ function DSATracker() {
 
                     <div className="p-3 rounded-xl bg-stone-900 border border-stone-800">
                       <span className="font-semibold text-white block mb-1">Code Quality:</span>
-                      <p className="text-stone-300 font-light leading-relaxed">{codeReview.quality_notes}</p>
+                      <p className="text-stone-300 font-light leading-relaxed">{codeReview.feedback || "No written feedback was returned."}</p>
                     </div>
 
                     <div className="p-3 rounded-xl bg-emerald-950/40 border border-emerald-800/60 text-emerald-300">
                       <span className="font-semibold block mb-1">Tier-1 Interviewer Tip:</span>
-                      <p className="font-light">{codeReview.interviewer_tip}</p>
+                      <p className="font-light">{(codeReview.suggestions || []).join(" ") || "No additional suggestions were returned."}</p>
                     </div>
                   </div>
                 ) : (

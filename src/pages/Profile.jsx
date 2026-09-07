@@ -15,13 +15,15 @@ import { getProfile, updateProfile } from "../services/api";
 
 function Profile() {
   const [profile, setProfile] = useState({
-    full_name: "Kishore Reddy",
-    email: "demo@careerforge.ai",
-    target_role: "Senior Full Stack Engineer",
-    experience_level: "Senior (4-6 years)",
-    target_salary: "$180,000 - $220,000",
-    career_goal: "Lead high-scale engineering teams and design distributed backend systems.",
+    full_name: "",
+    email: "",
+    target_role: "",
+    experience_level: "",
+    target_salary: "",
+    career_goal: "",
   });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -31,9 +33,14 @@ function Profile() {
         const res = await getProfile();
         if (res.success && res.user) {
           setProfile((prev) => ({ ...prev, ...res.user }));
+        } else {
+          setError(res?.message || "Your profile could not be loaded.");
         }
       } catch (err) {
         console.error(err);
+        setError("Your profile could not be loaded. Please try again.");
+      } finally {
+        setLoading(false);
       }
     }
     load();
@@ -43,11 +50,14 @@ function Profile() {
     e.preventDefault();
     setSaving(true);
     try {
-      await updateProfile(profile);
+      const result = await updateProfile(profile);
+      if (!result?.success) throw new Error(result?.message || "Profile update failed.");
+      if (result.user) setProfile((prev) => ({ ...prev, ...result.user }));
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     } catch (err) {
       console.error(err);
+      setError(err.message || "Profile update failed. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -71,7 +81,11 @@ function Profile() {
           </p>
         </div>
 
-        {/* Form */}
+        {error && <p role="alert" className="rounded-xl border border-rose-500/30 bg-rose-950/30 p-3 text-xs text-rose-200">{error}</p>}
+        {loading ? (
+          <div className="rounded-2xl border border-stone-800 p-10 text-center text-xs text-stone-400">Loading profile…</div>
+        ) : (
+        /* Form */
         <form onSubmit={handleSave} className="apple-liquid-glass rounded-2xl p-6 sm:p-8 border border-[#d4af37]/30 shadow-2xl space-y-6">
           {/* Avatar Banner */}
           <div className="flex items-center gap-4 pb-6 border-b border-stone-800">
@@ -166,6 +180,7 @@ function Profile() {
             </button>
           </div>
         </form>
+        )}
       </div>
     </AppLayout>
   );

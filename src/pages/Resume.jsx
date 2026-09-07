@@ -18,7 +18,7 @@ import {
   ShieldCheck,
   Check,
 } from "lucide-react";
-import { getResume, saveResume, uploadResume, aiRewriteResume } from "../services/api";
+import { getResume, saveResume, aiRewriteResume } from "../services/api";
 
 function Resume() {
   const [resumeData, setResumeData] = useState(null);
@@ -32,6 +32,7 @@ function Resume() {
   const [aiSuggestions, setAiSuggestions] = useState([]);
   const [aiError, setAiError] = useState("");
   const [selectedExpIdx, setSelectedExpIdx] = useState(0);
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
     fetchResume();
@@ -43,9 +44,12 @@ function Resume() {
       if (res.success) {
         setResumeData(res.resume);
         setEvaluation(res.evaluation);
+      } else {
+        setLoadError(res?.message || "Resume Studio could not be loaded.");
       }
     } catch (err) {
       console.error(err);
+      setLoadError("Resume Studio could not be loaded. Please try again.");
     }
   };
 
@@ -88,7 +92,7 @@ function Resume() {
     }
   };
 
-  const handleApplyAiSuggestion = (bulletText) => {
+  const handleApplyAiSuggestion = async (bulletText) => {
     if (!resumeData || !resumeData.experience || resumeData.experience.length === 0) return;
     const updatedExp = [...resumeData.experience];
     const target = { ...updatedExp[selectedExpIdx] };
@@ -97,18 +101,23 @@ function Resume() {
 
     const newResume = { ...resumeData, experience: updatedExp };
     setResumeData(newResume);
-    saveResume(newResume);
-    setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 2500);
+    const result = await saveResume(newResume);
+    if (result?.success) {
+      setEvaluation(result.evaluation);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2500);
+    } else {
+      setAiError(result?.message || "The suggestion was added locally but could not be saved.");
+    }
   };
 
   const handleAddExperience = () => {
     const newExp = {
-      company: "New Tech Corp",
-      role: "Software Engineer",
-      period: "2024 - Present",
-      location: "Remote",
-      bullets: ["Architected high-throughput microservices handling 10k req/sec."],
+      company: "",
+      role: "",
+      period: "",
+      location: "",
+      bullets: [],
     };
     setResumeData({
       ...resumeData,
@@ -129,8 +138,7 @@ function Resume() {
     return (
       <AppLayout>
         <div className="flex items-center justify-center h-96 text-stone-400">
-          <RefreshCw className="animate-spin text-[#d4af37] mr-2" size={20} />
-          Loading Resume Studio...
+          {loadError ? <div className="text-center"><p role="alert" className="text-rose-300">{loadError}</p><button onClick={fetchResume} className="mt-3 text-[#f5d77f] underline">Retry</button></div> : <><RefreshCw className="animate-spin text-[#d4af37] mr-2" size={20} /> Loading Resume Studio...</>}
         </div>
       </AppLayout>
     );

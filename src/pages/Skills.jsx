@@ -44,6 +44,14 @@ function Skills() {
   const filteredSkills = skills.filter(
     (s) => activeCategory === "all" || s.category === activeCategory
   );
+  const categorySummary = Object.values(skills.reduce((groups, skill) => {
+    const category = skill.category || "Uncategorized";
+    const current = groups[category] || { cat: category, count: 0, total: 0 };
+    current.count += 1;
+    current.total += Number(skill.proficiency) || 0;
+    groups[category] = current;
+    return groups;
+  }, {})).map((group) => ({ ...group, score: group.count ? Math.round(group.total / group.count) : 0 }));
 
   const handleProficiencyChange = async (idx, newLevel) => {
     const updated = [...skills];
@@ -62,9 +70,9 @@ function Skills() {
     const newSk = {
       name: newSkillName,
       category: newCategory,
-      proficiency: 80,
-      market_demand: "High",
-      salary_impact: "+15%",
+      proficiency: 0,
+      market_demand: "Not assessed",
+      salary_impact: "Not available",
     };
     const updated = [...skills, newSk];
     setSkills(updated);
@@ -139,31 +147,25 @@ function Skills() {
                 Technical Stack Calibration
               </h3>
               <p className="text-xs text-stone-400 font-light">
-                Evaluated against Staff / Principal interview criteria at FAANG & Tier-1 unicorns.
+                Averages calculated from skills you have saved. Market benchmarks are not inferred.
               </p>
             </div>
 
             <div className="space-y-3.5 pt-1 text-xs">
-              {[
-                { cat: "Distributed Systems & Raft", count: "4 Skills", score: 94, color: "#d4af37" },
-                { cat: "Backend & Event Streaming", count: "5 Skills", score: 91, color: "#f5d77f" },
-                { cat: "Cloud & Kubernetes Multi-Cluster", count: "3 Skills", score: 86, color: "#e4c660" },
-                { cat: "Modern TypeScript & React 19", count: "4 Skills", score: 95, color: "#d4af37" },
-                { cat: "PostgreSQL & Database Engines", count: "3 Skills", score: 88, color: "#a1811d" },
-              ].map((item, idx) => (
+              {categorySummary.length ? categorySummary.map((item, idx) => (
                 <div key={idx} className="space-y-1">
                   <div className="flex justify-between text-stone-300">
                     <span className="font-medium">{item.cat}</span>
-                    <span className="font-mono text-[#f5d77f] font-semibold">{item.score}% ({item.count})</span>
+                    <span className="font-mono text-[#f5d77f] font-semibold">{item.score}% ({item.count} skills)</span>
                   </div>
                   <div className="h-2 w-full bg-stone-900 rounded-full overflow-hidden">
                     <div
                       className="h-full rounded-full"
-                      style={{ width: `${item.score}%`, backgroundColor: item.color }}
+                      style={{ width: `${item.score}%`, backgroundColor: "#d4af37" }}
                     />
                   </div>
                 </div>
-              ))}
+              )) : <p className="text-xs text-stone-500">Add skills to calculate category proficiency.</p>}
             </div>
           </div>
         </div>
