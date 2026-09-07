@@ -251,6 +251,7 @@ function Jobs() {
                   </div>
                   <h3 className="text-lg font-serif-header text-white mt-1">{selectedJob.title}</h3>
                   <p className="text-xs text-[#d4af37] font-medium">{selectedJob.company} • {selectedJob.location}</p>
+                  {selectedJob.source_name && <p className="mt-2 text-[10px] text-stone-500">Listing source: {selectedJob.source_name}</p>}
                 </div>
 
                 {/* Score Breakdown Bars */}

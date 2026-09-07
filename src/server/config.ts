@@ -12,6 +12,8 @@ export interface ServerConfig {
   GEMINI_MODEL: string;
   FRONTEND_URL: string | null;
   DEMO_MODE: boolean;
+  ADZUNA_APP_ID: string | null;
+  ADZUNA_APP_KEY: string | null;
 }
 
 function validateAndLoadConfig(): ServerConfig {
@@ -67,6 +69,8 @@ function validateAndLoadConfig(): ServerConfig {
     GEMINI_MODEL: process.env.GEMINI_MODEL || "gemini-3.7-flash",
     FRONTEND_URL: process.env.FRONTEND_URL || null,
     DEMO_MODE: demoMode,
+    ADZUNA_APP_ID: process.env.ADZUNA_APP_ID || null,
+    ADZUNA_APP_KEY: process.env.ADZUNA_APP_KEY || null,
   };
 
   return config;
