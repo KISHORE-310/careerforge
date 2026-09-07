@@ -41,6 +41,7 @@ function Onboarding() {
     target_role: "",
     experience_level: "",
     target_salary: "",
+    location: "India",
     skills: [],
     resumeFile: null,
   });
@@ -79,6 +80,7 @@ function Onboarding() {
         target_role: formData.target_role,
         experience_level: formData.experience_level,
         target_salary: formData.target_salary,
+        location: formData.location,
         skills: formData.skills,
       });
       if (!result.success) throw new Error(result.message || "Unable to complete onboarding.");
@@ -219,8 +221,20 @@ function Onboarding() {
                 value={formData.target_salary}
                 onChange={(e) => setFormData({ ...formData, target_salary: e.target.value })}
                 className="w-full bg-stone-900 border border-stone-800 rounded-xl px-3.5 py-2.5 text-xs text-stone-200 outline-none focus:border-[#d4af37]"
-                placeholder="e.g. $160,000 - $200,000"
+                placeholder="e.g. ₹12,00,000 – ₹20,00,000 per year"
               />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-stone-300">Preferred job location</label>
+              <input
+                type="text"
+                value={formData.location}
+                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                className="w-full bg-stone-900 border border-stone-800 rounded-xl px-3.5 py-2.5 text-xs text-stone-200 outline-none focus:border-[#d4af37]"
+                placeholder="e.g. Bengaluru, India or Remote in India"
+              />
+              <p className="text-[11px] text-stone-500">Used to prioritize listings that explicitly accept candidates in your location.</p>
             </div>
           </div>
         )}

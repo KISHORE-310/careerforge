@@ -90,13 +90,14 @@ profileRouter.post(
   async (req: Request, res: Response) => {
     try {
       const userId = (req as AuthenticatedRequest).userId;
-      const { target_role, experience_level, skills, target_salary, career_goal } = req.body;
+      const { target_role, experience_level, skills, target_salary, career_goal, location } = req.body;
 
       await db.users.updateProfile(userId, {
         targetRole: target_role,
         experienceLevel: experience_level,
         targetSalary: normalizeSalaryRange(target_salary),
         careerGoal: career_goal || "",
+        location: location || "India",
       });
 
       if (Array.isArray(skills)) {

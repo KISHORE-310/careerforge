@@ -22,11 +22,17 @@ export function asArray(value: unknown): string[] {
 
 export function parseSalaryRange(text?: string | null): { min: number | null; max: number | null } {
   if (!text) return { min: null, max: null };
-  const nums = [...String(text).matchAll(/\$?\s*(\d+(?:\.\d+)?)\s*(k|m)?/gi)].map((m) => {
-    let n = Number(m[1]);
+  // Supports both international and Indian groupings, e.g. $120k, 160000,
+  // ₹12,00,000, 12 lakh, and 1.5 crore.  The previous parser treated
+  // `12,00,000` as three independent values, which made India salary matching
+  // unreliable.
+  const nums = [...String(text).matchAll(/(?:₹|\$|INR|USD)?\s*(\d{1,3}(?:,\d{2,3})+|\d+(?:\.\d+)?)\s*(k|m|lakh|lac|crore|cr)?/gi)].map((m) => {
+    let n = Number(m[1].replace(/,/g, ""));
     const suffix = (m[2] || "").toLowerCase();
     if (suffix === "k") n *= 1000;
     if (suffix === "m") n *= 1_000_000;
+    if (suffix === "lakh" || suffix === "lac") n *= 100_000;
+    if (suffix === "crore" || suffix === "cr") n *= 10_000_000;
     if (n > 0 && n < 1000) n *= 1000;
     return n;
   });
@@ -35,9 +41,14 @@ export function parseSalaryRange(text?: string | null): { min: number | null; ma
 }
 
 export function normalizeSalaryRange(text?: string | number | null): string {
-  const { min, max } = parseSalaryRange(String(text || ""));
+  const raw = String(text || "");
+  const { min, max } = parseSalaryRange(raw);
   if (min == null) return "";
-  return max != null && max !== min ? `$${min.toLocaleString()} - $${max.toLocaleString()}` : `$${min.toLocaleString()}`;
+  const isIndianRupee = /₹|\b(?:inr|lakh|lac|crore|cr)\b/i.test(raw);
+  const format = (value: number) => isIndianRupee
+    ? `₹${Math.round(value).toLocaleString("en-IN")}`
+    : `$${Math.round(value).toLocaleString("en-US")}`;
+  return max != null && max !== min ? `${format(min)} – ${format(max)}` : format(min);
 }
 
 export function formatUsd(value?: number | null): string | null {

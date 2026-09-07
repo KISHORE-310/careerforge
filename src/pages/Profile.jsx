@@ -20,6 +20,7 @@ function Profile() {
     target_role: "",
     experience_level: "",
     target_salary: "",
+    location: "India",
     career_goal: "",
   });
   const [loading, setLoading] = useState(true);
@@ -145,6 +146,17 @@ function Profile() {
                 type="text"
                 value={profile.target_salary || ""}
                 onChange={(e) => setProfile({ ...profile, target_salary: e.target.value })}
+                className="w-full bg-stone-900 border border-stone-800 rounded-xl px-3.5 py-2.5 text-stone-100 outline-none focus:border-[#d4af37]"
+              />
+            </div>
+
+            <div>
+              <label className="text-stone-400 block mb-1">Preferred job location</label>
+              <input
+                type="text"
+                value={profile.location || ""}
+                onChange={(e) => setProfile({ ...profile, location: e.target.value })}
+                placeholder="e.g. Hyderabad, India or Remote in India"
                 className="w-full bg-stone-900 border border-stone-800 rounded-xl px-3.5 py-2.5 text-stone-100 outline-none focus:border-[#d4af37]"
               />
             </div>

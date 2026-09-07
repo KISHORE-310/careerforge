@@ -47,6 +47,8 @@ export const OnboardingSchema = z.object({
   experience_level: z.string().trim().max(50).optional(),
   skills: z.array(z.string().trim().max(50)).max(50).optional(),
   target_salary: z.union([z.number(), z.string()]).optional(),
+  career_goal: z.string().trim().max(1000).optional(),
+  location: z.string().trim().max(100).optional(),
 });
 
 // =====================================
