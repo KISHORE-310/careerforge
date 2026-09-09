@@ -6,62 +6,59 @@ import { RoadmapMilestoneUpdateSchema } from "../schemas";
 
 export const roadmapRouter = Router();
 
-function generateFreshRoadmap(targetRole: string = "Full Stack Engineer") {
+const ROLE_SKILLS: Array<{ match: RegExp; skills: string[] }> = [
+  { match: /ai|machine learning|data scientist/i, skills: ["Python", "SQL", "Machine Learning", "Model Evaluation", "MLOps", "System Design"] },
+  { match: /front.?end|ui|react/i, skills: ["JavaScript", "TypeScript", "React", "Testing", "Web Performance", "System Design"] },
+  { match: /devops|cloud|platform/i, skills: ["Linux", "Docker", "Kubernetes", "CI/CD", "Terraform", "Observability"] },
+  { match: /backend|distributed|java|node/i, skills: ["API Design", "SQL", "PostgreSQL", "Caching", "System Design", "Cloud"] },
+];
+
+function generatePersonalizedRoadmap(targetRole: string, savedSkills: string[]) {
+  const targetSkills = ROLE_SKILLS.find((entry) => entry.match.test(targetRole))?.skills
+    || ["TypeScript", "API Design", "SQL", "Testing", "System Design", "Cloud"];
+  const known = new Set(savedSkills.map((skill) => skill.trim().toLowerCase()).filter(Boolean));
+  const gaps = targetSkills.filter((skill) => !known.has(skill.toLowerCase()));
+  const focus = [...gaps, ...targetSkills.filter((skill) => known.has(skill.toLowerCase()))].slice(0, 6);
+  const chunk = (start: number) => focus.slice(start, start + 2);
   return [
     {
       week: 1,
-      title: "Core Architecture & Modern Stack Foundations",
+      title: `Foundation for ${targetRole}`,
       duration: "30-Day Focus",
       status: "todo",
       progress: 0,
-      description: `Establish production-grade foundations and key patterns for ${targetRole}.`,
-      skills: ["TypeScript", "API Design", "Architecture"],
-      tasks: [
-        { title: "Review Core Language Fundamentals & Type System", completed: false },
-        { title: "Architect Clean Component and API Layer Interfaces", completed: false },
-        { title: "Benchmark and Profile Runtime Performance", completed: false },
-      ],
+      description: `Build the two highest-priority skill gaps for your ${targetRole} target: ${chunk(0).join(", ") || "your saved stack"}.`,
+      tasks: chunk(0).map((skill) => ({ title: `Complete one practical ${skill} exercise and document the result`, completed: false })),
     },
     {
       week: 2,
-      title: "System Design & Distributed Data Layers",
+      title: "Applied Projects & Engineering Practice",
       duration: "30-Day Focus",
       status: "todo",
       progress: 0,
-      description: "Master caching, database indexing, rate limiting, and event patterns.",
-      skills: ["PostgreSQL", "Redis", "Distributed Systems"],
-      tasks: [
-        { title: "Implement Redis Caching & Invalidation Logic", completed: false },
-        { title: "Design High-Availability Data Storage Schemas", completed: false },
-        { title: "Simulate Concurrency and Bottleneck Scenarios", completed: false },
-      ],
+      description: `Turn priority gaps into portfolio evidence, focusing on ${chunk(2).join(" and ") || "your target role's core skills"}.`,
+      tasks: chunk(2).map((skill) => ({ title: `Ship a small project improvement demonstrating ${skill}`, completed: false })),
     },
     {
       week: 3,
-      title: "Cloud Infrastructure & Containerization",
+      title: "Interview-Ready Depth",
       duration: "60-Day Focus",
       status: "todo",
       progress: 0,
-      description: "Deploy robust cloud containers, automated CI/CD pipelines, and health monitoring.",
-      skills: ["Docker", "CI/CD", "Cloud Run"],
-      tasks: [
-        { title: "Write Multi-Stage Production Container Specs", completed: false },
-        { title: "Configure Continuous Delivery Pipeline", completed: false },
-        { title: "Instrument Telemetry & Error Tracking", completed: false },
-      ],
+      description: `Practice explaining trade-offs and deepen ${chunk(4).join(" and ") || "your strongest role-relevant skills"}.`,
+      tasks: chunk(4).map((skill) => ({ title: `Complete an interview-style exercise covering ${skill}`, completed: false })),
     },
     {
       week: 4,
-      title: "Interview Simulation & Portfolio Capstone",
+      title: "Application Evidence & Interview Loop",
       duration: "90-Day Focus",
       status: "todo",
       progress: 0,
-      description: "Complete mock system design and behavioral rounds to maximize offer rates.",
-      skills: ["System Design", "Behavioral STAR", "Mock Interviews"],
+      description: "Convert completed work into resume evidence, targeted applications, and interview stories.",
       tasks: [
-        { title: "Conduct 3 Full System Design Practice Sessions", completed: false },
-        { title: "Refine STAR Stories for Behavioral Rounds", completed: false },
-        { title: "Publish End-to-End Capstone with Live Demo", completed: false },
+        { title: "Update one resume project with measurable technical impact", completed: false },
+        { title: "Complete one mock interview and record the improvement areas", completed: false },
+        { title: "Apply to roles aligned with the completed skill evidence", completed: false },
       ],
     },
   ];
@@ -75,14 +72,12 @@ roadmapRouter.get("/", authenticateToken, async (req: Request, res: Response) =>
     let roadmap = await db.roadmaps.getActiveByUser(userId);
 
     if (!roadmap) {
-      const generated = generateFreshRoadmap(user?.profile?.targetRole || "Full Stack Engineer");
+      const skills = await db.skills.listByUser(userId);
+      const generated = generatePersonalizedRoadmap(user?.profile?.targetRole || "Software Engineer", skills.map((skill) => skill.name));
       roadmap = await db.roadmaps.createWithMilestones(userId, {
         targetRole: user?.profile?.targetRole || "Full Stack Engineer",
         milestones: generated,
-        // This is a static starter template, not a skill-gap analysis --
-        // label its provenance honestly rather than falling back to the
-        // repository's "skill_gap" default.
-        source: "template",
+        source: "rules_based_skill_gap",
       });
     }
 
@@ -146,6 +141,25 @@ roadmapRouter.put("/", authenticateToken, async (req: Request, res: Response) =>
     res.json({ success: true, message: "Roadmap updated successfully." });
   } catch (error: any) {
     res.status(500).json({ success: false, message: "Failed to update roadmap." });
+  }
+});
+
+// POST /api/roadmap/regenerate -- explicit user action; replaces only that
+// user's saved roadmap with a fresh plan based on their current profile.
+roadmapRouter.post("/regenerate", authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as AuthenticatedRequest).userId;
+    const [user, skills] = await Promise.all([db.users.findById(userId), db.skills.listByUser(userId)]);
+    const targetRole = user?.profile?.targetRole || "Software Engineer";
+    const roadmap = await db.roadmaps.createWithMilestones(userId, {
+      targetRole,
+      milestones: generatePersonalizedRoadmap(targetRole, skills.map((skill) => skill.name)),
+      source: "rules_based_skill_gap",
+    });
+    await db.analytics.recordEvent(userId, "roadmap_regenerated", "Roadmap", { targetRole, skillsCount: skills.length });
+    res.json({ success: true, roadmap });
+  } catch {
+    res.status(500).json({ success: false, message: "Failed to regenerate career roadmap." });
   }
 });
 

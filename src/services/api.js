@@ -408,6 +408,14 @@ export async function markAllNotificationsRead() {
   return await handleResponse(response);
 }
 
+export async function regenerateRoadmap() {
+  const response = await fetch(`${API_URL}/api/roadmap/regenerate`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+  });
+  return await handleResponse(response);
+}
+
 export async function getSettings() {
   const response = await fetch(`${API_URL}/api/settings`, { headers: getAuthHeaders() });
   return await handleResponse(response);
