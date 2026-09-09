@@ -350,11 +350,26 @@ export const db = {
     async upsertLive(jobData: any) {
       const externalId = String(jobData.externalId || "").trim();
       if (!externalId) throw new Error("A live job requires a stable external identifier.");
+      const companyName = String(jobData.companyName || "").trim();
+      if (!companyName) throw new Error("A live job requires a company name.");
+      // Link every verified live listing to a real Company row. Existing
+      // curated company records are preserved; only missing companies are
+      // created from the provider's directly supplied information.
+      const company = await prisma.company.upsert({
+        where: { name: companyName },
+        update: {},
+        create: {
+          name: companyName,
+          techStack: Array.isArray(jobData.skillsRequired) ? jobData.skillsRequired : [],
+          source: "live",
+        },
+      });
       return prisma.job.upsert({
         where: { source_externalId: { source: "live", externalId } },
         update: {
           title: jobData.title,
-          companyName: jobData.companyName,
+          companyName,
+          companyId: company.id,
           location: jobData.location || "Remote",
           salary: jobData.salary || "",
           type: jobData.type || "Full-time",
@@ -373,7 +388,8 @@ export const db = {
         create: {
           externalId,
           title: jobData.title,
-          companyName: jobData.companyName,
+          companyName,
+          companyId: company.id,
           location: jobData.location || "Remote",
           salary: jobData.salary || "",
           type: jobData.type || "Full-time",

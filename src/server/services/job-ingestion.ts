@@ -32,6 +32,16 @@ function stripHtml(value: string) {
   return value.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 }
 
+const TECH_SKILLS = ["TypeScript", "JavaScript", "React", "Node.js", "Python", "Java", "C#", "C++", "SQL", "PostgreSQL", "MongoDB", "AWS", "Azure", "GCP", "Docker", "Kubernetes", "Git", "Angular", "Vue", "Go", "Rust", "Django", "Spring", "Terraform", "Kafka", "Redis"];
+
+// Jooble returns a description snippet rather than a normalized skills list.
+// Extract only terms explicitly present in that provider text; this avoids
+// presenting invented requirements as a job's technical stack.
+function extractSkills(text: string) {
+  const haystack = text.toLowerCase();
+  return TECH_SKILLS.filter((skill) => haystack.includes(skill.toLowerCase()));
+}
+
 export function normalizeRemotiveJob(job: RemotiveJob) {
   if (!job.id || !job.title || !job.company_name || !job.url) return null;
   const description = stripHtml(job.description || "");
@@ -72,8 +82,10 @@ export async function syncRemotiveJobs(fetchImpl: typeof fetch = fetch) {
   }
 }
 
-function normalizeJoobleJob(job: JoobleJob) {
+export function normalizeJoobleJob(job: JoobleJob) {
   if (!job.id || !job.title || !job.company || !job.link) return null;
+  const description = stripHtml(job.snippet || "");
+  const skills = extractSkills(`${job.title} ${description}`);
   return {
     externalId: `jooble:${job.id}`,
     title: job.title.trim(),
@@ -81,9 +93,9 @@ function normalizeJoobleJob(job: JoobleJob) {
     location: job.location?.trim() || "India",
     type: job.type?.trim() || "Not specified",
     workplace: "Not specified",
-    description: stripHtml(job.snippet || ""),
-    requirements: [],
-    skillsRequired: [],
+    description,
+    requirements: skills,
+    skillsRequired: skills,
     benefits: [],
     salary: job.salary?.trim() || "",
     sourceUrl: job.link,
