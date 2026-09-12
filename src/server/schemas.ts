@@ -227,6 +227,10 @@ export const CodeReviewSchema = z.object({
   code: z.string().min(1, "Code is required").max(15000, "Code exceeds character limit"),
   language: z.string().trim().max(50).optional(),
   task_description: z.string().max(4000).optional(),
+  // The DSA Lab frontend (src/services/api.js, ProblemList.jsx, DSATracker.jsx)
+  // sends `problem_title`, not `task_description`. Accepted here so
+  // validateBody's schema-stripping doesn't silently discard it.
+  problem_title: z.string().trim().max(200).optional(),
 });
 
 export const CareerCoachChatSchema = z.object({
