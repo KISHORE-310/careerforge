@@ -9,9 +9,16 @@
     "start": "node dist/server.cjs",
     "lint": "vite build --mode development",
     "typecheck": "tsc -p tsconfig.server.json --noEmit",
+    "test": "tsx --test tests/unit.test.mjs",
+    "test:smoke": "node phase1-smoke-test.mjs",
     "db:generate": "prisma generate",
-    "db:migrate": "prisma db push",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   },
   "dependencies": {
     "@google/genai": "*",

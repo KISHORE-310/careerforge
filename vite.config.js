@@ -7,4 +7,10 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  server: {
+    fs: {
+      // Prevents Windows case-sensitivity and temporary file access collisions
+      cachedChecks: false,
+    },
+  },
 });

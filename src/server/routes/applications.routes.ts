@@ -4,24 +4,17 @@ import { authenticateToken, optionalAuth, AuthenticatedRequest } from "../auth";
 import { aiLimiter, validateBody } from "../security";
 import { ApplicationCreateSchema, ApplicationUpdateSchema, AICoverLetterSchema } from "../schemas";
 import { aiService } from "../services/ai.service";
+import { scoreJobMatch, getCandidateContextForUser } from "../services/matching";
 
 export const applicationsRouter = Router();
 
-// Real match score for an application, computed from its linked Job's
-// skillsRequired against the authenticated user's actual Skill records.
-// Same skill-overlap formula and 40-96 clamp used by jobs.routes.ts's
-// GET /api/jobs/:id fit analysis, applied here to Applications. Returns null
-// when there is no linked job or the job has no usable skillsRequired list --
-// never a fabricated number. `job` and `userSkillNames` are always
-// server-derived (the linked Job row and the user's own Skill rows);
-// client-supplied `matchScore` on the request body is never read or trusted.
-function calculateApplicationMatchScore(job: any, userSkillNames: string[]): number | null {
+// Real match score for an application, computed using the platform's
+// unified 7-factor matching engine against the candidate's actual profile.
+function calculateApplicationMatchScore(job: any, candidate: any): number | null {
   const skillsReq: string[] = Array.isArray(job?.skillsRequired) ? job.skillsRequired : [];
-  if (!job || skillsReq.length === 0) return null;
-
-  const matched = skillsReq.filter((s) => userSkillNames.includes(s.toLowerCase()));
-  const skillsMatchPct = Math.round((matched.length / skillsReq.length) * 100);
-  return Math.min(Math.max(skillsMatchPct, 40), 96);
+  if (!job || !candidate || skillsReq.length === 0) return null;
+  const match = scoreJobMatch(candidate, job);
+  return match.overall;
 }
 
 // GET /api/applications
@@ -29,8 +22,7 @@ applicationsRouter.get("/", authenticateToken, async (req: Request, res: Respons
   try {
     const userId = (req as AuthenticatedRequest).userId;
     const apps = await db.applications.listByUser(userId);
-    const skills = await db.skills.listByUser(userId);
-    const userSkillNames = skills.map((s) => s.name.toLowerCase());
+    const candidate = await getCandidateContextForUser(userId);
 
     const formatted = apps.map((a: any) => ({
       id: a.id,
@@ -41,7 +33,7 @@ applicationsRouter.get("/", authenticateToken, async (req: Request, res: Respons
       status: a.status,
       applied_date: a.appliedDate.toISOString().split("T")[0],
       job_id: a.jobId,
-      match_score: calculateApplicationMatchScore(a.job, userSkillNames),
+      match_score: calculateApplicationMatchScore(a.job, candidate),
       notes: a.notes || "",
       next_step: a.nextStep || "Application Review",
     }));
@@ -91,8 +83,7 @@ applicationsRouter.post(
         role: newApp.role,
       });
 
-      const skills = await db.skills.listByUser(userId);
-      const userSkillNames = skills.map((s) => s.name.toLowerCase());
+      const candidate = await getCandidateContextForUser(userId);
 
       res.status(201).json({
         success: true,
@@ -105,7 +96,7 @@ applicationsRouter.post(
           status: newApp.status,
           applied_date: newApp.appliedDate.toISOString().split("T")[0],
           job_id: newApp.jobId,
-          match_score: calculateApplicationMatchScore(linkedJob, userSkillNames),
+          match_score: calculateApplicationMatchScore(linkedJob, candidate),
           notes: newApp.notes,
           next_step: newApp.nextStep,
         },
@@ -146,8 +137,7 @@ applicationsRouter.put(
         company: updated.company,
       });
 
-      const skills = await db.skills.listByUser(userId);
-      const userSkillNames = skills.map((s) => s.name.toLowerCase());
+      const candidate = await getCandidateContextForUser(userId);
 
       res.json({
         success: true,
@@ -160,10 +150,7 @@ applicationsRouter.put(
           status: updated.status,
           applied_date: updated.appliedDate.toISOString().split("T")[0],
           job_id: updated.jobId,
-          // `updated.job` reflects the currently-linked job regardless of
-          // whether this PUT body included jobId, since db.applications.update
-          // includes the job relation unconditionally.
-          match_score: calculateApplicationMatchScore(updated.job, userSkillNames),
+          match_score: calculateApplicationMatchScore(updated.job, candidate),
           notes: updated.notes,
           next_step: updated.nextStep,
         },

@@ -8,6 +8,7 @@ import {
   corsMiddleware,
   generalApiLimiter,
   globalErrorHandler,
+  requestIdMiddleware,
 } from "./src/server/security";
 import { prisma } from "./src/db/prisma";
 
@@ -31,6 +32,9 @@ const PORT = config.PORT;
 
 // Enable reverse proxy trust for accurate IP resolution behind Cloud Run / load balancers
 app.set("trust proxy", 1);
+
+// 0. Request ID Tracking
+app.use(requestIdMiddleware);
 
 // 1. Security Headers & CORS
 app.use(securityHeaders);

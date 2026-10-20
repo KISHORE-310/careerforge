@@ -132,7 +132,9 @@ function ApplicationAI() {
 
         {/* Quick Presets Row */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1">
-          <span className="text-[11px] font-mono text-stone-500 shrink-0">Quick Presets:</span>
+          <span className="text-[11px] font-mono text-stone-500 shrink-0">
+            Example Templates (Reference Only):
+          </span>
           {PRESETS.map((preset, idx) => (
             <button
               key={idx}

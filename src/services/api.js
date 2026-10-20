@@ -85,6 +85,40 @@ export async function completeOnboarding(data) {
   return await handleResponse(response);
 }
 
+export async function getUserSettings() {
+  const response = await fetch(`${API_URL}/api/profile/settings`, {
+    headers: { ...getAuthHeaders() },
+  });
+  return await handleResponse(response);
+}
+
+export async function updateUserSettings(settings) {
+  const response = await fetch(`${API_URL}/api/profile/settings`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify(settings),
+  });
+  return await handleResponse(response);
+}
+
+export async function exportUserData() {
+  const response = await fetch(`${API_URL}/api/profile/export`, {
+    headers: { ...getAuthHeaders() },
+  });
+  return await handleResponse(response);
+}
+
+export async function deleteAccount() {
+  const response = await fetch(`${API_URL}/api/profile/account`, {
+    method: "DELETE",
+    headers: { ...getAuthHeaders() },
+  });
+  return await handleResponse(response);
+}
+
 // -----------------------------
 // Resume Studio & ATS
 // -----------------------------

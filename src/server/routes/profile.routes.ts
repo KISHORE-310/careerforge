@@ -118,3 +118,74 @@ profileRouter.post(
     }
   }
 );
+
+// GET /api/profile/settings
+profileRouter.get("/settings", authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as AuthenticatedRequest).userId;
+    const settings = await db.users.getSettings(userId);
+    res.json({ success: true, settings });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: "Failed to retrieve user settings." });
+  }
+});
+
+// PUT /api/profile/settings
+profileRouter.put("/settings", authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as AuthenticatedRequest).userId;
+    const { jobMatchAlerts, interviewReminders, weeklyDigest, aiTone } = req.body;
+    const settings = await db.users.updateSettings(userId, {
+      jobMatchAlerts,
+      interviewReminders,
+      weeklyDigest,
+      aiTone,
+    });
+    await db.analytics.recordEvent(userId, "settings_updated", "Settings", {
+      jobMatchAlerts,
+      interviewReminders,
+      weeklyDigest,
+    });
+    res.json({ success: true, message: "Settings saved successfully.", settings });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: "Failed to save settings." });
+  }
+});
+
+// GET /api/profile/export (Comprehensive data portability & privacy archive)
+profileRouter.get("/export", authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as AuthenticatedRequest).userId;
+    const exportData = await db.users.getFullExport(userId);
+
+    if (!exportData) {
+      return res.status(404).json({ success: false, message: "User account not found." });
+    }
+
+    // Audit log for compliance & data access tracking
+    await db.analytics.recordEvent(userId, "data_exported", "Compliance", {
+      ip: req.ip,
+      exportedAt: exportData.exportedAt,
+    });
+
+    res.json({
+      success: true,
+      export: exportData,
+    });
+  } catch (error: any) {
+    console.error("[Data Export Error]:", error);
+    res.status(500).json({ success: false, message: "Failed to generate user data export." });
+  }
+});
+
+// DELETE /api/profile/account (GDPR / CCPA Right to Erasure)
+profileRouter.delete("/account", authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as AuthenticatedRequest).userId;
+    await db.users.deleteAccount(userId);
+    res.json({ success: true, message: "Your account and all associated data have been permanently deleted." });
+  } catch (error: any) {
+    console.error("[Account Deletion Error]:", error);
+    res.status(500).json({ success: false, message: "Failed to delete account." });
+  }
+});

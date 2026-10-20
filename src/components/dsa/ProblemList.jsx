@@ -250,9 +250,9 @@ export function ProblemList({
                           </span>
                         )}
                         {problem.companies && (
-                          <div className="hidden md:flex items-center gap-1 text-[10px] text-stone-500">
+                          <div className="hidden md:flex items-center gap-1 text-[10px] text-stone-500" title="Curated study targets based on common industry patterns">
                             <Building2 size={11} />
-                            {problem.companies.slice(0, 3).join(", ")}
+                            Curated: {problem.companies.slice(0, 3).join(", ")}
                           </div>
                         )}
                       </div>

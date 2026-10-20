@@ -116,6 +116,90 @@ export const db = {
         data: { onboardingCompleted: true },
       });
     },
+    async getSettings(userId: string) {
+      return prisma.userSettings.upsert({
+        where: { userId },
+        update: {},
+        create: {
+          userId,
+          jobMatchAlerts: true,
+          interviewReminders: true,
+          weeklyDigest: true,
+          aiTone: "professional",
+        },
+      });
+    },
+    async updateSettings(userId: string, data: { jobMatchAlerts?: boolean; interviewReminders?: boolean; weeklyDigest?: boolean; aiTone?: string }) {
+      return prisma.userSettings.upsert({
+        where: { userId },
+        update: data,
+        create: {
+          userId,
+          jobMatchAlerts: data.jobMatchAlerts ?? true,
+          interviewReminders: data.interviewReminders ?? true,
+          weeklyDigest: data.weeklyDigest ?? true,
+          aiTone: data.aiTone || "professional",
+        },
+      });
+    },
+    async deleteAccount(userId: string) {
+      return prisma.user.delete({
+        where: { id: userId },
+      });
+    },
+    async getFullExport(userId: string) {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        include: {
+          profile: true,
+          settings: true,
+          resume: {
+            include: { versions: { orderBy: { versionNumber: "desc" } } },
+          },
+          skills: true,
+          applications: {
+            include: { job: true },
+          },
+          interviews: {
+            include: {
+              evaluation: true,
+              messages: { orderBy: { createdAt: "asc" } },
+            },
+          },
+          roadmap: {
+            include: { milestones: { orderBy: { week: "asc" } } },
+          },
+          learningProgress: true,
+          dsaProgress: true,
+        },
+      });
+
+      if (!user) return null;
+
+      // Exclude passwordHash and any sensitive internal credentials
+      const { passwordHash, ...safeUser } = user;
+
+      return {
+        exportedAt: new Date().toISOString(),
+        formatVersion: "1.0",
+        user: {
+          id: safeUser.id,
+          email: safeUser.email,
+          fullName: safeUser.fullName,
+          createdAt: safeUser.createdAt,
+          onboardingCompleted: safeUser.onboardingCompleted,
+          profile: safeUser.profile,
+          settings: safeUser.settings,
+        },
+        resume: safeUser.resume,
+        skills: safeUser.skills,
+        applications: safeUser.applications,
+        interviews: safeUser.interviews,
+        roadmap: safeUser.roadmap,
+        learningProgress: safeUser.learningProgress,
+        dsaProgress: safeUser.dsaProgress,
+      };
+    },
   },
 
   // Resumes & Versions
@@ -495,10 +579,7 @@ export const db = {
     },
     async createWithMilestones(userId: string, data: any) {
       // One roadmap per user: regenerating replaces the existing milestone set
-      // rather than deactivating an old roadmap and inserting a second one.
-      // `title`, `description`, `duration` and `progress` have no column on
-      // Roadmap; milestone `category`, `skills` and `resources` have no column
-      // on RoadmapMilestone. Milestone `tasks` is a native Json column.
+      // transactionally to guarantee atomicity and prevent orphaned state
       const milestones = (data.milestones || []).map((m: any, idx: number) => ({
         sortOrder: idx,
         week: m.week || m.weekNumber || idx + 1,
@@ -509,25 +590,27 @@ export const db = {
         tasks: m.tasks || [],
       }));
 
-      const existing = await prisma.roadmap.findUnique({ where: { userId } });
-      if (existing) {
-        await prisma.roadmapMilestone.deleteMany({ where: { roadmapId: existing.id } });
-      }
+      return prisma.$transaction(async (tx) => {
+        const existing = await tx.roadmap.findUnique({ where: { userId } });
+        if (existing) {
+          await tx.roadmapMilestone.deleteMany({ where: { roadmapId: existing.id } });
+        }
 
-      return prisma.roadmap.upsert({
-        where: { userId },
-        update: {
-          targetRole: data.targetRole || "Software Engineer",
-          source: data.source || "skill_gap",
-          milestones: { create: milestones },
-        },
-        create: {
-          userId,
-          targetRole: data.targetRole || "Software Engineer",
-          source: data.source || "skill_gap",
-          milestones: { create: milestones },
-        },
-        include: { milestones: { orderBy: { sortOrder: "asc" } } },
+        return tx.roadmap.upsert({
+          where: { userId },
+          update: {
+            targetRole: data.targetRole || "Software Engineer",
+            source: data.source || "skill_gap",
+            milestones: { create: milestones },
+          },
+          create: {
+            userId,
+            targetRole: data.targetRole || "Software Engineer",
+            source: data.source || "skill_gap",
+            milestones: { create: milestones },
+          },
+          include: { milestones: { orderBy: { sortOrder: "asc" } } },
+        });
       });
     },
     // `completedAt` has no column in the schema. Scoped through the
@@ -547,6 +630,11 @@ export const db = {
 
   // Learning
   learning: {
+    async findById(id: string) {
+      return prisma.learningResource.findUnique({
+        where: { id },
+      });
+    },
     async listResources() {
       // `enrolled` has no column in the schema; ordering by title keeps the
       // listing deterministic until popularity data exists.
@@ -560,13 +648,16 @@ export const db = {
         include: { resource: true },
       });
     },
-    async updateProgress(userId: string, resourceId: string, progress: number, _quizScore?: number) {
-      // Schema stores percentage in `progressPct` and a `completed` boolean.
-      // There is no `quizScore` or `completedAt` column, so the quiz score
-      // argument is accepted for call-site compatibility but not persisted.
-      // `completedLessonIds` is a required Json column and defaults to [].
+    async updateProgress(
+      userId: string,
+      resourceId: string,
+      progress: number,
+      options?: { completedLessonIds?: string[]; quizScore?: number }
+    ) {
       const pct = Math.min(Math.max(Math.round(progress), 0), 100);
       const isCompleted = pct >= 100;
+      const lessonIds = options?.completedLessonIds || [];
+
       return prisma.learningProgress.upsert({
         where: {
           userId_resourceId: {
@@ -577,13 +668,14 @@ export const db = {
         update: {
           progressPct: pct,
           completed: isCompleted,
+          ...(options?.completedLessonIds ? { completedLessonIds: lessonIds } : {}),
         },
         create: {
           userId,
           resourceId,
           progressPct: pct,
           completed: isCompleted,
-          completedLessonIds: [],
+          completedLessonIds: lessonIds,
         },
       });
     },
@@ -714,7 +806,27 @@ export const db = {
       metadata?: any;
     }) {
       // CareerSnapshot stores all figures in a single `metrics` Json column.
+      // Enforce at most 1 snapshot per user per day: update if already taken today.
       const { metadata, ...metrics } = data;
+      const startOfDay = new Date();
+      startOfDay.setUTCHours(0, 0, 0, 0);
+
+      const existingToday = await prisma.careerSnapshot.findFirst({
+        where: {
+          userId,
+          createdAt: { gte: startOfDay },
+        },
+      });
+
+      if (existingToday) {
+        return prisma.careerSnapshot.update({
+          where: { id: existingToday.id },
+          data: {
+            metrics: { ...metrics, ...(metadata || {}) },
+          },
+        });
+      }
+
       return prisma.careerSnapshot.create({
         data: {
           userId,

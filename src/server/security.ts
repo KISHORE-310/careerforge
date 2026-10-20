@@ -1,9 +1,20 @@
 import { Request, Response, NextFunction } from "express";
+import { randomUUID } from "crypto";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import cors from "cors";
 import { ZodSchema, ZodError } from "zod";
 import { config } from "./config";
+
+// =====================================
+// Request Tracking & Observability
+// =====================================
+export function requestIdMiddleware(req: Request, res: Response, next: NextFunction) {
+  const reqId = (req.headers["x-request-id"] as string) || randomUUID();
+  (req as any).id = reqId;
+  res.setHeader("x-request-id", reqId);
+  next();
+}
 
 // =====================================
 // Rate Limiters
@@ -66,10 +77,19 @@ export const generalApiLimiter = rateLimit({
 // =====================================
 
 export const securityHeaders = helmet({
-  contentSecurityPolicy: false, // Vite SPA and AI Studio iframe compatibility
+  contentSecurityPolicy: config.NODE_ENV === "production" ? {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "https://images.unsplash.com", "https://*.google.com"],
+      connectSrc: ["'self'", "https://*.googleapis.com"],
+    },
+  } : false,
   crossOriginEmbedderPolicy: false,
   crossOriginResourcePolicy: { policy: "cross-origin" },
-  frameguard: false, // Allow rendering inside AI Studio preview iframe
+  frameguard: config.NODE_ENV === "production" ? { action: "sameorigin" } : false,
 });
 
 // Pure, exported so it can be unit-tested directly for both environments
@@ -182,8 +202,9 @@ export function sanitizeAiInput(text: string, maxLength = 6000): string {
 // Safe Global Error Handler
 // =====================================
 
-export function globalErrorHandler(err: any, _req: Request, res: Response, _next: NextFunction) {
-  console.error("Unhandled Server Error:", err?.message || err);
+export function globalErrorHandler(err: any, req: Request, res: Response, _next: NextFunction) {
+  const reqId = (req as any)?.id || "unknown";
+  console.error(`[Unhandled Server Error] [Request: ${reqId}]:`, err?.message || err);
 
   // Avoid leaking internal details, database credentials, or secret keys in response
   const statusCode = err.statusCode || err.status || 500;
@@ -195,5 +216,6 @@ export function globalErrorHandler(err: any, _req: Request, res: Response, _next
   res.status(statusCode).json({
     success: false,
     message: safeMessage,
+    request_id: reqId,
   });
 }

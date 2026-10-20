@@ -75,5 +75,9 @@ function validateAndLoadConfig(): ServerConfig {
 export const config = validateAndLoadConfig();
 
 export function isDemoModeAllowed(): boolean {
+  // Shared demo account and bypass tokens MUST NEVER be permitted in production
+  if (config.NODE_ENV === "production") {
+    return false;
+  }
   return config.DEMO_MODE === true;
 }

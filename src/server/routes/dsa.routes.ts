@@ -134,12 +134,12 @@ dsaRouter.delete("/progress", authenticateToken, async (req: Request, res: Respo
 dsaRouter.post(
   "/submit",
   aiLimiter,
-  optionalAuth,
+  authenticateToken,
   validateBody(DsaSubmitSchema),
   async (req: Request, res: Response) => {
     try {
       const { problem_id, code, language, problem_title } = req.body;
-      const userId = (req as any).userId;
+      const userId = (req as AuthenticatedRequest).userId;
 
       const review = await aiService.reviewDsaCode(
         code,

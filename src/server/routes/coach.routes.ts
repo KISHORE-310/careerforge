@@ -2,7 +2,7 @@ import { Router, Request, Response } from "express";
 import { db } from "../../db/repositories";
 import { authenticateToken, AuthenticatedRequest } from "../auth";
 import { aiLimiter, sanitizeAiInput, validateBody } from "../security";
-import { CareerCoachChatSchema } from "../schemas";
+import { CareerCoachChatSchema, CodeReviewSchema } from "../schemas";
 import { aiService } from "../services/ai.service";
 
 export const coachRouter = Router();
@@ -45,12 +45,11 @@ coachRouter.post("/chat", aiLimiter, authenticateToken, validateBody(CareerCoach
 });
 
 // POST /api/coding/review, /api/coach/coding-review
-coachRouter.post(["/review", "/coding-review", "/"], aiLimiter, async (req: Request, res: Response) => {
+// Requires authentication: AI review consumes Gemini quota and must be scoped
+// to authenticated users to prevent abuse and enable per-user rate enforcement.
+coachRouter.post(["/review", "/coding-review"], aiLimiter, authenticateToken, validateBody(CodeReviewSchema), async (req: Request, res: Response) => {
   try {
-    const { code, language = "JavaScript", problem_title = "Code Implementation" } = req.body;
-    if (!code || !code.trim()) {
-      return res.status(400).json({ success: false, message: "No code provided for review." });
-    }
+    const { code, language = "JavaScript", task_description: problem_title = "Code Implementation" } = req.body;
 
     const review = await aiService.reviewDsaCode(code, problem_title, language);
     res.json({ success: true, ...review });

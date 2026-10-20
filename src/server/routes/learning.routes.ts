@@ -47,7 +47,7 @@ learningRouter.get("/", optionalAuth, async (req: Request, res: Response) => {
         quiz: r.quiz ?? null,
         status: progress ? (progress.completed ? "completed" : "in_progress") : "not_started",
         progress_percent: pct,
-        // No `quizScore` column in the schema.
+        completed_lesson_ids: Array.isArray(progress?.completedLessonIds) ? progress.completedLessonIds : [],
         quiz_score: null,
       };
     });
@@ -63,11 +63,23 @@ learningRouter.get("/", optionalAuth, async (req: Request, res: Response) => {
 const updateProgressHandler = async (req: Request, res: Response) => {
   try {
     const userId = (req as AuthenticatedRequest).userId;
-    const { status, progress_percent, progress, quiz_score } = req.body;
+    const { status, progress_percent, progress, quiz_score, completed_lesson_ids, completedLessonIds } = req.body;
     const resourceId = req.params.id;
-    const pct = typeof progress_percent === "number" ? progress_percent : (typeof progress === "number" ? progress : (status === "completed" ? 100 : 50));
 
-    await db.learning.updateProgress(userId, resourceId, pct, quiz_score);
+    const resource = await db.learning.findById(resourceId);
+    if (!resource) {
+      return res.status(404).json({ success: false, message: "Learning resource not found." });
+    }
+
+    const pct = typeof progress_percent === "number" ? progress_percent : (typeof progress === "number" ? progress : (status === "completed" ? 100 : 50));
+    const lessons = Array.isArray(completed_lesson_ids || completedLessonIds)
+      ? (completed_lesson_ids || completedLessonIds)
+      : undefined;
+
+    await db.learning.updateProgress(userId, resourceId, pct, {
+      completedLessonIds: lessons,
+      quizScore: quiz_score,
+    });
     await db.analytics.recordEvent(userId, pct >= 100 ? "learning_completed" : "learning_progress", "Learning", {
       resourceId,
       progress: pct,

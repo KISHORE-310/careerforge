@@ -1,4 +1,5 @@
 import { asArray, parseSalaryRange, seniorityFromText, yearsFromExperience } from "../lib/data";
+import { db } from "../../db/repositories";
 
 export type CandidateMatchContext = {
   skills: string[];
@@ -211,4 +212,33 @@ export async function buildCandidateContext(params: {
     resumeText,
     education,
   };
+}
+
+export async function getCandidateContextForUser(userId: string): Promise<CandidateMatchContext | null> {
+  const user = await db.users.findById(userId);
+  if (!user) return null;
+
+  const skills = await db.skills.listByUser(userId);
+  const resumeRecord = await db.resumes.getPrimary(userId);
+
+  let parsedResume: any = null;
+  if (resumeRecord) {
+    try {
+      parsedResume = {
+        summary: resumeRecord.summary,
+        experience: resumeRecord.experience ? JSON.parse(resumeRecord.experience) : [],
+        education: resumeRecord.education ? JSON.parse(resumeRecord.education) : [],
+        technical_skills: resumeRecord.skills ? JSON.parse(resumeRecord.skills) : [],
+        personal_info: resumeRecord.contactInfo ? JSON.parse(resumeRecord.contactInfo) : {},
+      };
+    } catch {
+      parsedResume = null;
+    }
+  }
+
+  return buildCandidateContext({
+    skills,
+    profile: user.profile,
+    resume: parsedResume,
+  });
 }

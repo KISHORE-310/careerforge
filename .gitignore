@@ -13,6 +13,8 @@ dist/
 backend/data/
 *.wt
 *.turtle
+*.db
+*.db-journal
 mongod.lock
 mongodb.log*
 *.log

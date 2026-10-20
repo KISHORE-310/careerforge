@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { db } from "../../db/repositories";
-import { optionalAuth } from "../auth";
+import { optionalAuth, AuthenticatedRequest } from "../auth";
+import { scoreJobMatch, getCandidateContextForUser } from "../services/matching";
 
 export const jobsRouter = Router();
 
@@ -15,27 +16,32 @@ function formatPostedDaysAgo(fetchedAt: Date): string {
 }
 
 // GET /api/jobs
-jobsRouter.get("/", async (req: Request, res: Response) => {
+jobsRouter.get("/", optionalAuth, async (req: Request, res: Response) => {
   try {
     const { query, role, type } = req.query;
+    const userId = (req as any).userId;
     const jobs = await db.jobs.list({
       search: (query as string) || (role as string),
       type: type as string,
     });
 
+    const candidate = userId ? await getCandidateContextForUser(userId) : null;
+
     const formatted = jobs.map((j) => {
-      // `requirements` and `skillsRequired` are native Json columns and are
-      // already parsed. The schema stores the company name on `companyName`
-      // (`company` is now the Company relation) and a single `salary` string
-      // (there are no salaryMin/salaryMax/salaryText columns).
-      const skills = Array.isArray(j.skillsRequired) ? j.skillsRequired : [];
+      const skills = Array.isArray(j.skillsRequired) ? (j.skillsRequired as string[]) : [];
       const requirements = Array.isArray(j.requirements) ? j.requirements : [];
+
+      let matchScore: number | null = null;
+      if (candidate && skills.length > 0) {
+        const match = scoreJobMatch(candidate, j);
+        matchScore = match.overall;
+      }
+
       return {
         id: j.id,
         title: j.title,
         company: j.companyName,
-        // No logo column in the schema. Placeholder retained; Phase 2 replaces it.
-        company_logo: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=60",
+        company_logo: (j as any).company?.logo || null,
         location: j.location,
         type: j.type,
         workplace: j.workplace,
@@ -43,7 +49,7 @@ jobsRouter.get("/", async (req: Request, res: Response) => {
         description: j.description,
         requirements,
         skills_required: skills,
-        match_score: 92,
+        match_score: matchScore,
         posted_days_ago: formatPostedDaysAgo(j.fetchedAt),
       };
     });
@@ -66,17 +72,38 @@ jobsRouter.get("/:id", optionalAuth, async (req: Request, res: Response) => {
     }
 
     const skillsReq: string[] = Array.isArray(job.skillsRequired) ? (job.skillsRequired as string[]) : [];
+    const candidate = userId ? await getCandidateContextForUser(userId) : null;
 
-    let userSkills: string[] = [];
-    if (userId) {
-      const skills = await db.skills.listByUser(userId);
-      userSkills = skills.map((s) => s.name.toLowerCase());
+    let overallScore: number | null = null;
+    let fitAnalysis: any = null;
+
+    if (candidate) {
+      if (skillsReq.length === 0) {
+        overallScore = null;
+        fitAnalysis = {
+          overall_match: null,
+          skills_match: null,
+          status: "Not available",
+          experience_alignment: "Listing does not specify required technical skills.",
+          matched_skills: [],
+          missing_skills: [],
+          key_strengths: ["Review job description directly for role expectations."],
+          recommended_action: "Examine detailed job description for team-specific requirements.",
+        };
+      } else {
+        const match = scoreJobMatch(candidate, job);
+        overallScore = match.overall;
+        fitAnalysis = {
+          overall_match: match.overall,
+          skills_match: match.skills,
+          experience_alignment: match.seniority >= 80 ? "Aligned with listed experience level" : "Requires additional domain seniority",
+          matched_skills: match.matched_skills,
+          missing_skills: match.missing_skills,
+          key_strengths: match.strengths,
+          recommended_action: match.explanation,
+        };
+      }
     }
-
-    const matched = skillsReq.filter((s) => userSkills.includes(s.toLowerCase()));
-    const missing = skillsReq.filter((s) => !userSkills.includes(s.toLowerCase()));
-    const skillsMatchPct = skillsReq.length > 0 ? Math.round((matched.length / skillsReq.length) * 100) : 75;
-    const overallScore = Math.min(Math.max(skillsMatchPct, 40), 96);
 
     res.json({
       success: true,
@@ -84,6 +111,7 @@ jobsRouter.get("/:id", optionalAuth, async (req: Request, res: Response) => {
         id: job.id,
         title: job.title,
         company: job.companyName,
+        company_logo: (job as any).company?.logo || null,
         location: job.location,
         type: job.type,
         workplace: job.workplace,
@@ -92,15 +120,7 @@ jobsRouter.get("/:id", optionalAuth, async (req: Request, res: Response) => {
         skills_required: skillsReq,
         match_score: overallScore,
       },
-      fit_analysis: {
-        overall_match: overallScore,
-        skills_match: skillsMatchPct,
-        experience_alignment: "Evaluated against candidate experience records",
-        matched_skills: matched,
-        missing_skills: missing,
-        key_strengths: matched.length > 0 ? matched.map((s) => `Demonstrated proficiency in ${s}`) : ["Transferable software engineering foundation"],
-        recommended_action: missing.length > 0 ? `Target hands-on practice with ${missing.slice(0, 3).join(", ")} to maximize job match score.` : "High technical alignment; prepare tailored cover letter and STAR stories.",
-      },
+      fit_analysis: fitAnalysis,
     });
   } catch (error: any) {
     res.status(500).json({ success: false, message: "Failed to evaluate job fit." });
