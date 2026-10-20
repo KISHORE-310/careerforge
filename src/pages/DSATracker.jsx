@@ -133,7 +133,7 @@ function DSATracker() {
         </div>
 
         {/* DSA Mastery & Pattern Distribution Charts */}
-        <DSAPerformanceChart />
+        <DSAPerformanceChart topics={topics} progressState={progressState} />
 
         {activeTab === "roadmap" ? (
           <div className="space-y-6">

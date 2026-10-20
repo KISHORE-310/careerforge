@@ -156,6 +156,60 @@ const sampleMarketData = {
     { skill: "LLM / AI Orchestration", avg_salary: "$210,000", growth_pct: "+62%" },
     { skill: "TypeScript / Full Stack", avg_salary: "$175,000", growth_pct: "+18%" },
   ],
+  trending_roles: [
+    {
+      role: "Distributed Systems Engineer",
+      demand_growth: "+38% YoY",
+      avg_salary: "$185,000 - $240,000",
+      top_skills: ["Go", "Kafka", "Kubernetes"],
+    },
+    {
+      role: "AI / ML Infrastructure Engineer",
+      demand_growth: "+45% YoY",
+      avg_salary: "$195,000 - $265,000",
+      top_skills: ["PyTorch", "CUDA", "Ray"],
+    },
+    {
+      role: "Senior Full Stack Architect",
+      demand_growth: "+28% YoY",
+      avg_salary: "$170,000 - $225,000",
+      top_skills: ["TypeScript", "Next.js", "PostgreSQL"],
+    },
+    {
+      role: "Cloud & Platform Security Lead",
+      demand_growth: "+31% YoY",
+      avg_salary: "$180,000 - $235,000",
+      top_skills: ["Terraform", "AWS", "Zero Trust"],
+    },
+  ],
+  in_demand_skills: [
+    { skill: "Kafka & Flink", growth: 42, premium: "+22%", category: "Streaming" },
+    { skill: "Rust Systems", growth: 38, premium: "+25%", category: "Languages" },
+    { skill: "Distributed AI Infra", growth: 48, premium: "+30%", category: "AI/ML" },
+    { skill: "Kubernetes & Istio", growth: 31, premium: "+18%", category: "DevOps" },
+    { skill: "GraphQL & gRPC", growth: 26, premium: "+14%", category: "Backend" },
+    { skill: "PostgreSQL & Raft", growth: 29, premium: "+16%", category: "Databases" },
+  ],
+  salary_by_location: {
+    sf: [
+      { level: "Mid-Level (L4)", base: 145, equity: 45, bonus: 20, total: 210 },
+      { level: "Senior (L5)", base: 185, equity: 95, bonus: 35, total: 315 },
+      { level: "Staff (L6)", base: 235, equity: 180, bonus: 55, total: 470 },
+      { level: "Principal (L7)", base: 285, equity: 320, bonus: 85, total: 690 },
+    ],
+    nyc: [
+      { level: "Mid-Level (L4)", base: 140, equity: 40, bonus: 20, total: 200 },
+      { level: "Senior (L5)", base: 175, equity: 85, bonus: 35, total: 295 },
+      { level: "Staff (L6)", base: 220, equity: 165, bonus: 50, total: 435 },
+      { level: "Principal (L7)", base: 270, equity: 290, bonus: 80, total: 640 },
+    ],
+    remote: [
+      { level: "Mid-Level (L4)", base: 135, equity: 35, bonus: 15, total: 185 },
+      { level: "Senior (L5)", base: 170, equity: 75, bonus: 30, total: 275 },
+      { level: "Staff (L6)", base: 210, equity: 150, bonus: 45, total: 405 },
+      { level: "Principal (L7)", base: 255, equity: 260, bonus: 70, total: 585 },
+    ],
+  },
 };
 
 companiesRouter.get(["/", "/companies"], (_req: Request, res: Response) => {

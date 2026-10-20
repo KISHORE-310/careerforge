@@ -41,14 +41,10 @@ function Login() {
       } else if (res.message) {
         setError(res.message);
       } else {
-        // Fallback for demo mode
-        localStorage.setItem("token", "demo_jwt_token_careerforge");
-        navigate("/dashboard");
+        setError("Invalid email or password");
       }
     } catch (err) {
-      // If server or offline, allow smooth demo sign in
-      localStorage.setItem("token", "demo_jwt_token_careerforge");
-      navigate("/dashboard");
+      setError(err?.message || "Failed to connect to authentication server");
     } finally {
       setLoading(false);
     }

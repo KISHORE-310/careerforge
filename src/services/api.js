@@ -1,8 +1,8 @@
 const API_URL = "";
 
 function getAuthHeaders() {
-  const token = localStorage.getItem("token") || "demo_jwt_token_careerforge";
-  return { Authorization: `Bearer ${token}` };
+  const token = localStorage.getItem("token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 async function handleResponse(response) {

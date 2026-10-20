@@ -61,8 +61,10 @@ function CustomSalaryTooltip({ active, payload, label }) {
   return null;
 }
 
-export default function SalaryDistributionChart() {
+export default function SalaryDistributionChart({ data: propData }) {
   const [metro, setMetro] = useState("sf");
+  const activeDataset = propData || locationData;
+  const currentData = activeDataset[metro] || locationData[metro] || [];
 
   return (
     <div className="apple-liquid-glass rounded-2xl p-5 sm:p-6 border border-[#d4af37]/30 shadow-2xl space-y-4">
@@ -103,7 +105,7 @@ export default function SalaryDistributionChart() {
 
       <div className="h-72 w-full pt-2">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={locationData[metro]} margin={{ top: 15, right: 10, left: -15, bottom: 0 }}>
+          <BarChart data={currentData} margin={{ top: 15, right: 10, left: -15, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
             <XAxis
               dataKey="level"

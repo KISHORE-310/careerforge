@@ -1,147 +1,167 @@
-# CareerForge
+# CareerForge AI
 
-CareerForge is a web application for resume analysis, role-based skill evaluation, and technical interview preparation tracking.
+CareerForge AI is an enterprise-grade platform for resume intelligence, ATS compatibility scoring, role-based skill gap evaluation, tech job matching, and technical interview preparation.
 
-## System Overview
+---
 
-The system consists of two primary components:
+## Architecture & Technology Stack
 
-1. Backend: A Python FastAPI service that processes uploaded resumes, performs applicant tracking system (ATS) compatibility scoring, identifies skill gaps, and manages user data.
-2. Frontend: A React single-page application built with Vite that provides user interfaces for dashboard analytics, resume uploads, skill roadmaps, and DSA practice tracking.
+The platform is built as a unified, high-performance full-stack application:
 
-## Architecture
+- **Backend Runtime**: Node.js with TypeScript and [Express](server.ts)
+- **Frontend SPA**: React 19 + [Vite](vite.config.js) + Tailwind CSS v4 + Framer Motion + Lucide React + Recharts
+- **Database & ORM**: PostgreSQL 16 managed via [Prisma ORM](prisma/schema.prisma) with repository pattern abstractions
+- **AI Engine**: Google Gemini API via `@google/genai` for ATS resume analysis, structured career roadmaps, AI code reviews, and mock interview evaluation
+- **Security & Hardening**: Strict JWT session tokens (HMAC-SHA256), bcrypt password hashing, Helmet HTTP protection, CORS whitelisting, rate limiting, and password hash leakage prevention
 
-### Backend
-- Framework: FastAPI
-- Database: MongoDB (stores user credentials, uploaded resume profiles, and DSA progress)
-- Authentication: JSON Web Tokens (JWT) with HMAC-SHA256 signature and bcrypt password hashing
-- Resume Processing: PyMuPDF for text extraction from PDF files
-- AI Provider: Google Gemini API for structured data extraction and custom career roadmaps
+> [!NOTE]
+> The `backend/` directory contains an earlier Python FastAPI + MongoDB prototype preserved for reference. The active, production-hardened platform is driven by the root Express + Prisma + React stack.
 
-### Frontend
-- Framework: React 18
-- Build Tool: Vite
-- Routing: React Router DOM
-- Styling: Plain CSS
-- State and Storage: Browser LocalStorage for JWT session management
+---
 
 ## Key Features
 
-### 1. Resume Parsing and Scoring
-- Reads PDF resume uploads and converts raw text into structured schema objects.
-- Analyzes completeness of experience, education, projects, and technical skills.
-- Produces a resume quality score based on structure and quantifiable achievements.
+1. **ATS Resume Evaluation & Scoring**
+   - High-throughput PDF text extraction and structured parsing.
+   - Computes ATS compatibility scores, quantifiable impact metrics, and structural recommendations.
+   - Tailored keyword alignment against target engineering roles.
 
-### 2. ATS Keyword Match and Skill Gap Analysis
-- Evaluates extracted candidate skills against required technical competencies for target roles.
-- Calculates compatibility percentage.
-- Identifies matching skills and flags missing qualifications.
+2. **7-Factor Job Matching Engine**
+   - Evaluates job opportunities using a weighted 7-factor engine: technical skills (40%), experience level (20%), domain relevance, seniority, and salary expectations.
 
-### 3. Career Roadmaps
-- Provides structured multi-week study plans for engineering disciplines including Backend, Frontend, Full Stack, Data Science, and DevOps.
+3. **DSA Practice Tracker & AI Code Lab**
+   - Curated problem sets across core patterns (Arrays, Two Pointers, Sliding Window, Monotonic Stack, Trees, Dynamic Programming).
+   - Dynamic difficulty breakdowns, pattern mastery velocity charts, and personal notes.
+   - In-browser AI code review assessing time/space complexities and edge case handling.
 
-### 4. DSA Practice Tracker
-- Tracks practice problem status, bookmarks, and personal notes across topics such as Arrays, Trees, Graphs, Dynamic Programming, and System Design.
-- Persists user progress per account in MongoDB.
+4. **Dynamic Career Roadmaps & Learning Hub**
+   - Generates 30/60/90-day execution roadmaps calibrated to candidate target roles and identified skill gaps.
+   - Modular learning units with knowledge checks and milestone tracking.
 
-### 5. User Authentication
-- Supports user registration and login.
-- Secures private endpoints using Bearer token authentication headers.
+5. **Application Pipeline & Funnel Tracking**
+   - Kanban-style pipeline tracking across application stages (*Wishlist*, *Applied*, *Screening*, *Interview*, *Offer*, *Rejected*).
+   - Dynamic conversion rates and throughput analytics.
+
+6. **Macro Market Intelligence**
+   - Real-time compensation percentiles across metros (SF Bay Area, NYC, US Remote) by seniority band.
+   - In-demand skill premium indices and YoY hiring growth indicators.
+
+---
 
 ## Directory Structure
 
 ```text
 careerforge/
-├── backend/
-│   ├── ai/               # AI prompts, normalizers, parsers, and role definitions
-│   ├── config/           # Environment variable loading and application settings
-│   ├── database/         # MongoDB client and connection lifecycle
-│   ├── intelligence/     # ATS scoring, resume scoring, and skill gap engines
-│   ├── models/           # Pydantic data schemas
-│   ├── routes/           # FastAPI API route handlers
-│   ├── services/         # Business logic and database operations
-│   └── main.py           # Application entrypoint
-└── frontend/
-    ├── src/
-    │   ├── components/   # Reusable UI components
-    │   ├── pages/        # Route page views (Dashboard, Resume, ATS, DSA, Auth)
-    │   ├── services/     # Frontend API client methods
-    │   ├── App.jsx       # Route registry
-    │   └── main.jsx      # React root rendering
-    ├── index.html        # HTML entrypoint
-    └── package.json      # Node dependencies and scripts
+├── server.ts                 # Full-stack server entrypoint (Express API + Vite SPA)
+├── src/
+│   ├── server/               # Modular Express backend
+│   │   ├── routes/           # Domain API routers (auth, profile, resume, jobs, dsa, etc.)
+│   │   ├── services/         # AIService (Gemini) and 7-Factor matching engine
+│   │   ├── security.ts       # Helmet, CORS, and rate limiting middleware
+│   │   ├── auth.ts           # JWT authentication and user session validation
+│   │   └── config.ts         # Environment validation
+│   ├── db/                   # Prisma client singleton and database repositories
+│   ├── pages/                # React pages (Dashboard, Resume, Jobs, DSA, Interviews, etc.)
+│   ├── components/           # Reusable UI components and Recharts visual widgets
+│   ├── hooks/                # React custom hooks (DSA progress, auth state)
+│   └── services/api.js       # Client API client with auth headers
+├── prisma/
+│   ├── schema.prisma         # Relational database schema
+│   └── seed.ts               # Database seed script
+├── docker-compose.yml        # PostgreSQL 16 container definition
+├── AUDIT.md                  # Comprehensive production audit
+├── IMPLEMENTATION_PLAN.md    # Multi-phase engineering roadmap
+└── phase1-smoke-test.mjs     # Automated HTTP and security integration smoke test
 ```
 
-## Setup and Installation
+---
+
+## Getting Started
 
 ### Prerequisites
-- Python 3.10 or higher
-- Node.js 18 or higher
-- MongoDB instance (Local or MongoDB Atlas)
-- Google Gemini API key
+- **Node.js**: v18.0.0 or higher
+- **Docker**: Docker Desktop or Docker engine (for PostgreSQL)
+- **Google Gemini API Key** (optional in development; platform operates in fallback mode if omitted)
 
-### Backend Setup
+### 1. Environment Setup
 
-1. Navigate to the backend directory:
-   ```bash
-   cd careerforge/backend
-   ```
+Copy `.env.example` to `.env`:
 
-2. Create and activate a virtual environment:
-   ```bash
-   python3 -m venv .venv
-   source .venv/bin/activate
-   ```
+```bash
+cp .env.example .env
+```
 
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+Verify or configure the variables in `.env`:
 
-4. Configure environment variables in `.env`:
-   ```env
-   MONGODB_URI=your_mongodb_connection_string
-   DATABASE_NAME=careerforge
-   SECRET_KEY=your_jwt_secret_key
-   JWT_ALGORITHM=HS256
-   ACCESS_TOKEN_EXPIRE_MINUTES=60
-   GEMINI_API_KEY=your_gemini_api_key
-   GEMINI_MODEL=gemini-2.5-flash
-   ```
+```env
+DATABASE_URL=postgresql://careerforge:careerforge@localhost:5432/careerforge
+JWT_SECRET=your_super_secret_jwt_key_here
+PORT=3000
+NODE_ENV=development
+GEMINI_API_KEY=your_gemini_api_key
+```
 
-5. Start the API server:
-   ```bash
-   uvicorn main:app --reload --port 8000
-   ```
+### 2. Start PostgreSQL Database
 
-### Frontend Setup
+Launch the PostgreSQL container using Docker Compose:
 
-1. Navigate to the frontend directory:
-   ```bash
-   cd careerforge/frontend
-   ```
+```bash
+docker compose up -d
+```
 
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
+### 3. Install Dependencies & Initialize Database
 
-3. Start the development server:
-   ```bash
-   npm run dev
-   ```
+```bash
+# Install Node dependencies
+npm install
 
-4. Open `http://localhost:5173` in a web browser.
+# Push database schema to PostgreSQL
+npm run db:migrate
 
-## API Reference
+# Seed initial jobs, companies, and catalogs
+npm run db:seed
+```
+
+### 4. Start Development Server
+
+```bash
+npm run dev
+```
+
+Visit [http://localhost:3000](http://localhost:3000) in your browser.
+
+---
+
+## Production Build & Tests
+
+```bash
+# Typecheck backend
+npm run typecheck
+
+# Build frontend and bundle server
+npm run build
+
+# Start production server
+npm run start
+
+# Run automated integration smoke tests
+node phase1-smoke-test.mjs
+```
+
+---
+
+## Core API Reference
 
 | Method | Endpoint | Description | Auth Required |
 | :--- | :--- | :--- | :--- |
-| GET | `/` | Health check | No |
-| GET | `/db-test` | Database connectivity test | No |
-| POST | `/signup` | Register a new user | No |
-| POST | `/login` | Authenticate user and receive JWT | No |
-| POST | `/upload-resume` | Upload PDF resume for parsing and ATS analysis | No |
-| GET | `/dsa/progress` | Fetch saved DSA progress for authenticated user | Yes |
-| PUT | `/dsa/progress/{topic}/{problem}` | Update problem status and notes | Yes |
-| DELETE | `/dsa/progress` | Reset user DSA progress | Yes |
+| `GET` | `/health`, `/api/health` | System and database health status | No |
+| `POST` | `/api/auth/signup` | Register new user account | No |
+| `POST` | `/api/auth/login` | Authenticate user & receive JWT | No |
+| `GET` | `/api/profile` | Retrieve user profile & settings | Yes |
+| `POST` | `/api/upload-resume` | Upload PDF resume for ATS parsing & scoring | Yes |
+| `GET` | `/api/jobs` | Search & filter jobs with 7-factor match scores | Optional |
+| `GET` | `/api/applications` | Retrieve user job application pipeline | Yes |
+| `GET` | `/api/dsa/progress` | Fetch DSA topic progress & stats | Yes |
+| `POST` | `/api/coding/review` | AI code review for DSA solution | Yes |
+| `GET` | `/api/market` | Market trends, skill premiums & salary distributions | No |
+| `GET` | `/api/progress/analytics` | 365-day activity calendar & readiness index | Yes |

@@ -38,7 +38,8 @@ function CustomSkillTooltip({ active, payload }) {
   return null;
 }
 
-export default function SkillDemandBarChart() {
+export default function SkillDemandBarChart({ data: propData }) {
+  const chartData = propData && propData.length > 0 ? propData : skillTrends;
   return (
     <div className="apple-liquid-glass rounded-2xl p-5 sm:p-6 border border-[#d4af37]/30 shadow-2xl space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -56,7 +57,7 @@ export default function SkillDemandBarChart() {
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             layout="vertical"
-            data={skillTrends}
+            data={chartData}
             margin={{ top: 10, right: 30, left: 35, bottom: 0 }}
           >
             <CartesianGrid strokeDasharray="3 3" stroke="#222" horizontal={false} />

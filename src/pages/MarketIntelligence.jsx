@@ -191,10 +191,10 @@ function MarketIntelligence() {
         </div>
 
         {/* Interactive Compensation Bands Chart */}
-        <SalaryDistributionChart />
+        <SalaryDistributionChart data={marketData?.salary_by_location} />
 
         {/* Top Skill Demand Growth Chart */}
-        <SkillDemandBarChart />
+        <SkillDemandBarChart data={marketData?.in_demand_skills} />
       </div>
     </AppLayout>
   );

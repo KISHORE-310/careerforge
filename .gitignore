@@ -3,13 +3,25 @@
 *.env
 backend/.env
 
+# Node & Build artifacts
+node_modules/
+dist/
+.data/
+*.zip
+
+# Database data, dumps and log files
+backend/data/
+*.wt
+*.turtle
+mongod.lock
+mongodb.log*
+*.log
+
 # Generated Python/runtime files
 __pycache__/
 *.py[cod]
 .pythonlibs/
+.venv/
 
 # Generated frontend output
 frontend/dist/
-frontend/node_modules/node_modules/
-
-node_modules/

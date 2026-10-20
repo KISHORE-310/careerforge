@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import {
   PieChart,
   Pie,
@@ -10,21 +11,8 @@ import {
   YAxis,
   CartesianGrid,
 } from "recharts";
-
-const difficultyData = [
-  { name: "Easy (Fundamentals)", value: 42, color: "#10b981", solved: 18, total: 20 },
-  { name: "Medium (Core Interview)", value: 48, color: "#d4af37", solved: 22, total: 35 },
-  { name: "Hard (Tier-1 Distinguisher)", value: 10, color: "#ef4444", solved: 5, total: 15 },
-];
-
-const topicMasteryData = [
-  { topic: "Arrays & Hash", mastery: 95, solved: 12 },
-  { topic: "Two Pointers", mastery: 90, solved: 8 },
-  { topic: "Sliding Window", mastery: 85, solved: 6 },
-  { topic: "Trees & Graphs", mastery: 80, solved: 10 },
-  { topic: "Dynamic Prog", mastery: 72, solved: 5 },
-  { topic: "Heap / Priority", mastery: 78, solved: 4 },
-];
+import { dsaProblems } from "../../data/dsa";
+import { useDSAProgress } from "../../hooks/useDSAProgress";
 
 function CustomPieTooltip({ active, payload }) {
   if (active && payload && payload.length) {
@@ -34,7 +22,7 @@ function CustomPieTooltip({ active, payload }) {
         <p className="text-white font-semibold font-mono border-b border-stone-800 pb-1">{d.name}</p>
         <p className="text-stone-300 font-mono flex items-center justify-between gap-4">
           <span>Solved Ratio:</span>
-          <strong className="text-white">{d.solved} / {d.total} ({Math.round((d.solved/d.total)*100)}%)</strong>
+          <strong className="text-white">{d.solved} / {d.total} ({d.total > 0 ? Math.round((d.solved / d.total) * 100) : 0}%)</strong>
         </p>
       </div>
     );
@@ -42,7 +30,72 @@ function CustomPieTooltip({ active, payload }) {
   return null;
 }
 
-export default function DSAPerformanceChart() {
+export default function DSAPerformanceChart({ topics: propTopics, progressState: propProgress }) {
+  const hookData = useDSAProgress();
+  const topics = propTopics || hookData.topics;
+  const progressState = propProgress || hookData.progressState;
+
+  const { difficultyData, totalSolved, topicMasteryData } = useMemo(() => {
+    let easySolved = 0, easyTotal = 0;
+    let medSolved = 0, medTotal = 0;
+    let hardSolved = 0, hardTotal = 0;
+
+    Object.entries(dsaProblems || {}).forEach(([slug, probs]) => {
+      probs.forEach((prob) => {
+        const isSolved = progressState?.problems?.[slug]?.[prob.id]?.status === "solved";
+        if (prob.difficulty === "Easy") {
+          easyTotal++;
+          if (isSolved) easySolved++;
+        } else if (prob.difficulty === "Medium") {
+          medTotal++;
+          if (isSolved) medSolved++;
+        } else if (prob.difficulty === "Hard") {
+          hardTotal++;
+          if (isSolved) hardSolved++;
+        }
+      });
+    });
+
+    const solvedSum = easySolved + medSolved + hardSolved;
+
+    const diffs = [
+      {
+        name: "Easy (Fundamentals)",
+        value: solvedSum > 0 ? Math.max(5, Math.round((easySolved / solvedSum) * 100)) : 33,
+        color: "#10b981",
+        solved: easySolved,
+        total: easyTotal,
+      },
+      {
+        name: "Medium (Core Interview)",
+        value: solvedSum > 0 ? Math.max(5, Math.round((medSolved / solvedSum) * 100)) : 33,
+        color: "#d4af37",
+        solved: medSolved,
+        total: medTotal,
+      },
+      {
+        name: "Hard (Tier-1 Distinguisher)",
+        value: solvedSum > 0 ? Math.max(5, Math.round((hardSolved / solvedSum) * 100)) : 34,
+        color: "#ef4444",
+        solved: hardSolved,
+        total: hardTotal,
+      },
+    ];
+
+    const mastery = (topics || []).map((t) => ({
+      topic: t.title.split("&")[0].trim().slice(0, 16),
+      mastery: t.progress || 0,
+      solved: t.solved || 0,
+      total: t.problemCount || 0,
+    }));
+
+    return {
+      difficultyData: diffs,
+      totalSolved: solvedSum,
+      topicMasteryData: mastery,
+    };
+  }, [topics, progressState]);
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
       {/* Difficulty Breakdown (5 cols) */}
@@ -76,7 +129,7 @@ export default function DSAPerformanceChart() {
             </PieChart>
           </ResponsiveContainer>
           <div className="absolute flex flex-col items-center pointer-events-none">
-            <span className="text-xl font-bold font-mono text-white">45</span>
+            <span className="text-xl font-bold font-mono text-white">{totalSolved}</span>
             <span className="text-[9px] uppercase tracking-wider text-stone-400 font-mono">Solved</span>
           </div>
         </div>
@@ -136,7 +189,7 @@ export default function DSAPerformanceChart() {
                       <div className="bg-[#0e0e0e]/95 border border-[#d4af37]/40 rounded-xl p-2.5 shadow-2xl text-xs space-y-1 font-mono">
                         <p className="text-white font-semibold">{d.topic}</p>
                         <p className="text-[#f5d77f]">Mastery: {d.mastery}%</p>
-                        <p className="text-stone-400">{d.solved} problems solved</p>
+                        <p className="text-stone-400">{d.solved} / {d.total} problems solved</p>
                       </div>
                     );
                   }
