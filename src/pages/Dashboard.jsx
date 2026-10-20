@@ -68,7 +68,7 @@ function Dashboard() {
 
   const readinessScore = analytics?.career_readiness_score ?? 0;
   const resumeScore = resumeData?.evaluation?.resume_score ?? analytics?.resume_ats_score;
-  const targetRole = profile?.target_role || profile?.profile?.targetRole || "Full Stack Engineer";
+  const targetRole = profile?.target_role || profile?.profile?.targetRole || "Not configured";
   const targetSalary = analytics?.target_salary || (profile?.profile?.targetSalary ? `$${profile.profile.targetSalary.toLocaleString()}` : null);
 
   const interviewApps = useMemo(() => {
@@ -188,14 +188,6 @@ function Dashboard() {
         link: "/learning",
       }))
       .slice(0, 3);
-
-    if (gaps.length === 0) {
-      return [
-        { name: "System Design Patterns", priority: "Recommended", link: "/learning" },
-        { name: "Distributed Caching", priority: "Recommended", link: "/learning" },
-        { name: "Cloud Architecture", priority: "Recommended", link: "/learning" },
-      ];
-    }
 
     return gaps;
   }, [profile, resumeData, recommendedJobs, roadmapData]);
@@ -337,7 +329,7 @@ function Dashboard() {
             <div>
               <p className="text-xs text-stone-400 font-light">Target Compensation</p>
               <h3 className="text-2xl font-bold text-white font-mono mt-0.5">
-                {targetSalary || "$130k - $170k"}
+                {targetSalary || <span className="text-lg text-stone-500 font-normal">Not set</span>}
               </h3>
               <p className="text-[11px] text-emerald-400 mt-1 flex items-center gap-1">
                 <TrendingUp size={11} /> {targetRole}
@@ -433,8 +425,8 @@ function Dashboard() {
                         </span>
                       </div>
                       <div className="flex items-center justify-between text-[10px] text-stone-500 pt-2 border-t border-stone-800/80">
-                        <span>Match: <strong className="text-stone-300 font-mono">{app.match_score || 85}%</strong></span>
-                        <span className="truncate max-w-[140px]">{app.next_step || "Under Review"}</span>
+                        <span>Match: <strong className="text-stone-300 font-mono">{app.match_score == null ? "Not available" : `${app.match_score}%`}</strong></span>
+                        <span className="truncate max-w-[140px]">{app.next_step || "No next step set"}</span>
                       </div>
                     </div>
                   ))}
@@ -503,7 +495,7 @@ function Dashboard() {
         </div>
 
         {/* Interactive Readiness Velocity Chart */}
-        <ReadinessAreaChart currentScore={readinessScore} />
+        <ReadinessAreaChart currentScore={readinessScore} history={analytics?.readiness_history || []} />
 
         {/* 52-Week Practice & Execution Heatmap */}
         <ActivityHeatmap
@@ -528,7 +520,7 @@ function Dashboard() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {recommendedJobs.map((job) => (
+            {recommendedJobs.length ? recommendedJobs.map((job) => (
               <div
                 key={job.id}
                 className="gold-card rounded-xl p-4 flex flex-col justify-between space-y-4"
@@ -559,7 +551,7 @@ function Dashboard() {
 
                 <div className="flex items-center justify-between pt-3 border-t border-stone-800/80">
                   <span className="text-xs font-medium text-stone-200 font-mono">
-                    {job.salary_range ? job.salary_range.split(" - ")[0] : (job.salary || "$150,000")}
+                    {job.salary_range || job.salary || "Not disclosed"}
                   </span>
                   <Link
                     to="/jobs"
@@ -569,7 +561,7 @@ function Dashboard() {
                   </Link>
                 </div>
               </div>
-            ))}
+            )) : <div className="md:col-span-3 rounded-xl border border-dashed border-stone-800 p-8 text-center text-xs text-stone-400">No high-match openings are available yet. Add skills or return after the next job sync.</div>}
           </div>
         </div>
       </div>

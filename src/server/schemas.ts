@@ -11,6 +11,10 @@ export const SignupSchema = z.object({
     .min(8, "Password must be at least 8 characters long")
     .max(128, "Password is too long"),
   full_name: z.string().trim().max(100).optional(),
+  // The Signup page's form field is named `name`, not `full_name`. Accepted
+  // as an alias so the name the user actually typed isn't silently stripped
+  // by this schema and replaced with the "Candidate" fallback.
+  name: z.string().trim().max(100).optional(),
 });
 
 export const LoginSchema = z.object({
@@ -35,6 +39,7 @@ export const ProfileUpdateSchema = z.object({
   github: z.string().trim().max(255).optional(),
   linkedin: z.string().trim().max(255).optional(),
   portfolio: z.string().trim().max(255).optional(),
+  career_goal: z.string().trim().max(2000).optional(),
 });
 
 export const OnboardingSchema = z.object({
@@ -42,6 +47,8 @@ export const OnboardingSchema = z.object({
   experience_level: z.string().trim().max(50).optional(),
   skills: z.array(z.string().trim().max(50)).max(50).optional(),
   target_salary: z.union([z.number(), z.string()]).optional(),
+  career_goal: z.string().trim().max(1000).optional(),
+  location: z.string().trim().max(100).optional(),
 });
 
 // =====================================
@@ -220,6 +227,10 @@ export const CodeReviewSchema = z.object({
   code: z.string().min(1, "Code is required").max(15000, "Code exceeds character limit"),
   language: z.string().trim().max(50).optional(),
   task_description: z.string().max(4000).optional(),
+  // The DSA Lab frontend (src/services/api.js, ProblemList.jsx, DSATracker.jsx)
+  // sends `problem_title`, not `task_description`. Accepted here so
+  // validateBody's schema-stripping doesn't silently discard it.
+  problem_title: z.string().trim().max(200).optional(),
 });
 
 export const CareerCoachChatSchema = z.object({
@@ -236,6 +247,13 @@ export const CareerCoachChatSchema = z.object({
 export const DsaProgressUpdateSchema = z.object({
   status: z.string().trim().max(50).optional(),
   notes: z.string().max(1000, "Notes exceed 1000 characters").optional(),
+  bookmarked: z.boolean().optional(),
+});
+
+export const SettingsUpdateSchema = z.object({
+  job_match_alerts: z.boolean().optional(),
+  interview_reminders: z.boolean().optional(),
+  weekly_digest: z.boolean().optional(),
 });
 
 export const RoadmapMilestoneUpdateSchema = z.object({

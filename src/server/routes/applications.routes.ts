@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { db } from "../../db/repositories";
-import { authenticateToken, optionalAuth, AuthenticatedRequest } from "../auth";
+import { authenticateToken, AuthenticatedRequest } from "../auth";
 import { aiLimiter, validateBody } from "../security";
 import { ApplicationCreateSchema, ApplicationUpdateSchema, AICoverLetterSchema } from "../schemas";
 import { aiService } from "../services/ai.service";
@@ -28,14 +28,14 @@ applicationsRouter.get("/", authenticateToken, async (req: Request, res: Respons
       id: a.id,
       company: a.company,
       role: a.role,
-      location: a.location || "Remote",
-      salary: a.salary || "$150,000",
+      location: a.location || "",
+      salary: a.salary || "",
       status: a.status,
       applied_date: a.appliedDate.toISOString().split("T")[0],
       job_id: a.jobId,
       match_score: calculateApplicationMatchScore(a.job, candidate),
       notes: a.notes || "",
-      next_step: a.nextStep || "Application Review",
+      next_step: a.nextStep || "",
     }));
 
     res.json({ success: true, count: formatted.length, applications: formatted });
@@ -176,7 +176,7 @@ applicationsRouter.delete("/:id", authenticateToken, async (req: Request, res: R
 applicationsRouter.post(
   ["/ai/generate", "/generate", "/ai-generate", "/"],
   aiLimiter,
-  optionalAuth,
+  authenticateToken,
   validateBody(AICoverLetterSchema),
   async (req: Request, res: Response) => {
     try {

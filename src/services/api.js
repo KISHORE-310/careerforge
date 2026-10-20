@@ -1,4 +1,7 @@
-const API_URL = "";
+// Same-origin by default (the Express server serves the built SPA).
+// Override with VITE_API_URL when the frontend is deployed separately.
+const API_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
+export const API_BASE_URL = API_URL;
 
 function getAuthHeaders() {
   const token = localStorage.getItem("token");
@@ -13,7 +16,12 @@ async function handleResponse(response) {
       if (!text || !text.trim()) {
         return { success: response.ok, status: response.status };
       }
-      return JSON.parse(text);
+      const data = JSON.parse(text);
+      if (response.status === 401 && typeof window !== "undefined") {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+      }
+      return data;
     }
 
     const rawText = await response.text();
@@ -52,6 +60,42 @@ export async function signup(formData) {
     body: JSON.stringify(formData),
   });
   return await handleResponse(response);
+}
+
+export async function demoLogin() {
+  const response = await fetch(`${API_URL}/api/auth/demo`, { method: "POST" });
+  return await handleResponse(response);
+}
+
+export async function getCurrentUser() {
+  let response = await fetch(`${API_URL}/api/auth/me`, { headers: getAuthHeaders() });
+  if (response.status === 401) {
+    const refreshed = await refreshSession();
+    if (refreshed.success) {
+      response = await fetch(`${API_URL}/api/auth/me`, { headers: getAuthHeaders() });
+    }
+  }
+  return await handleResponse(response);
+}
+
+export async function refreshSession() {
+  const response = await fetch(`${API_URL}/api/auth/refresh`, { method: "POST", credentials: "same-origin" });
+  const data = await handleResponse(response);
+  if (data.success && data.access_token) localStorage.setItem("token", data.access_token);
+  return data;
+}
+
+export async function logout() {
+  try {
+    const response = await fetch(`${API_URL}/api/auth/logout`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+    });
+    return await handleResponse(response);
+  } finally {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+  }
 }
 
 export async function getProfile() {
@@ -142,10 +186,11 @@ export async function saveResume(resume) {
   return await handleResponse(response);
 }
 
-export async function uploadResume(file, targetRole) {
+export async function uploadResume(file, targetRole, persist = false) {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("target_role", targetRole || "Senior Full Stack Engineer");
+  formData.append("persist", String(persist));
 
   const response = await fetch(`${API_URL}/api/upload-resume`, {
     method: "POST",
@@ -173,7 +218,7 @@ export async function aiRewriteResume(payload) {
 
 export async function getJobs(params = {}) {
   const query = new URLSearchParams(params).toString();
-  const response = await fetch(`${API_URL}/api/jobs?${query}`);
+  const response = await fetch(`${API_URL}/api/jobs?${query}`, { headers: getAuthHeaders() });
   return await handleResponse(response);
 }
 
@@ -400,6 +445,30 @@ export async function markAllNotificationsRead() {
   return await handleResponse(response);
 }
 
+export async function regenerateRoadmap() {
+  const response = await fetch(`${API_URL}/api/roadmap/regenerate`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+  });
+  return await handleResponse(response);
+}
+
+export async function getSettings() {
+  const response = await fetch(`${API_URL}/api/settings`, { headers: getAuthHeaders() });
+  return await handleResponse(response);
+}
+
+export async function updateSettings(data) {
+  const response = await fetch(`${API_URL}/api/settings`, { method: "PUT", headers: { "Content-Type": "application/json", ...getAuthHeaders() }, body: JSON.stringify(data) });
+  return await handleResponse(response);
+}
+
+export async function exportAccountData() {
+  const response = await fetch(`${API_URL}/api/settings/export`, { headers: getAuthHeaders() });
+  if (!response.ok) return await handleResponse(response);
+  return { success: true, data: await response.json() };
+}
+
 export async function getProgressAnalytics() {
   const response = await fetch(`${API_URL}/api/progress/analytics`, {
     headers: { ...getAuthHeaders() },
@@ -415,6 +484,11 @@ export async function getDSAProgress() {
   const response = await fetch(`${API_URL}/api/dsa/progress`, {
     headers: { ...getAuthHeaders() },
   });
+  return await handleResponse(response);
+}
+
+export async function getDSACatalog() {
+  const response = await fetch(`${API_URL}/api/dsa/catalog`);
   return await handleResponse(response);
 }
 

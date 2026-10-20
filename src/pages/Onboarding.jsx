@@ -13,7 +13,7 @@ import {
   BrainCircuit,
   ArrowRight,
 } from "lucide-react";
-import { completeOnboarding, uploadResume } from "../services/api";
+import { completeOnboarding, saveResume, uploadResume } from "../services/api";
 
 const TARGET_ROLES = [
   "Senior Full Stack Engineer",
@@ -33,13 +33,16 @@ function Onboarding() {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [parsedResume, setParsedResume] = useState(null);
 
   const [formData, setFormData] = useState({
-    career_goal: "Land a Senior Engineering role at a Tier-1 tech company within 90 days",
-    target_role: "Senior Full Stack Engineer",
-    experience_level: "Senior (4-6 years)",
-    target_salary: "$160,000 - $200,000",
-    skills: ["TypeScript", "React", "Node.js", "PostgreSQL", "System Design", "Docker"],
+    career_goal: "",
+    target_role: "",
+    experience_level: "",
+    target_salary: "",
+    location: "India",
+    skills: [],
     resumeFile: null,
   });
 
@@ -55,17 +58,32 @@ function Onboarding() {
 
   const handleFinish = async () => {
     setLoading(true);
+    setError("");
     try {
       if (formData.resumeFile) {
-        await uploadResume(formData.resumeFile, formData.target_role);
+        if (!parsedResume) {
+          const upload = await uploadResume(formData.resumeFile, formData.target_role, false);
+          if (!upload.success) throw new Error(upload.message || "Resume upload failed.");
+          const profile = upload.profile || {};
+          setParsedResume(profile);
+          setFormData((current) => ({
+            ...current,
+            skills: [...new Set([...(current.skills || []), ...(profile.technical_skills || [])])].slice(0, 50),
+          }));
+          return;
+        }
+        const saved = await saveResume(parsedResume);
+        if (!saved.success) throw new Error(saved.message || "Resume review could not be saved.");
       }
-      await completeOnboarding({
+      const result = await completeOnboarding({
         career_goal: formData.career_goal,
         target_role: formData.target_role,
         experience_level: formData.experience_level,
         target_salary: formData.target_salary,
+        location: formData.location,
         skills: formData.skills,
       });
+      if (!result.success) throw new Error(result.message || "Unable to complete onboarding.");
 
       // Update local storage user
       const existing = JSON.parse(localStorage.getItem("user") || "{}");
@@ -80,8 +98,7 @@ function Onboarding() {
 
       navigate("/dashboard");
     } catch (err) {
-      console.error(err);
-      navigate("/dashboard");
+      setError(err.message || "Unable to complete onboarding. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -204,8 +221,20 @@ function Onboarding() {
                 value={formData.target_salary}
                 onChange={(e) => setFormData({ ...formData, target_salary: e.target.value })}
                 className="w-full bg-stone-900 border border-stone-800 rounded-xl px-3.5 py-2.5 text-xs text-stone-200 outline-none focus:border-[#d4af37]"
-                placeholder="e.g. $160,000 - $200,000"
+                placeholder="e.g. ₹12,00,000 – ₹20,00,000 per year"
               />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-stone-300">Preferred job location</label>
+              <input
+                type="text"
+                value={formData.location}
+                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                className="w-full bg-stone-900 border border-stone-800 rounded-xl px-3.5 py-2.5 text-xs text-stone-200 outline-none focus:border-[#d4af37]"
+                placeholder="e.g. Bengaluru, India or Remote in India"
+              />
+              <p className="text-[11px] text-stone-500">Used to prioritize listings that explicitly accept candidates in your location.</p>
             </div>
           </div>
         )}
@@ -275,6 +304,7 @@ function Onboarding() {
                 accept="application/pdf"
                 onChange={(e) => {
                   if (e.target.files && e.target.files[0]) {
+                    setParsedResume(null);
                     setFormData({ ...formData, resumeFile: e.target.files[0] });
                   }
                 }}
@@ -289,6 +319,21 @@ function Onboarding() {
               </label>
             </div>
 
+            {parsedResume && (
+              <div className="space-y-3 rounded-xl border border-[#d4af37]/35 bg-[#d4af37]/5 p-4">
+                <div>
+                  <p className="text-xs font-semibold text-[#f5d77f]">Review extracted details before saving</p>
+                  <p className="mt-1 text-[11px] text-stone-400">Nothing has been added to your profile yet. Correct the AI extraction, then confirm it.</p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <input value={parsedResume.personal_info?.full_name || ""} onChange={(e) => setParsedResume({ ...parsedResume, personal_info: { ...(parsedResume.personal_info || {}), full_name: e.target.value } })} placeholder="Full name" className="rounded-lg border border-stone-700 bg-stone-950 px-3 py-2 text-xs text-white" />
+                  <input value={parsedResume.personal_info?.email || ""} onChange={(e) => setParsedResume({ ...parsedResume, personal_info: { ...(parsedResume.personal_info || {}), email: e.target.value } })} placeholder="Email" className="rounded-lg border border-stone-700 bg-stone-950 px-3 py-2 text-xs text-white" />
+                </div>
+                <textarea value={parsedResume.summary || ""} onChange={(e) => setParsedResume({ ...parsedResume, summary: e.target.value })} placeholder="Professional summary" rows={3} className="w-full rounded-lg border border-stone-700 bg-stone-950 px-3 py-2 text-xs text-white" />
+                <input value={(parsedResume.technical_skills || []).join(", ")} onChange={(e) => setParsedResume({ ...parsedResume, technical_skills: e.target.value.split(",").map((skill) => skill.trim()).filter(Boolean).slice(0, 100) })} placeholder="Skills, separated by commas" className="w-full rounded-lg border border-stone-700 bg-stone-950 px-3 py-2 text-xs text-white" />
+              </div>
+            )}
+
             <div className="p-3.5 rounded-xl bg-[#d4af37]/10 border border-[#d4af37]/30 flex items-center gap-3">
               <BrainCircuit size={20} className="text-[#d4af37] shrink-0" />
               <div className="text-xs">
@@ -297,6 +342,8 @@ function Onboarding() {
             </div>
           </div>
         )}
+
+        {error && <p role="alert" className="mt-5 rounded-lg border border-rose-500/30 bg-rose-950/30 p-3 text-xs text-rose-200">{error}</p>}
 
         {/* Action Buttons */}
         <div className="flex items-center justify-between pt-6 border-t border-stone-800/80 mt-8">
@@ -324,7 +371,7 @@ function Onboarding() {
               disabled={loading}
               className="flex items-center gap-1.5 px-6 py-2.5 rounded-xl bg-[#d4af37] text-black text-xs font-bold hover:bg-[#f5d77f] transition shadow-xl disabled:opacity-50"
             >
-              {loading ? "Synthesizing Profile..." : "Synthesize & Launch Dashboard"}
+              {loading ? "Processing..." : parsedResume ? "Confirm Resume & Launch" : "Review Resume & Launch"}
               <ArrowRight size={16} />
             </button>
           )}

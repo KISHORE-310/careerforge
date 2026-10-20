@@ -43,6 +43,7 @@ export function ProblemList({
   const [evaluatingCode, setEvaluatingCode] = useState(false);
   const [executionResult, setExecutionResult] = useState(null);
   const [aiFeedback, setAiFeedback] = useState(null);
+  const [aiError, setAiError] = useState("");
 
   const filteredProblems = problems.filter((problem) => {
     const matchesSearch =
@@ -75,6 +76,7 @@ export function ProblemList({
     );
     setExecutionResult(null);
     setAiFeedback(null);
+    setAiError("");
   };
 
   const handleRunLocalTests = () => {
@@ -118,11 +120,14 @@ export function ProblemList({
       });
 
       if (res && res.success) {
-        setAiFeedback(res.evaluation || res.review);
-        onStatusChange(topicSlug, activeCodeProblem.id, "solved");
+        setAiFeedback(res);
+        onStatusChange(topicSlug, activeCodeProblem.id, res.passed ? "solved" : "reviewing");
+      } else {
+        setAiError(res?.message || "AI grading could not be completed.");
       }
     } catch (err) {
       console.error("Error evaluating DSA submission:", err);
+      setAiError("AI grading could not be completed. Please try again.");
     } finally {
       setEvaluatingCode(false);
     }
@@ -478,17 +483,18 @@ export function ProblemList({
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-[11px] font-mono text-stone-300">
                     <div className="p-2 rounded bg-stone-900 border border-stone-800">
-                      Time: {aiFeedback.time_complexity || "O(N)"}
+                      Time: {aiFeedback.time_complexity || "Not provided"}
                     </div>
                     <div className="p-2 rounded bg-stone-900 border border-stone-800">
-                      Space: {aiFeedback.space_complexity || "O(1)"}
+                      Space: {aiFeedback.space_complexity || "Not provided"}
                     </div>
                   </div>
                   <p className="text-stone-300 text-[11px] font-light leading-relaxed pt-1">
-                    {aiFeedback.feedback || aiFeedback.summary || "Solid approach. Your hash table lookups ensure optimal linear time."}
+                    {aiFeedback.feedback || aiFeedback.summary || "No written feedback was returned."}
                   </p>
                 </div>
               )}
+              {aiError && <p role="alert" className="rounded-xl border border-rose-500/30 bg-rose-950/30 p-3 text-xs text-rose-200">{aiError}</p>}
             </div>
 
             {/* Bottom Controls */}

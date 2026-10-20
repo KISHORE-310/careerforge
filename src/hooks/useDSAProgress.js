@@ -1,45 +1,35 @@
 import { useState, useEffect } from "react";
-import dsaProblems, { dsaTopics } from "../data/dsa";
-
-const STORAGE_KEY = "careerforge_dsa_progress_v1";
+import { getDSACatalog, getDSAProgress, updateDSAProgress, resetDSAProgress } from "../services/api";
 
 export function useDSAProgress() {
-  const [progressState, setProgressState] = useState(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        return JSON.parse(saved);
-      }
-    } catch (e) {
-      console.error("Failed to load DSA progress from localStorage", e);
-    }
-    // Default initial seeded progress
-    return {
-      problems: {
-        "arrays-two-pointers": {
-          "two-sum": { status: "solved", bookmarked: true, notes: "O(n) time with hash table complement lookup" },
-          "three-sum": { status: "reviewing", bookmarked: false, notes: "Remember to skip duplicates in inner while loop" },
-        },
-        "stack-queue": {
-          "valid-parentheses": { status: "solved", bookmarked: false, notes: "Simple LIFO stack" },
-        },
-        "sliding-window": {
-          "longest-substring-without-repeating": { status: "solved", bookmarked: true, notes: "Map index of last occurrence" },
-        },
-        "trees-graphs": {
-          "invert-binary-tree": { status: "solved", bookmarked: false, notes: "Swap left and right subtrees recursively" },
-        },
-      },
-    };
-  });
+  const [progressState, setProgressState] = useState({ problems: {} });
+  const [catalog, setCatalog] = useState({ topics: [], problems: {} });
+  const [catalogLoading, setCatalogLoading] = useState(true);
+  const [catalogError, setCatalogError] = useState("");
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(progressState));
-    } catch (e) {
-      console.error("Failed to save DSA progress", e);
-    }
-  }, [progressState]);
+    getDSACatalog().then((result) => {
+      if (result?.success) setCatalog({ topics: result.topics || [], problems: result.problems || {} });
+      else setCatalogError(result?.message || "Unable to load the practice catalog.");
+    }).catch(() => setCatalogError("Unable to load the practice catalog.")).finally(() => setCatalogLoading(false));
+    getDSAProgress().then((result) => {
+      if (result.success) {
+        const problems = {};
+        Object.entries(result.progress || {}).forEach(([key, value]) => {
+          const [topic, problem] = key.split(":");
+          problems[topic] = { ...(problems[topic] || {}), [problem]: value };
+        });
+        setProgressState({ problems });
+      }
+    }).catch(() => setProgressState({ problems: {} }));
+  }, []);
+
+  const persist = (topicSlug, problemId, patch) => {
+    const current = progressState.problems?.[topicSlug]?.[problemId] || { status: "unsolved", bookmarked: false, notes: "" };
+    const next = { ...current, ...patch };
+    setProgressState((previous) => ({ ...previous, problems: { ...previous.problems, [topicSlug]: { ...(previous.problems?.[topicSlug] || {}), [problemId]: next } } }));
+    updateDSAProgress(topicSlug, problemId, next).catch(() => {});
+  };
 
   const getProblemProgress = (topicSlug, problemId) => {
     return (
@@ -52,69 +42,21 @@ export function useDSAProgress() {
   };
 
   const setProblemStatus = (topicSlug, problemId, status) => {
-    setProgressState((prev) => {
-      const topicProblems = prev.problems?.[topicSlug] || {};
-      const current = topicProblems[problemId] || { bookmarked: false, notes: "" };
-      return {
-        ...prev,
-        problems: {
-          ...prev.problems,
-          [topicSlug]: {
-            ...topicProblems,
-            [problemId]: {
-              ...current,
-              status,
-            },
-          },
-        },
-      };
-    });
+    persist(topicSlug, problemId, { status });
   };
 
   const toggleBookmark = (topicSlug, problemId) => {
-    setProgressState((prev) => {
-      const topicProblems = prev.problems?.[topicSlug] || {};
-      const current = topicProblems[problemId] || { status: "unsolved", notes: "" };
-      return {
-        ...prev,
-        problems: {
-          ...prev.problems,
-          [topicSlug]: {
-            ...topicProblems,
-            [problemId]: {
-              ...current,
-              bookmarked: !current.bookmarked,
-            },
-          },
-        },
-      };
-    });
+    const current = progressState.problems?.[topicSlug]?.[problemId] || { bookmarked: false };
+    persist(topicSlug, problemId, { bookmarked: !current.bookmarked });
   };
 
   const setProblemNote = (topicSlug, problemId, notes) => {
-    setProgressState((prev) => {
-      const topicProblems = prev.problems?.[topicSlug] || {};
-      const current = topicProblems[problemId] || { status: "unsolved", bookmarked: false };
-      return {
-        ...prev,
-        problems: {
-          ...prev.problems,
-          [topicSlug]: {
-            ...topicProblems,
-            [problemId]: {
-              ...current,
-              notes,
-            },
-          },
-        },
-      };
-    });
+    persist(topicSlug, problemId, { notes });
   };
 
   const resetProgress = () => {
-    const emptyState = { problems: {} };
-    setProgressState(emptyState);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(emptyState));
+    setProgressState({ problems: {} });
+    resetDSAProgress().catch(() => {});
   };
 
   // Calculate detailed stats and topic progresses
@@ -124,8 +66,8 @@ export function useDSAProgress() {
   let totalMinutes = 0;
   let solvedMinutes = 0;
 
-  const topics = dsaTopics.map((topic) => {
-    const topicProblemList = dsaProblems[topic.slug] || [];
+  const topics = catalog.topics.map((topic) => {
+    const topicProblemList = catalog.problems[topic.slug] || [];
     const count = topicProblemList.length;
     let solvedInTopic = 0;
 
@@ -159,8 +101,8 @@ export function useDSAProgress() {
     totalSolved,
     progressPercent,
     masteredCount,
-    solvedHours: Math.round(solvedMinutes / 60) || 12,
-    totalHours: Math.round(totalMinutes / 60) || 45,
+    solvedHours: Math.round(solvedMinutes / 60),
+    totalHours: Math.round(totalMinutes / 60),
   };
 
   return {
@@ -171,6 +113,9 @@ export function useDSAProgress() {
     setProblemNote,
     resetProgress,
     topics,
+    catalog,
+    catalogLoading,
+    catalogError,
     stats,
   };
 }

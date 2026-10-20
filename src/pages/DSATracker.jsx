@@ -16,9 +16,10 @@ import {
 import { useDSAProgress } from "../hooks/useDSAProgress";
 import { reviewCode } from "../services/api";
 import { Link } from "react-router-dom";
+import { ErrorPanel, LoadingPanel } from "../components/common/AsyncPanel";
 
 function DSATracker() {
-  const { resetProgress, stats, topics } = useDSAProgress();
+  const { resetProgress, stats, topics, catalogLoading, catalogError } = useDSAProgress();
   const [activeTab, setActiveTab] = useState("roadmap"); // "roadmap" | "playground"
   const [codeSnippet, setCodeSnippet] = useState(`function twoSum(nums: number[], target: number): number[] {
   const map = new Map<number, number>();
@@ -33,9 +34,11 @@ function DSATracker() {
 }`);
   const [codeReview, setCodeReview] = useState(null);
   const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewError, setReviewError] = useState("");
 
   const handleReviewCode = async () => {
     setReviewLoading(true);
+    setReviewError("");
     try {
       const res = await reviewCode({
         problem_title: "Two Sum / Hash Map Lookup",
@@ -43,10 +46,13 @@ function DSATracker() {
         code: codeSnippet,
       });
       if (res.success) {
-        setCodeReview(res.review);
+        setCodeReview(res);
+      } else {
+        setReviewError(res.message || "Code review could not be completed.");
       }
     } catch (err) {
       console.error(err);
+      setReviewError("Code review could not be completed. Please try again.");
     } finally {
       setReviewLoading(false);
     }
@@ -67,7 +73,7 @@ function DSATracker() {
               Coding Lab & Algorithm Mastery
             </h1>
             <p className="text-xs text-stone-400 font-light mt-0.5">
-              Curated pattern tracks, time/space complexity analyzers, and real-time AI code reviews.
+              Curated practice catalog, persisted progress, and AI code reviews. Company tags are study-context examples, not live hiring data.
             </p>
           </div>
 
@@ -98,12 +104,13 @@ function DSATracker() {
           </div>
         </div>
 
+        {catalogLoading ? <LoadingPanel label="Loading curated DSA catalog…" /> : catalogError ? <ErrorPanel message={catalogError} onRetry={() => window.location.reload()} /> : <>
         {/* Top Metric Strip */}
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-3.5">
           <div className="gold-card rounded-xl p-4">
             <span className="text-[11px] text-stone-400">Total Solved</span>
             <h3 className="text-xl font-bold font-mono text-white mt-0.5">{stats.totalSolved} / {stats.totalProblems}</h3>
-            <span className="text-[10px] text-emerald-400 font-mono">Top 10% Velocity</span>
+            <span className="text-[10px] text-stone-400 font-mono">Based on your saved progress</span>
           </div>
 
           <div className="gold-card rounded-xl p-4">
@@ -121,7 +128,7 @@ function DSATracker() {
           <div className="gold-card rounded-xl p-4 flex items-center justify-between">
             <div>
               <span className="text-[11px] text-stone-400">Reset Session</span>
-              <p className="text-[10px] text-stone-500 mt-0.5">Clear local progress</p>
+              <p className="text-[10px] text-stone-500 mt-0.5">Clear saved progress</p>
             </div>
             <button
               onClick={resetProgress}
@@ -133,7 +140,7 @@ function DSATracker() {
         </div>
 
         {/* DSA Mastery & Pattern Distribution Charts */}
-        <DSAPerformanceChart topics={topics} progressState={progressState} />
+        <DSAPerformanceChart stats={stats} topics={topics} />
 
         {activeTab === "roadmap" ? (
           <div className="space-y-6">
@@ -233,6 +240,7 @@ function DSATracker() {
                   </h4>
                 </div>
 
+                {reviewError && <p role="alert" className="rounded-lg border border-rose-500/30 bg-rose-950/30 p-3 text-xs text-rose-200">{reviewError}</p>}
                 {codeReview ? (
                   <div className="space-y-3 text-xs">
                     <div className="grid grid-cols-2 gap-2">
@@ -248,12 +256,12 @@ function DSATracker() {
 
                     <div className="p-3 rounded-xl bg-stone-900 border border-stone-800">
                       <span className="font-semibold text-white block mb-1">Code Quality:</span>
-                      <p className="text-stone-300 font-light leading-relaxed">{codeReview.quality_notes}</p>
+                      <p className="text-stone-300 font-light leading-relaxed">{codeReview.feedback || "No written feedback was returned."}</p>
                     </div>
 
                     <div className="p-3 rounded-xl bg-emerald-950/40 border border-emerald-800/60 text-emerald-300">
-                      <span className="font-semibold block mb-1">Tier-1 Interviewer Tip:</span>
-                      <p className="font-light">{codeReview.interviewer_tip}</p>
+                      <span className="font-semibold block mb-1">AI Improvement Suggestion:</span>
+                      <p className="font-light">{(codeReview.suggestions || []).join(" ") || "No additional suggestions were returned."}</p>
                     </div>
                   </div>
                 ) : (
@@ -265,6 +273,7 @@ function DSATracker() {
             </div>
           </div>
         )}
+        </>}
       </div>
     </AppLayout>
   );

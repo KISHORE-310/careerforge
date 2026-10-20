@@ -96,6 +96,7 @@ export const db = {
           github: data.github,
           linkedin: data.linkedin,
           portfolio: data.portfolio,
+          careerGoal: data.careerGoal ?? data.career_goal,
         },
         create: {
           userId,
@@ -107,6 +108,8 @@ export const db = {
           phone: data.phone || "",
           github: data.github || "",
           linkedin: data.linkedin || "",
+          portfolio: data.portfolio || "",
+          careerGoal: data.careerGoal || data.career_goal || "",
         },
       });
     },
@@ -199,6 +202,51 @@ export const db = {
         learningProgress: safeUser.learningProgress,
         dsaProgress: safeUser.dsaProgress,
       };
+    },
+  },
+
+  settings: {
+    async get(userId: string) {
+      return prisma.userSettings.upsert({ where: { userId }, update: {}, create: { userId } });
+    },
+    async update(userId: string, data: { jobMatchAlerts?: boolean; interviewReminders?: boolean; weeklyDigest?: boolean }) {
+      return prisma.userSettings.upsert({
+        where: { userId },
+        update: data,
+        create: { userId, ...data },
+      });
+    },
+  },
+
+  refreshTokens: {
+    async create(userId: string, tokenHash: string, expiresAt: Date) {
+      return prisma.refreshToken.create({ data: { userId, tokenHash, expiresAt } });
+    },
+    async consumeValid(tokenHash: string) {
+      return prisma.$transaction(async (tx) => {
+        const stored = await tx.refreshToken.findFirst({
+          where: { tokenHash, expiresAt: { gt: new Date() } },
+          include: { user: { include: { profile: true } } },
+        });
+        if (!stored) return null;
+        await tx.refreshToken.delete({ where: { id: stored.id } });
+        return stored;
+      });
+    },
+    async findValid(tokenHash: string) {
+      return prisma.refreshToken.findFirst({
+        where: { tokenHash, expiresAt: { gt: new Date() } },
+        include: { user: { include: { profile: true } } },
+      });
+    },
+    async revoke(tokenHash: string) {
+      return prisma.refreshToken.deleteMany({ where: { tokenHash } });
+    },
+    async revokeAllForUser(userId: string) {
+      return prisma.refreshToken.deleteMany({ where: { userId } });
+    },
+    async removeExpired() {
+      return prisma.refreshToken.deleteMany({ where: { expiresAt: { lte: new Date() } } });
     },
   },
 
@@ -392,6 +440,71 @@ export const db = {
           source: jobData.source === "live" ? "live" : "catalog",
           externalId: jobData.externalId || jobData.id || undefined,
         },
+      });
+    },
+    async upsertLive(jobData: any) {
+      const externalId = String(jobData.externalId || "").trim();
+      if (!externalId) throw new Error("A live job requires a stable external identifier.");
+      const companyName = String(jobData.companyName || "").trim();
+      if (!companyName) throw new Error("A live job requires a company name.");
+      // Link every verified live listing to a real Company row. Existing
+      // curated company records are preserved; only missing companies are
+      // created from the provider's directly supplied information.
+      const company = await prisma.company.upsert({
+        where: { name: companyName },
+        update: {},
+        create: {
+          name: companyName,
+          techStack: Array.isArray(jobData.skillsRequired) ? jobData.skillsRequired : [],
+          source: "live",
+        },
+      });
+      return prisma.job.upsert({
+        where: { source_externalId: { source: "live", externalId } },
+        update: {
+          title: jobData.title,
+          companyName,
+          companyId: company.id,
+          location: jobData.location || "Remote",
+          salary: jobData.salary || "",
+          type: jobData.type || "Full-time",
+          workplace: jobData.workplace || "Remote",
+          department: jobData.department || "",
+          description: jobData.description || "",
+          requirements: jobData.requirements || [],
+          skillsRequired: jobData.skillsRequired || [],
+          benefits: jobData.benefits || [],
+          experience: jobData.experience || "",
+          sourceUrl: jobData.sourceUrl || "",
+          expiresAt: jobData.expiresAt || null,
+          fetchedAt: new Date(),
+          isExpired: false,
+        },
+        create: {
+          externalId,
+          title: jobData.title,
+          companyName,
+          companyId: company.id,
+          location: jobData.location || "Remote",
+          salary: jobData.salary || "",
+          type: jobData.type || "Full-time",
+          workplace: jobData.workplace || "Remote",
+          department: jobData.department || "",
+          description: jobData.description || "",
+          requirements: jobData.requirements || [],
+          skillsRequired: jobData.skillsRequired || [],
+          benefits: jobData.benefits || [],
+          experience: jobData.experience || "",
+          sourceUrl: jobData.sourceUrl || "",
+          expiresAt: jobData.expiresAt || null,
+          source: "live",
+        },
+      });
+    },
+    async expireStaleLive(externalIdPrefix: string, cutoff: Date) {
+      return prisma.job.updateMany({
+        where: { source: "live", externalId: { startsWith: externalIdPrefix }, fetchedAt: { lt: cutoff }, isExpired: false },
+        data: { isExpired: true },
       });
     },
   },

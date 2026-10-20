@@ -17,39 +17,41 @@ import {
 } from "lucide-react";
 import { generateApplicationAI } from "../services/api";
 
-const PRESETS = [
+// Editable writing examples only; these do not represent the user's profile,
+// applications, or employment history.
+const EXAMPLE_TEMPLATES = [
   {
-    title: "Senior Full Stack @ Stripe",
-    company: "Stripe",
-    role: "Staff Software Engineer",
+    title: "Example cover letter",
+    company: "Example Company",
+    role: "Software Engineer",
     type: "cover_letter",
     tone: "Metric-Focused & Confident",
-    keyPoints: "Architected distributed payment routing engine processing 20M requests/day; reduced p99 latency by 35% with Redis caching and Go.",
+    keyPoints: "Replace this sample with your own measurable project impact, technologies, and outcomes.",
   },
   {
-    title: "Referral Request @ Google",
-    company: "Google",
-    role: "Senior Backend Engineer",
+    title: "Example referral request",
+    company: "Example Company",
+    role: "Backend Engineer",
     type: "referral_request",
     tone: "Warm & Collaborative",
-    keyPoints: "Built high-throughput Spanner microservices, active open-source contributor to Kubernetes client libraries.",
+    keyPoints: "Replace this sample with the work, connection context, and role that are true for you.",
   },
   {
-    title: "LinkedIn InMail @ Meta",
-    company: "Meta",
-    role: "Production Engineer",
+    title: "Example recruiter outreach",
+    company: "Example Company",
+    role: "Target Role",
     type: "linkedin_pitch",
     tone: "Concise & Direct (Recruiter-friendly)",
-    keyPoints: "Led infrastructure reliability scaling, reduced MTTR by 50% using eBPF observability and automated remediation.",
+    keyPoints: "Replace this sample with your own experience before generating a message.",
   },
 ];
 
 function ApplicationAI() {
   const [docType, setDocType] = useState("cover_letter");
-  const [company, setCompany] = useState("Stripe");
-  const [role, setRole] = useState("Senior Full Stack Engineer");
+  const [company, setCompany] = useState("");
+  const [role, setRole] = useState("");
   const [tone, setTone] = useState("Metric-Focused & Confident");
-  const [keyPoints, setKeyPoints] = useState("Designed high-throughput Kafka microservices and reduced p99 latency by 45% using Redis and Go.");
+  const [keyPoints, setKeyPoints] = useState("");
   const [loading, setLoading] = useState(false);
   const [generatedContent, setGeneratedContent] = useState("");
   const [copied, setCopied] = useState(false);
@@ -132,10 +134,8 @@ function ApplicationAI() {
 
         {/* Quick Presets Row */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1">
-          <span className="text-[11px] font-mono text-stone-500 shrink-0">
-            Example Templates (Reference Only):
-          </span>
-          {PRESETS.map((preset, idx) => (
+          <span className="text-[11px] font-mono text-stone-500 shrink-0">Example templates:</span>
+          {EXAMPLE_TEMPLATES.map((preset, idx) => (
             <button
               key={idx}
               onClick={() => handleApplyPreset(preset)}
@@ -146,6 +146,7 @@ function ApplicationAI() {
             </button>
           ))}
         </div>
+        <p className="-mt-4 text-[11px] text-stone-500">Examples are writing scaffolds only. Replace every field with your real target company, role, and experience before generating.</p>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left Form (5 cols) */}

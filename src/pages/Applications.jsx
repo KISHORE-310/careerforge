@@ -21,6 +21,7 @@ import {
   updateApplication,
   deleteApplication,
 } from "../services/api";
+import { EmptyPanel, ErrorPanel, LoadingPanel } from "../components/common/AsyncPanel";
 
 const STAGES = ["Wishlist", "Applied", "Screening", "Interview", "Offer", "Rejected"];
 
@@ -28,12 +29,16 @@ function Applications() {
   const [applications, setApplications] = useState([]);
   const [viewMode, setViewMode] = useState("kanban"); // "kanban" | "table"
   const [showAddModal, setShowAddModal] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [saving, setSaving] = useState(false);
   const [newApp, setNewApp] = useState({
     company: "",
-    role: "Senior Full Stack Engineer",
+    role: "",
     status: "Wishlist",
-    salary_range: "$180,000 - $220,000",
-    next_step: "Submit tailored resume",
+    salary_range: "",
+    next_step: "",
     notes: "",
   });
 
@@ -42,22 +47,30 @@ function Applications() {
   }, []);
 
   const fetchApps = async () => {
+    setLoading(true);
+    setLoadError("");
     try {
       const res = await getApplications();
       if (res && res.success) {
         setApplications(Array.isArray(res.applications) ? res.applications : []);
       } else {
         setApplications([]);
+        setLoadError(res?.message || "Unable to load applications.");
       }
     } catch (err) {
       console.error(err);
       setApplications([]);
+      setLoadError("Unable to load applications. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleCreate = async (e) => {
     e.preventDefault();
     if (!newApp.company.trim()) return;
+    setSaving(true);
+    setActionError("");
     try {
       const res = await addApplication(newApp);
       if (res && res.success && res.application) {
@@ -65,41 +78,54 @@ function Applications() {
         setShowAddModal(false);
         setNewApp({
           company: "",
-          role: "Senior Full Stack Engineer",
+          role: "",
           status: "Wishlist",
-          salary_range: "$180,000 - $220,000",
-          next_step: "Submit tailored resume",
+          salary_range: "",
+          next_step: "",
           notes: "",
         });
+      } else {
+        throw new Error(res?.message || "Unable to add application.");
       }
     } catch (err) {
       console.error(err);
+      setActionError(err.message || "Unable to add application.");
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleStatusChange = async (appId, newStatus) => {
+    setActionError("");
     try {
-      await updateApplication(appId, { status: newStatus });
+      const result = await updateApplication(appId, { status: newStatus });
+      if (!result?.success || !result.application) throw new Error(result?.message || "Unable to update application status.");
       setApplications((prev) =>
-        prev.map((a) => (a.id === appId ? { ...a, status: newStatus } : a))
+        prev.map((a) => (a.id === appId ? { ...a, ...result.application } : a))
       );
     } catch (err) {
       console.error(err);
+      setActionError(err.message || "Unable to update application status.");
     }
   };
 
   const handleDelete = async (appId) => {
+    if (!window.confirm("Delete this application from your tracker?")) return;
+    setActionError("");
     try {
-      await deleteApplication(appId);
+      const result = await deleteApplication(appId);
+      if (!result?.success) throw new Error(result?.message || "Unable to delete application.");
       setApplications((prev) => prev.filter((a) => a.id !== appId));
     } catch (err) {
       console.error(err);
+      setActionError(err.message || "Unable to delete application.");
     }
   };
 
   return (
     <AppLayout>
       <div className="space-y-6">
+        {actionError && <p role="alert" className="rounded-xl border border-rose-500/30 bg-rose-950/30 p-3 text-xs text-rose-200">{actionError}</p>}
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -153,6 +179,7 @@ function Applications() {
           </div>
         </div>
 
+        {loading ? <LoadingPanel label="Loading your application tracker…" /> : loadError ? <ErrorPanel message={loadError} onRetry={fetchApps} /> : applications.length === 0 ? <EmptyPanel title="No applications tracked yet" description="Add a role from the Jobs page or create your first application manually." /> : <>
         {/* KANBAN VIEW */}
         {viewMode === "kanban" && (
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3.5 overflow-x-auto pb-4">
@@ -203,7 +230,7 @@ function Applications() {
                         {/* Quick stage mover */}
                         <div className="pt-1.5 border-t border-stone-800/60 flex items-center justify-between">
                           <span className="text-[9px] font-mono text-stone-500">
-                            Fit: {app.match_score || 90}%
+                            Fit: {app.match_score == null ? "Not available" : `${app.match_score}%`}
                           </span>
 
                           <select
@@ -286,14 +313,15 @@ function Applications() {
             </table>
           </div>
         )}
+        </>}
 
         {/* Add Modal */}
         {showAddModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div role="dialog" aria-modal="true" aria-labelledby="application-dialog-title" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
             <div className="apple-liquid-glass rounded-2xl max-w-md w-full p-6 space-y-4 border border-[#d4af37]/40 shadow-2xl">
               <div className="flex items-center justify-between">
-                <h3 className="text-base font-serif-header text-white">Track New Application</h3>
-                <button onClick={() => setShowAddModal(false)} className="text-stone-400 hover:text-white">
+                <h3 id="application-dialog-title" className="text-base font-serif-header text-white">Track New Application</h3>
+                <button aria-label="Close application dialog" onClick={() => setShowAddModal(false)} className="text-stone-400 hover:text-white">
                   <X size={16} />
                 </button>
               </div>
@@ -306,7 +334,7 @@ function Applications() {
                     required
                     value={newApp.company}
                     onChange={(e) => setNewApp({ ...newApp, company: e.target.value })}
-                    placeholder="e.g. Stripe, Figma, Databricks"
+                    placeholder="e.g. a company name"
                     className="w-full bg-stone-900 border border-stone-800 rounded-xl px-3 py-2 text-stone-100 outline-none focus:border-[#d4af37]"
                   />
                 </div>
@@ -368,9 +396,10 @@ function Applications() {
                   </button>
                   <button
                     type="submit"
+                    disabled={saving}
                     className="px-5 py-2 rounded-xl bg-[#d4af37] text-black font-bold text-xs hover:bg-[#f5d77f]"
                   >
-                    Add to Pipeline
+                    {saving ? "Adding…" : "Add to Pipeline"}
                   </button>
                 </div>
               </form>

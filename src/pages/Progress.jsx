@@ -18,10 +18,12 @@ import {
   Code2,
 } from "lucide-react";
 import { getProgressAnalytics } from "../services/api";
+import { ErrorPanel, LoadingPanel } from "../components/common/AsyncPanel";
 
 function Progress() {
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     async function load() {
@@ -29,9 +31,10 @@ function Progress() {
         const res = await getProgressAnalytics();
         if (res?.success && res.analytics) {
           setAnalytics(res.analytics);
-        }
+        } else setError(res?.message || "Unable to load progress analytics.");
       } catch (err) {
         console.error("Failed to load progress analytics:", err);
+        setError("Unable to load progress analytics.");
       } finally {
         setLoading(false);
       }
@@ -66,6 +69,7 @@ function Progress() {
         </div>
 
         {/* Top 3 Metric Cards */}
+        {loading ? <LoadingPanel label="Loading progress analytics…" /> : error ? <ErrorPanel message={error} onRetry={() => window.location.reload()} /> : <>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="apple-liquid-glass rounded-2xl p-5 border border-[#d4af37]/30 shadow-xl flex items-center justify-between">
             <div>
@@ -125,7 +129,7 @@ function Progress() {
         {/* Dynamic Velocity Curve & Radar Analysis */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-7">
-            <ReadinessAreaChart currentScore={readinessScore} />
+            <ReadinessAreaChart currentScore={readinessScore} history={analytics?.readiness_history || []} />
           </div>
           <div className="lg:col-span-5">
             <CompetencyRadarChart analytics={analytics} />
@@ -141,6 +145,7 @@ function Progress() {
           title="52-Week Practice, Interview & Application Heatmap"
           subtitle="Detailed daily activity matrix with streak analytics, practice hours, and target milestone fulfillment."
         />
+        </>}
       </div>
     </AppLayout>
   );

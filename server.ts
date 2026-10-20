@@ -1,5 +1,6 @@
 import express, { Request, Response } from "express";
 import path from "path";
+import { randomUUID } from "crypto";
 import { createServer as createViteServer } from "vite";
 
 import { config } from "./src/server/config";
@@ -8,7 +9,6 @@ import {
   corsMiddleware,
   generalApiLimiter,
   globalErrorHandler,
-  requestIdMiddleware,
 } from "./src/server/security";
 import { prisma } from "./src/db/prisma";
 
@@ -26,15 +26,37 @@ import { dsaRouter } from "./src/server/routes/dsa.routes";
 import { coachRouter } from "./src/server/routes/coach.routes";
 import { notificationsRouter } from "./src/server/routes/notifications.routes";
 import { analyticsRouter } from "./src/server/routes/analytics.routes";
+import { settingsRouter } from "./src/server/routes/settings.routes";
 
-const app = express();
+export const app = express();
 const PORT = config.PORT;
+
+// Lightweight observability counters for uptime monitors and log-based alerting.
+// In-memory only: resets on process restart, per-instance (fine for a single
+// Cloud Run instance; aggregate via logs for multi-instance deployments).
+const apiMetrics = {
+  startedAt: new Date().toISOString(),
+  requests_total: 0,
+  errors_5xx_total: 0,
+};
 
 // Enable reverse proxy trust for accurate IP resolution behind Cloud Run / load balancers
 app.set("trust proxy", 1);
 
-// 0. Request ID Tracking
-app.use(requestIdMiddleware);
+app.use((req, res, next) => {
+  const requestId = req.header("x-request-id") || randomUUID();
+  (req as Request & { requestId?: string }).requestId = requestId;
+  res.setHeader("x-request-id", requestId);
+  const startedAt = Date.now();
+  res.on("finish", () => {
+    if (req.path.startsWith("/api")) {
+      apiMetrics.requests_total += 1;
+      if (res.statusCode >= 500) apiMetrics.errors_5xx_total += 1;
+      console.info(JSON.stringify({ level: "info", event: "api_request", requestId, method: req.method, path: req.path, status: res.statusCode, durationMs: Date.now() - startedAt }));
+    }
+  });
+  next();
+});
 
 // 1. Security Headers & CORS
 app.use(securityHeaders);
@@ -56,12 +78,45 @@ app.get(["/health", "/api/health"], async (_req: Request, res: Response) => {
     dbStatus = "disconnected";
   }
 
-  res.json({
-    status: "ok",
+  const healthy = dbStatus === "connected";
+  res.status(healthy ? 200 : 503).json({
+    status: healthy ? "ok" : "degraded",
     environment: config.NODE_ENV,
     database: dbStatus,
     ai_engine: config.GEMINI_API_KEY ? "configured" : "fallback_mode",
     timestamp: new Date().toISOString(),
+  });
+});
+
+app.get(["/ready", "/api/ready"], async (_req: Request, res: Response) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ status: "ready" });
+  } catch {
+    res.status(503).json({ status: "not_ready" });
+  }
+});
+
+app.get(["/metrics", "/api/metrics"], (req: Request, res: Response) => {
+  // Restrict to internal network / monitoring agents only.
+  // Set METRICS_TOKEN to a strong secret; monitors send it via
+  // "Authorization: Bearer <token>" or the X-Metrics-Token header.
+  const metricsToken = process.env.METRICS_TOKEN;
+  if (metricsToken) {
+    const provided =
+      req.header("x-metrics-token") ||
+      req.header("authorization")?.replace(/^bearer\s+/i, "");
+    if (!provided || provided !== metricsToken) {
+      return res.status(401).json({ error: "Metrics access requires a valid token." });
+    }
+  }
+  res.json({
+    status: "ok",
+    uptime_seconds: Math.floor(process.uptime()),
+    started_at: apiMetrics.startedAt,
+    memory_rss_mb: Math.round(process.memoryUsage().rss / 1024 / 1024),
+    requests_total: apiMetrics.requests_total,
+    errors_5xx_total: apiMetrics.errors_5xx_total,
   });
 });
 
@@ -85,6 +140,7 @@ app.use("/api/dsa", dsaRouter);
 app.use("/api/coding", coachRouter);
 app.use("/api/coach", coachRouter);
 app.use("/api/notifications", notificationsRouter);
+app.use("/api/settings", settingsRouter);
 app.use("/api/analytics", analyticsRouter);
 app.use("/api/progress", analyticsRouter);
 
@@ -125,4 +181,8 @@ async function startServer() {
   });
 }
 
-startServer();
+// Tests import the configured Express application directly; they must not
+// bind a TCP port or initialize Vite's development middleware.
+if (!process.env.VITEST) {
+  startServer();
+}

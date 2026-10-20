@@ -12,6 +12,7 @@ export interface ServerConfig {
   GEMINI_MODEL: string;
   FRONTEND_URL: string | null;
   DEMO_MODE: boolean;
+  JOOBLE_API_KEY: string | null;
 }
 
 function validateAndLoadConfig(): ServerConfig {
@@ -64,9 +65,10 @@ function validateAndLoadConfig(): ServerConfig {
     DATABASE_URL: dbUrl,
     JWT_SECRET: jwtSecret,
     GEMINI_API_KEY: process.env.GEMINI_API_KEY || null,
-    GEMINI_MODEL: process.env.GEMINI_MODEL || "gemini-3.7-flash",
+    GEMINI_MODEL: process.env.GEMINI_MODEL || "gemini-2.5-flash",
     FRONTEND_URL: process.env.FRONTEND_URL || null,
     DEMO_MODE: demoMode,
+    JOOBLE_API_KEY: process.env.JOOBLE_API_KEY || null,
   };
 
   return config;

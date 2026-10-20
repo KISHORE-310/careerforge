@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { db } from "../../db/repositories";
-import { authenticateToken, optionalAuth, AuthenticatedRequest } from "../auth";
+import { authenticateToken, AuthenticatedRequest } from "../auth";
 import { aiLimiter, validateBody, sanitizeAiInput } from "../security";
 import { InterviewStartSchema, InterviewMessageSchema } from "../schemas";
 import { aiService } from "../services/ai.service";
@@ -51,7 +51,7 @@ interviewsRouter.get("/", authenticateToken, async (req: Request, res: Response)
 interviewsRouter.post(
   "/start",
   aiLimiter,
-  optionalAuth,
+  authenticateToken,
   validateBody(InterviewStartSchema),
   async (req: Request, res: Response) => {
     try {
@@ -167,8 +167,8 @@ const handleInterviewMessageHandler = async (req: Request, res: Response) => {
   }
 };
 
-interviewsRouter.post("/:id/message", aiLimiter, optionalAuth, handleInterviewMessageHandler);
-interviewsRouter.post("/:id/respond", aiLimiter, optionalAuth, handleInterviewMessageHandler);
+interviewsRouter.post("/:id/message", aiLimiter, authenticateToken, handleInterviewMessageHandler);
+interviewsRouter.post("/:id/respond", aiLimiter, authenticateToken, handleInterviewMessageHandler);
 
 // POST /api/interviews/:id/evaluate & /api/interviews/:id/complete
 const evaluateInterviewHandler = async (req: Request, res: Response) => {
@@ -243,5 +243,5 @@ const evaluateInterviewHandler = async (req: Request, res: Response) => {
   }
 };
 
-interviewsRouter.post("/:id/evaluate", aiLimiter, optionalAuth, evaluateInterviewHandler);
-interviewsRouter.post("/:id/complete", aiLimiter, optionalAuth, evaluateInterviewHandler);
+interviewsRouter.post("/:id/evaluate", aiLimiter, authenticateToken, evaluateInterviewHandler);
+interviewsRouter.post("/:id/complete", aiLimiter, authenticateToken, evaluateInterviewHandler);

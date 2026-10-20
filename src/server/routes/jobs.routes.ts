@@ -1,7 +1,9 @@
 import { Router, Request, Response } from "express";
 import { db } from "../../db/repositories";
-import { optionalAuth, AuthenticatedRequest } from "../auth";
-import { scoreJobMatch, getCandidateContextForUser } from "../services/matching";
+import { optionalAuth } from "../auth";
+import { buildCandidateContext, scoreJobMatch } from "../services/matching";
+import { formatResumeResponse } from "../lib/resume";
+import { parseSalaryRange } from "../lib/data";
 
 export const jobsRouter = Router();
 
@@ -19,29 +21,50 @@ function formatPostedDaysAgo(fetchedAt: Date): string {
 jobsRouter.get("/", optionalAuth, async (req: Request, res: Response) => {
   try {
     const { query, role, type } = req.query;
-    const userId = (req as any).userId;
     const jobs = await db.jobs.list({
       search: (query as string) || (role as string),
       type: type as string,
     });
 
-    const candidate = userId ? await getCandidateContextForUser(userId) : null;
+    // Candidate context is built once per request (not once per job) from
+    // the authenticated user's real skills/profile/resume, then reused by
+    // scoreJobMatch for every job below. Unauthenticated requests never get
+    // a fabricated score -- match_score stays null.
+    const userId = (req as any).userId;
+    let candidate: Awaited<ReturnType<typeof buildCandidateContext>> | null = null;
+    if (userId) {
+      const [user, skills, resumeRecord] = await Promise.all([
+        db.users.findById(userId),
+        db.skills.listByUser(userId),
+        db.resumes.getPrimary(userId),
+      ]);
+      const resume = formatResumeResponse(resumeRecord, user);
+      candidate = await buildCandidateContext({ skills, profile: user?.profile, resume });
+    }
 
     const formatted = jobs.map((j) => {
-      const skills = Array.isArray(j.skillsRequired) ? (j.skillsRequired as string[]) : [];
+      // `requirements` and `skillsRequired` are native Json columns and are
+      // already parsed. The schema stores the company name on `companyName`
+      // (`company` is now the Company relation) and a single `salary` string
+      // (there are no salaryMin/salaryMax/salaryText columns).
+      const skills = Array.isArray(j.skillsRequired) ? j.skillsRequired : [];
       const requirements = Array.isArray(j.requirements) ? j.requirements : [];
-
-      let matchScore: number | null = null;
-      if (candidate && skills.length > 0) {
-        const match = scoreJobMatch(candidate, j);
-        matchScore = match.overall;
-      }
-
+      const match_score = candidate
+        ? scoreJobMatch(candidate, {
+            title: j.title,
+            description: j.description,
+            skillsRequired: skills,
+            experience: j.experience,
+            location: j.location,
+            workplace: j.workplace,
+            salary: j.salary,
+          }).overall
+        : null;
       return {
         id: j.id,
         title: j.title,
         company: j.companyName,
-        company_logo: (j as any).company?.logo || null,
+    company_logo: null,
         location: j.location,
         type: j.type,
         workplace: j.workplace,
@@ -49,7 +72,10 @@ jobsRouter.get("/", optionalAuth, async (req: Request, res: Response) => {
         description: j.description,
         requirements,
         skills_required: skills,
-        match_score: matchScore,
+        source: j.source,
+        source_name: j.externalId?.startsWith("jooble:") ? "Jooble" : j.externalId?.startsWith("remotive:") ? "Remotive" : "CareerForge catalog",
+        source_url: j.sourceUrl,
+        match_score,
         posted_days_ago: formatPostedDaysAgo(j.fetchedAt),
       };
     });
@@ -72,38 +98,22 @@ jobsRouter.get("/:id", optionalAuth, async (req: Request, res: Response) => {
     }
 
     const skillsReq: string[] = Array.isArray(job.skillsRequired) ? (job.skillsRequired as string[]) : [];
-    const candidate = userId ? await getCandidateContextForUser(userId) : null;
 
-    let overallScore: number | null = null;
-    let fitAnalysis: any = null;
-
-    if (candidate) {
-      if (skillsReq.length === 0) {
-        overallScore = null;
-        fitAnalysis = {
-          overall_match: null,
-          skills_match: null,
-          status: "Not available",
-          experience_alignment: "Listing does not specify required technical skills.",
-          matched_skills: [],
-          missing_skills: [],
-          key_strengths: ["Review job description directly for role expectations."],
-          recommended_action: "Examine detailed job description for team-specific requirements.",
-        };
-      } else {
-        const match = scoreJobMatch(candidate, job);
-        overallScore = match.overall;
-        fitAnalysis = {
-          overall_match: match.overall,
-          skills_match: match.skills,
-          experience_alignment: match.seniority >= 80 ? "Aligned with listed experience level" : "Requires additional domain seniority",
-          matched_skills: match.matched_skills,
-          missing_skills: match.missing_skills,
-          key_strengths: match.strengths,
-          recommended_action: match.explanation,
-        };
-      }
+    let userSkills: string[] = [];
+    if (userId) {
+      const skills = await db.skills.listByUser(userId);
+      userSkills = skills.map((s) => s.name.toLowerCase());
     }
+
+    const matched = skillsReq.filter((s) => userSkills.includes(s.toLowerCase()));
+    const missing = skillsReq.filter((s) => !userSkills.includes(s.toLowerCase()));
+    // Anonymous visitors receive null scores — no profile means no meaningful match.
+    const skillsMatchPct = !userId
+      ? null
+      : skillsReq.length > 0
+        ? Math.round((matched.length / skillsReq.length) * 100)
+        : null;
+    const overallScore = skillsMatchPct !== null ? Math.min(Math.max(skillsMatchPct, 40), 96) : null;
 
     res.json({
       success: true,
@@ -111,16 +121,28 @@ jobsRouter.get("/:id", optionalAuth, async (req: Request, res: Response) => {
         id: job.id,
         title: job.title,
         company: job.companyName,
-        company_logo: (job as any).company?.logo || null,
         location: job.location,
         type: job.type,
         workplace: job.workplace,
         salary_range: job.salary || "",
         description: job.description,
         skills_required: skillsReq,
+        source: job.source,
+        source_name: job.externalId?.startsWith("jooble:") ? "Jooble" : job.externalId?.startsWith("remotive:") ? "Remotive" : "CareerForge catalog",
+        source_url: job.sourceUrl,
         match_score: overallScore,
       },
-      fit_analysis: fitAnalysis,
+      fit_analysis: userId
+        ? {
+            overall_match: overallScore,
+            skills_match: skillsMatchPct,
+            experience_alignment: "Evaluated against candidate experience records",
+            matched_skills: matched,
+            missing_skills: missing,
+            key_strengths: matched.length > 0 ? matched.map((s) => `Demonstrated proficiency in ${s}`) : ["Transferable software engineering foundation"],
+            recommended_action: missing.length > 0 ? `Target hands-on practice with ${missing.slice(0, 3).join(", ")} to maximize job match score.` : "High technical alignment; prepare tailored cover letter and STAR stories.",
+          }
+        : { message: "Sign in to see your personalised job fit analysis." },
     });
   } catch (error: any) {
     res.status(500).json({ success: false, message: "Failed to evaluate job fit." });
@@ -130,122 +152,115 @@ jobsRouter.get("/:id", optionalAuth, async (req: Request, res: Response) => {
 export const companiesRouter = Router();
 export const marketRouter = Router();
 
-const sampleCompanies = [
-  {
-    id: "comp_1",
-    name: "Stripe",
+// Maps a Company row (db.companies.list()'s `jobs` relation already filtered
+// to isExpired: false) onto the response shape the frontend expects. Every
+// field is sourced from a real column -- no per-company literal remains.
+// `logo` is the one exception: the schema has no logo column, so the same
+// placeholder used elsewhere in this file is kept as-is (Phase 2 replaces
+// it) rather than solved here.
+function formatCompany(c: Awaited<ReturnType<typeof db.companies.list>>[number]) {
+  return {
+    id: c.id,
+    name: c.name,
     logo: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=60",
-    rating: 4.8,
-    open_roles: 14,
-    culture_score: 94,
-    interview_difficulty: "High",
-    headquarters: "San Francisco, CA",
-    description: "Financial infrastructure for the internet. Stripe builds APIs powering payments globally.",
-    tech_stack: ["Ruby", "TypeScript", "React", "Go", "PostgreSQL", "AWS"],
-  },
-  {
-    id: "comp_2",
-    name: "Anthropic",
-    logo: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=60",
-    rating: 4.9,
-    open_roles: 9,
-    culture_score: 98,
-    interview_difficulty: "Very High",
-    headquarters: "San Francisco, CA",
-    description: "AI safety and research company dedicated to building reliable, interpretable, and steerable AI systems.",
-    tech_stack: ["Python", "PyTorch", "TypeScript", "Rust", "JAX", "Distributed Computing"],
-  },
-  {
-    id: "comp_3",
-    name: "Vercel",
-    logo: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=60",
-    rating: 4.7,
-    open_roles: 8,
-    culture_score: 92,
-    interview_difficulty: "High",
-    headquarters: "San Francisco, CA",
-    description: "The Frontend Cloud platform enabling developers to build and deploy high-speed web apps.",
-    tech_stack: ["Next.js", "React", "TypeScript", "Rust", "Edge Infrastructure"],
-  },
-];
+    rating: c.rating,
+    // Live count of this company's currently non-expired jobs rather than a
+    // static column, so it can't go stale relative to the Job table.
+    open_roles: c.jobs.length,
+    culture_score: c.recommendRate,
+    interview_difficulty: c.hiringVelocity,
+    headquarters: c.headquarters,
+    description: c.description,
+    culture: c.culture,
+    avg_salary: c.avgSalary,
+    source: c.source,
+    tech_stack: Array.isArray(c.techStack) ? c.techStack : [],
+  };
+}
 
-const sampleMarketData = {
-  demand_index: 87,
-  top_paying_skills: [
-    { skill: "Distributed Systems", avg_salary: "$195,000", growth_pct: "+24%" },
-    { skill: "LLM / AI Orchestration", avg_salary: "$210,000", growth_pct: "+62%" },
-    { skill: "TypeScript / Full Stack", avg_salary: "$175,000", growth_pct: "+18%" },
-  ],
-  trending_roles: [
-    {
-      role: "Distributed Systems Engineer",
-      demand_growth: "+38% YoY",
-      avg_salary: "$185,000 - $240,000",
-      top_skills: ["Go", "Kafka", "Kubernetes"],
-    },
-    {
-      role: "AI / ML Infrastructure Engineer",
-      demand_growth: "+45% YoY",
-      avg_salary: "$195,000 - $265,000",
-      top_skills: ["PyTorch", "CUDA", "Ray"],
-    },
-    {
-      role: "Senior Full Stack Architect",
-      demand_growth: "+28% YoY",
-      avg_salary: "$170,000 - $225,000",
-      top_skills: ["TypeScript", "Next.js", "PostgreSQL"],
-    },
-    {
-      role: "Cloud & Platform Security Lead",
-      demand_growth: "+31% YoY",
-      avg_salary: "$180,000 - $235,000",
-      top_skills: ["Terraform", "AWS", "Zero Trust"],
-    },
-  ],
-  in_demand_skills: [
-    { skill: "Kafka & Flink", growth: 42, premium: "+22%", category: "Streaming" },
-    { skill: "Rust Systems", growth: 38, premium: "+25%", category: "Languages" },
-    { skill: "Distributed AI Infra", growth: 48, premium: "+30%", category: "AI/ML" },
-    { skill: "Kubernetes & Istio", growth: 31, premium: "+18%", category: "DevOps" },
-    { skill: "GraphQL & gRPC", growth: 26, premium: "+14%", category: "Backend" },
-    { skill: "PostgreSQL & Raft", growth: 29, premium: "+16%", category: "Databases" },
-  ],
-  salary_by_location: {
-    sf: [
-      { level: "Mid-Level (L4)", base: 145, equity: 45, bonus: 20, total: 210 },
-      { level: "Senior (L5)", base: 185, equity: 95, bonus: 35, total: 315 },
-      { level: "Staff (L6)", base: 235, equity: 180, bonus: 55, total: 470 },
-      { level: "Principal (L7)", base: 285, equity: 320, bonus: 85, total: 690 },
-    ],
-    nyc: [
-      { level: "Mid-Level (L4)", base: 140, equity: 40, bonus: 20, total: 200 },
-      { level: "Senior (L5)", base: 175, equity: 85, bonus: 35, total: 295 },
-      { level: "Staff (L6)", base: 220, equity: 165, bonus: 50, total: 435 },
-      { level: "Principal (L7)", base: 270, equity: 290, bonus: 80, total: 640 },
-    ],
-    remote: [
-      { level: "Mid-Level (L4)", base: 135, equity: 35, bonus: 15, total: 185 },
-      { level: "Senior (L5)", base: 170, equity: 75, bonus: 30, total: 275 },
-      { level: "Staff (L6)", base: 210, equity: 150, bonus: 45, total: 405 },
-      { level: "Principal (L7)", base: 255, equity: 260, bonus: 70, total: 585 },
-    ],
-  },
-};
+// Derives a top-paying-skills signal from CareerForge's own stored Job
+// catalog (skillsRequired + salary) instead of a static literal.
+// `demand_index` and each skill's `growth_pct` are intentionally left null:
+// an honest market-wide demand score or salary trend needs an external
+// labor-market data source (real posting volume, historical salary
+// snapshots) that this internal job catalog can't truthfully represent on
+// its own -- computing an arbitrary function of our own handful of listings
+// and labeling it "market demand" would just swap one fabricated number for
+// another, not fix the underlying problem.
+async function computeMarketInsights() {
+  const jobs = await db.jobs.list({ limit: 200 });
 
-companiesRouter.get(["/", "/companies"], (_req: Request, res: Response) => {
-  res.json({ success: true, companies: sampleCompanies });
+  const bySkill = new Map<string, number[]>();
+  for (const job of jobs) {
+    const { min, max } = parseSalaryRange(job.salary);
+    if (min == null) continue;
+    const mid = max != null ? (min + max) / 2 : min;
+
+    const skills = Array.isArray(job.skillsRequired) ? job.skillsRequired : [];
+    for (const skill of skills) {
+      if (typeof skill !== "string" || !skill.trim()) continue;
+      const list = bySkill.get(skill) || [];
+      list.push(mid);
+      bySkill.set(skill, list);
+    }
+  }
+
+  const top_paying_skills = [...bySkill.entries()]
+    .map(([skill, salaries]) => ({
+      skill,
+      avgSalaryValue: salaries.reduce((a, b) => a + b, 0) / salaries.length,
+    }))
+    .sort((a, b) => b.avgSalaryValue - a.avgSalaryValue)
+    .slice(0, 5)
+    .map(({ skill, avgSalaryValue }) => ({
+      skill,
+      // Explicit "en-US" -- toLocaleString() with no locale argument follows
+      // the host's default ICU locale, which on some systems groups digits
+      // Indian-style ("2,60,000") instead of "260,000".
+      avg_salary: `$${Math.round(avgSalaryValue).toLocaleString("en-US")}`,
+      growth_pct: null,
+    }));
+
+  return {
+    demand_index: null,
+    top_paying_skills,
+  };
+}
+
+companiesRouter.get(["/", "/companies"], async (_req: Request, res: Response) => {
+  try {
+    const companies = await db.companies.list();
+    res.json({ success: true, companies: companies.map(formatCompany) });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: "Failed to retrieve companies." });
+  }
 });
 
-marketRouter.get(["/", "/market"], (_req: Request, res: Response) => {
-  res.json({ success: true, market: sampleMarketData });
+marketRouter.get(["/", "/market"], async (_req: Request, res: Response) => {
+  try {
+    const market = await computeMarketInsights();
+    res.json({ success: true, market });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: "Failed to retrieve market intelligence." });
+  }
 });
 
 // GET /api/companies (via jobs router fallback)
-jobsRouter.get(["/meta/companies", "/companies"], (_req: Request, res: Response) => {
-  res.json({ success: true, companies: sampleCompanies });
+jobsRouter.get(["/meta/companies", "/companies"], async (_req: Request, res: Response) => {
+  try {
+    const companies = await db.companies.list();
+    res.json({ success: true, companies: companies.map(formatCompany) });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: "Failed to retrieve companies." });
+  }
 });
 
 // GET /api/market (via jobs router fallback)
-jobsRouter.get(["/meta/market", "/market"], (_req: Request, res: Response) => {
-  res.json({ success: true, market: sampleMarketData });
+jobsRouter.get(["/meta/market", "/market"], async (_req: Request, res: Response) => {
+  try {
+    const market = await computeMarketInsights();
+    res.json({ success: true, market });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: "Failed to retrieve market intelligence." });
+  }
 });

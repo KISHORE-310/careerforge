@@ -45,22 +45,37 @@ coachRouter.post("/chat", aiLimiter, authenticateToken, validateBody(CareerCoach
 });
 
 // POST /api/coding/review, /api/coach/coding-review
+<<<<<<< HEAD
 // Requires authentication: AI review consumes Gemini quota and must be scoped
 // to authenticated users to prevent abuse and enable per-user rate enforcement.
 coachRouter.post(["/review", "/coding-review"], aiLimiter, authenticateToken, validateBody(CodeReviewSchema), async (req: Request, res: Response) => {
   try {
     const { code, language = "JavaScript", task_description: problem_title = "Code Implementation" } = req.body;
+=======
+coachRouter.post(
+  ["/review", "/coding-review", "/"],
+  aiLimiter,
+  authenticateToken,
+  validateBody(CodeReviewSchema),
+  async (req: Request, res: Response) => {
+    try {
+      const { code, language = "JavaScript", problem_title = "Code Implementation" } = req.body;
+      if (!code || !code.trim()) {
+        return res.status(400).json({ success: false, message: "No code provided for review." });
+      }
+>>>>>>> backend-development
 
-    const review = await aiService.reviewDsaCode(code, problem_title, language);
-    res.json({ success: true, ...review });
-  } catch (error: any) {
-    console.error("[Coding Review Error]:", error?.message || error);
-    const isMissingKey = error?.message?.includes("GEMINI_API_KEY");
-    res.status(500).json({
-      success: false,
-      message: isMissingKey
-        ? "AI Code Review requires GEMINI_API_KEY to be configured in server environment."
-        : error?.message || "Code review service encountered an error.",
-    });
+      const review = await aiService.reviewDsaCode(code, problem_title, language);
+      res.json({ success: true, ...review });
+    } catch (error: any) {
+      console.error("[Coding Review Error]:", error?.message || error);
+      const isMissingKey = error?.message?.includes("GEMINI_API_KEY");
+      res.status(500).json({
+        success: false,
+        message: isMissingKey
+          ? "AI Code Review requires GEMINI_API_KEY to be configured in server environment."
+          : error?.message || "Code review service encountered an error.",
+      });
+    }
   }
-});
+);

@@ -2,7 +2,7 @@ import { Router, Request, Response } from "express";
 import multer from "multer";
 import pdfParse from "pdf-parse";
 import { db } from "../../db/repositories";
-import { authenticateToken, optionalAuth, AuthenticatedRequest } from "../auth";
+import { authenticateToken, AuthenticatedRequest } from "../auth";
 import { uploadLimiter, aiLimiter, validateBody, validatePdfFile, sanitizeAiInput } from "../security";
 import { ResumeSchema, AIRewriteSchema } from "../schemas";
 import { aiService } from "../services/ai.service";
@@ -14,6 +14,37 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
 });
+
+const COMMON_SKILLS = [
+  "JavaScript", "TypeScript", "React", "Next.js", "Node.js", "Express", "Python", "Java", "C++",
+  "SQL", "PostgreSQL", "MongoDB", "Redis", "Docker", "Kubernetes", "AWS", "Azure", "GCP",
+  "Git", "GraphQL", "REST", "FastAPI", "Django", "Spring Boot", "TensorFlow", "PyTorch",
+  "Machine Learning", "System Design", "Kafka", "Linux",
+];
+
+function parseResumeLocally(text: string) {
+  const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const email = text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0] || "";
+  const phone = text.match(/(?:\+?\d[\d\s().-]{7,}\d)/)?.[0]?.trim() || "";
+  const linkedin = text.match(/https?:\/\/(?:www\.)?linkedin\.com\/[^\s)]+/i)?.[0] || "";
+  const github = text.match(/https?:\/\/(?:www\.)?github\.com\/[^\s)]+/i)?.[0] || "";
+  const lower = text.toLowerCase();
+  const technical_skills = COMMON_SKILLS.filter((skill) => lower.includes(skill.toLowerCase()));
+  const contactLineIndexes = new Set(lines.map((line, index) =>
+    (email && line.includes(email)) || (phone && line.includes(phone)) || /linkedin|github|portfolio/i.test(line) ? index : -1
+  ).filter((index) => index >= 0));
+  const full_name = lines.find((line, index) =>
+    index < 5 && !contactLineIndexes.has(index) && !/@|https?:\/\//i.test(line) && /^[A-Za-z][A-Za-z .'-]{2,80}$/.test(line)
+  ) || "Candidate";
+  const summaryCandidates = lines.filter((line) => line.length >= 80 && line.length <= 700 && !/@|https?:\/\//i.test(line));
+
+  return {
+    personal_info: { full_name, email, phone, location: "", linkedin, github, portfolio: "" },
+    summary: summaryCandidates[0] || "",
+    education: [], experience: [], projects: [], certifications: [],
+    technical_skills, soft_skills: [], achievements: [], languages: [],
+  };
+}
 
 export function calculateResumeScore(profile: any) {
   if (!profile) {
@@ -113,7 +144,7 @@ export function calculateResumeScore(profile: any) {
   score += certScore;
   breakdown.certifications = certScore;
 
-  const rawPercent = Math.round((score / 80) * 100);
+  const rawPercent = Math.round((score / 96) * 100);
   const normalizedScore = Math.min(Math.max(rawPercent, 0), 98);
   let grade = "Needs Improvement";
   if (normalizedScore >= 90) grade = "Excellent";
@@ -192,6 +223,7 @@ resumeRouter.put("/", authenticateToken, async (req: Request, res: Response) => 
 resumeRouter.post(
   "/ai-rewrite",
   aiLimiter,
+  authenticateToken,
   validateBody(AIRewriteSchema),
   async (req: Request, res: Response) => {
     try {
@@ -221,13 +253,14 @@ resumeRouter.post(
 resumeRouter.post(
   ["/", "/upload"],
   uploadLimiter,
-  optionalAuth,
+  authenticateToken,
   upload.single("file"),
   async (req: Request, res: Response) => {
     try {
       const file = req.file;
       const targetRole = sanitizeAiInput((req.body.target_role as string) || "Full Stack Engineer", 100);
-      const userId = (req as any).userId;
+      const persist = req.body.persist === "true";
+      const userId = (req as AuthenticatedRequest).userId;
 
       const fileValidation = validatePdfFile(file);
       if (!fileValidation.isValid) {
@@ -257,7 +290,10 @@ resumeRouter.post(
         });
       }
 
-      const profile = await aiService.parseResume(extractedText, targetRole);
+      const usingLocalParser = !process.env.GEMINI_API_KEY;
+      const profile = usingLocalParser
+        ? parseResumeLocally(extractedText)
+        : await aiService.parseResume(extractedText, targetRole);
 
       if (!profile || !profile.personal_info) {
         return res.status(502).json({
@@ -268,7 +304,7 @@ resumeRouter.post(
 
       const resumeScore = calculateResumeScore(profile);
 
-      if (userId) {
+      if (persist) {
         await db.resumes.upsertResume(userId, {
           ...profile,
           atsScore: resumeScore.resume_score,
@@ -295,19 +331,20 @@ resumeRouter.post(
 
       res.json({
         success: true,
-        message: "Resume processed successfully.",
+        message: usingLocalParser
+          ? "Resume processed with local text extraction. Add GEMINI_API_KEY to enable AI-enhanced parsing."
+          : "Resume processed successfully.",
+        parser_mode: usingLocalParser ? "local" : "gemini",
+        requires_review: !persist,
         profile,
         resume_score: resumeScore,
         target_role: targetRole,
       });
     } catch (error: any) {
       console.error("[Resume Upload Error]:", error?.message || error);
-      const isMissingKey = error?.message?.includes("GEMINI_API_KEY");
       res.status(500).json({
         success: false,
-        message: isMissingKey
-          ? "Resume AI Parsing requires GEMINI_API_KEY to be configured in server environment."
-          : error?.message || "Resume processing failed.",
+        message: error?.message || "Resume processing failed.",
       });
     }
   }
