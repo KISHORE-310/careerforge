@@ -1,1 +1,0 @@
-{"root":["./src/app.tsx","./src/api.ts","./src/main.tsx","./src/types.ts","./src/vite-env.d.ts","./src/components/eventfeed.tsx","./src/components/mapview.tsx","./src/components/metricsbar.tsx","./src/components/misplacedqueue.tsx","./src/components/recoverypanel.tsx"],"version":"5.9.3"}

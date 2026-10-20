@@ -1,23 +1,48 @@
-# Local secrets and environment configuration
+# Environment & Local Secrets
 .env
 *.env
-backend/.env
+.env.*
+!.env.example
 
-# Generated Python/runtime files
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+test-output.log
+
+# Node & Build artifacts
+node_modules/
+dist/
+dist-ssr/
+.data/
+*.local
+
+# Python / Legacy caches
 __pycache__/
 *.py[cod]
+*$py.class
+*.pyc
+.venv/
+venv/
 .pythonlibs/
 
-# Generated frontend output
-frontend/dist/
-frontend/node_modules/node_modules/
+# Database files
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
 
-node_modules/
+# Archives
+*.zip
+*.tar.gz
 
-# Root build/runtime output
-dist/
-.data/
-backend/mongodb.log
-
-# Local agent tooling
+# Local agent tooling & worktrees
 .freebuff/
+piggyback/
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo

@@ -4,17 +4,18 @@ import { authenticateToken, AuthenticatedRequest } from "../auth";
 import { aiLimiter, validateBody } from "../security";
 import { ApplicationCreateSchema, ApplicationUpdateSchema, AICoverLetterSchema } from "../schemas";
 import { aiService } from "../services/ai.service";
-import { scoreJobMatch, getCandidateContextForUser } from "../services/matching";
 
 export const applicationsRouter = Router();
 
 // Real match score for an application, computed using the platform's
 // unified 7-factor matching engine against the candidate's actual profile.
-function calculateApplicationMatchScore(job: any, candidate: any): number | null {
+function calculateApplicationMatchScore(job: any, userSkillNames: string[]): number | null {
   const skillsReq: string[] = Array.isArray(job?.skillsRequired) ? job.skillsRequired : [];
-  if (!job || !candidate || skillsReq.length === 0) return null;
-  const match = scoreJobMatch(candidate, job);
-  return match.overall;
+  if (!job || skillsReq.length === 0) return null;
+
+  const matched = skillsReq.filter((s) => userSkillNames.includes(s.toLowerCase()));
+  const skillsMatchPct = Math.round((matched.length / skillsReq.length) * 100);
+  return Math.min(Math.max(skillsMatchPct, 40), 96);
 }
 
 // GET /api/applications
@@ -22,7 +23,8 @@ applicationsRouter.get("/", authenticateToken, async (req: Request, res: Respons
   try {
     const userId = (req as AuthenticatedRequest).userId;
     const apps = await db.applications.listByUser(userId);
-    const candidate = await getCandidateContextForUser(userId);
+    const skills = await db.skills.listByUser(userId);
+    const userSkillNames = skills.map((s) => s.name.toLowerCase());
 
     const formatted = apps.map((a: any) => ({
       id: a.id,
@@ -33,7 +35,7 @@ applicationsRouter.get("/", authenticateToken, async (req: Request, res: Respons
       status: a.status,
       applied_date: a.appliedDate.toISOString().split("T")[0],
       job_id: a.jobId,
-      match_score: calculateApplicationMatchScore(a.job, candidate),
+      match_score: calculateApplicationMatchScore(a.job, userSkillNames),
       notes: a.notes || "",
       next_step: a.nextStep || "",
     }));
@@ -83,7 +85,8 @@ applicationsRouter.post(
         role: newApp.role,
       });
 
-      const candidate = await getCandidateContextForUser(userId);
+      const skills = await db.skills.listByUser(userId);
+      const userSkillNames = skills.map((s) => s.name.toLowerCase());
 
       res.status(201).json({
         success: true,
@@ -96,7 +99,7 @@ applicationsRouter.post(
           status: newApp.status,
           applied_date: newApp.appliedDate.toISOString().split("T")[0],
           job_id: newApp.jobId,
-          match_score: calculateApplicationMatchScore(linkedJob, candidate),
+          match_score: calculateApplicationMatchScore(linkedJob, userSkillNames),
           notes: newApp.notes,
           next_step: newApp.nextStep,
         },
@@ -137,7 +140,8 @@ applicationsRouter.put(
         company: updated.company,
       });
 
-      const candidate = await getCandidateContextForUser(userId);
+      const skills = await db.skills.listByUser(userId);
+      const userSkillNames = skills.map((s) => s.name.toLowerCase());
 
       res.json({
         success: true,
@@ -150,7 +154,7 @@ applicationsRouter.put(
           status: updated.status,
           applied_date: updated.appliedDate.toISOString().split("T")[0],
           job_id: updated.jobId,
-          match_score: calculateApplicationMatchScore(updated.job, candidate),
+          match_score: calculateApplicationMatchScore(updated.job, userSkillNames),
           notes: updated.notes,
           next_step: updated.nextStep,
         },
