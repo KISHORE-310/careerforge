@@ -1,4 +1,7 @@
-const API_URL = "";
+// Same-origin by default (the Express server serves the built SPA).
+// Override with VITE_API_URL when the frontend is deployed separately.
+const API_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
+export const API_BASE_URL = API_URL;
 
 function getAuthHeaders() {
   const token = localStorage.getItem("token");

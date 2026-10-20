@@ -138,6 +138,17 @@ export const db = {
     async create(userId: string, tokenHash: string, expiresAt: Date) {
       return prisma.refreshToken.create({ data: { userId, tokenHash, expiresAt } });
     },
+    async consumeValid(tokenHash: string) {
+      return prisma.$transaction(async (tx) => {
+        const stored = await tx.refreshToken.findFirst({
+          where: { tokenHash, expiresAt: { gt: new Date() } },
+          include: { user: { include: { profile: true } } },
+        });
+        if (!stored) return null;
+        await tx.refreshToken.delete({ where: { id: stored.id } });
+        return stored;
+      });
+    },
     async findValid(tokenHash: string) {
       return prisma.refreshToken.findFirst({
         where: { tokenHash, expiresAt: { gt: new Date() } },

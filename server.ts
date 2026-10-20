@@ -31,6 +31,15 @@ import { settingsRouter } from "./src/server/routes/settings.routes";
 export const app = express();
 const PORT = config.PORT;
 
+// Lightweight observability counters for uptime monitors and log-based alerting.
+// In-memory only: resets on process restart, per-instance (fine for a single
+// Cloud Run instance; aggregate via logs for multi-instance deployments).
+const apiMetrics = {
+  startedAt: new Date().toISOString(),
+  requests_total: 0,
+  errors_5xx_total: 0,
+};
+
 // Enable reverse proxy trust for accurate IP resolution behind Cloud Run / load balancers
 app.set("trust proxy", 1);
 
@@ -40,7 +49,11 @@ app.use((req, res, next) => {
   res.setHeader("x-request-id", requestId);
   const startedAt = Date.now();
   res.on("finish", () => {
-    if (req.path.startsWith("/api")) console.info(JSON.stringify({ level: "info", event: "api_request", requestId, method: req.method, path: req.path, status: res.statusCode, durationMs: Date.now() - startedAt }));
+    if (req.path.startsWith("/api")) {
+      apiMetrics.requests_total += 1;
+      if (res.statusCode >= 500) apiMetrics.errors_5xx_total += 1;
+      console.info(JSON.stringify({ level: "info", event: "api_request", requestId, method: req.method, path: req.path, status: res.statusCode, durationMs: Date.now() - startedAt }));
+    }
   });
   next();
 });
@@ -82,6 +95,29 @@ app.get(["/ready", "/api/ready"], async (_req: Request, res: Response) => {
   } catch {
     res.status(503).json({ status: "not_ready" });
   }
+});
+
+app.get(["/metrics", "/api/metrics"], (req: Request, res: Response) => {
+  // Restrict to internal network / monitoring agents only.
+  // Set METRICS_TOKEN to a strong secret; monitors send it via
+  // "Authorization: Bearer <token>" or the X-Metrics-Token header.
+  const metricsToken = process.env.METRICS_TOKEN;
+  if (metricsToken) {
+    const provided =
+      req.header("x-metrics-token") ||
+      req.header("authorization")?.replace(/^bearer\s+/i, "");
+    if (!provided || provided !== metricsToken) {
+      return res.status(401).json({ error: "Metrics access requires a valid token." });
+    }
+  }
+  res.json({
+    status: "ok",
+    uptime_seconds: Math.floor(process.uptime()),
+    started_at: apiMetrics.startedAt,
+    memory_rss_mb: Math.round(process.memoryUsage().rss / 1024 / 1024),
+    requests_total: apiMetrics.requests_total,
+    errors_5xx_total: apiMetrics.errors_5xx_total,
+  });
 });
 
 // 5. Mount Domain Routers (Modular API Architecture)

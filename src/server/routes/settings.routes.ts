@@ -41,6 +41,7 @@ settingsRouter.get("/export", authenticateToken, async (req: Request, res: Respo
     },
   });
   if (!user) return res.status(404).json({ success: false, message: "User not found." });
+  const { passwordHash: _hash, ...safeUser } = user;
   res.setHeader("Content-Disposition", 'attachment; filename="careerforge-data-export.json"');
-  res.json({ exported_at: new Date().toISOString(), data: user });
+  res.json({ exported_at: new Date().toISOString(), data: safeUser });
 });

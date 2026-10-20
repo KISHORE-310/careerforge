@@ -65,8 +65,31 @@ export const generalApiLimiter = rateLimit({
 // Security Headers & CORS
 // =====================================
 
+// Production runs a strict Content Security Policy: the Vite build emits only
+// external hashed scripts/styles, so 'self' covers all first-party assets.
+// Google Fonts is allow-listed by name. 'unsafe-inline' on style-src covers
+// React's inline style attributes. frame-ancestors is intentionally omitted
+// and frameguard stays disabled so AI Studio / Cloud Run preview iframes keep
+// working. Development keeps CSP off: Vite dev mode requires eval-based HMR
+// and inline preamble that a strict policy would break.
+const productionCsp = {
+  useDefaults: false,
+  directives: {
+    defaultSrc: ["'self'"],
+    scriptSrc: ["'self'"],
+    styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+    fontSrc: ["'self'", "https://fonts.gstatic.com"],
+    imgSrc: ["'self'", "data:", "blob:"],
+    connectSrc: ["'self'"],
+    objectSrc: ["'none'"],
+    baseUri: ["'self'"],
+    formAction: ["'self'"],
+    upgradeInsecureRequests: [] as string[],
+  },
+};
+
 export const securityHeaders = helmet({
-  contentSecurityPolicy: false, // Vite SPA and AI Studio iframe compatibility
+  contentSecurityPolicy: config.NODE_ENV === "production" ? productionCsp : false,
   crossOriginEmbedderPolicy: false,
   crossOriginResourcePolicy: { policy: "cross-origin" },
   frameguard: false, // Allow rendering inside AI Studio preview iframe
@@ -74,25 +97,44 @@ export const securityHeaders = helmet({
 
 // Pure, exported so it can be unit-tested directly for both environments
 // without needing to boot a second production-mode server process.
+// EXTRA_CORS_ORIGINS provides a deployment-specific allow-list (comma-separated
+// exact origins) for preview tools without loosening the hostname checks.
 export function isAllowedOrigin(origin: string | undefined | null, nodeEnv: string, frontendUrl: string | null): boolean {
   // Allow requests with no origin (e.g. mobile apps, curl, same-origin)
   if (!origin) return true;
 
   if (frontendUrl && origin === frontendUrl) return true;
 
-  // Local dev host & known preview-tool domains (e.g. AI Studio's dynamic
-  // Cloud Run preview iframe origins) stay allowed in every environment --
-  // this is an explicit whitelist entry, not the permissive fallback below.
-  if (
-    origin.includes("localhost") ||
-    origin.includes("127.0.0.1") ||
-    origin.includes(".run.app") ||
-    origin.includes(".google.com") ||
-    origin.includes("ais-dev") ||
-    origin.includes("ais-pre")
-  ) {
-    return true;
+  // Deployment-specific allow-list (exact match only, comma-separated env var).
+  const extraOrigins = (process.env.EXTRA_CORS_ORIGINS || "")
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean);
+  if (extraOrigins.includes(origin)) return true;
+
+  let hostname = "";
+  try {
+    hostname = new URL(origin).hostname;
+  } catch {
+    return false; // Malformed origin can never be trusted.
   }
+
+  const isLocalhost =
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "[::1]" ||
+    hostname.endsWith(".localhost");
+
+  if (isLocalhost) return true;
+
+  // Preview-tool origins are only honored outside production (or for explicit
+  // allow-list entries above). In production the whitelist must be exhaustive.
+  const isPreviewTool =
+    hostname.endsWith(".run.app") ||
+    hostname.endsWith(".google.com") ||
+    hostname.includes("ais-dev") ||
+    hostname.includes("ais-pre");
+  if (isPreviewTool && nodeEnv !== "production") return true;
 
   // Anything else: permissive outside production (preserves today's local
   // dev / preview-tool experience), rejected in production where the

@@ -48,10 +48,7 @@ export async function authenticateToken(req: Request, res: Response, next: NextF
       return res.status(401).json({ success: false, message: "Invalid session token." });
     }
 
-    let user = await db.users.findById(decoded.sub);
-    if (!user && decoded.email) {
-      user = await db.users.findByEmail(decoded.email);
-    }
+    const user = await db.users.findById(decoded.sub);
 
     if (!user) {
       return res.status(401).json({ success: false, message: "User account no longer exists." });

@@ -175,16 +175,18 @@ authRouter.post(
   }
 );
 
-// Rotate refresh tokens. A consumed token is deleted before its replacement is
-// issued, so a replayed token cannot mint another session.
+// Rotate refresh tokens atomically: the existing token is deleted inside a
+// database transaction before a new session is created, so two concurrent
+// refresh requests against the same token only one will succeed.
 authRouter.post(["/refresh", "/auth/refresh"], authLimiter, async (req: Request, res: Response) => {
   const rawToken = readRefreshToken(req);
   if (!rawToken) return res.status(401).json({ success: false, message: "Refresh token is required." });
   try {
     const tokenHash = hashRefreshToken(rawToken);
-    const stored = await db.refreshTokens.findValid(tokenHash);
+    // consumeValid atomically validates + deletes the token in a single tx,
+    // preventing a race where two concurrent requests both validate before deletion.
+    const stored = await db.refreshTokens.consumeValid(tokenHash);
     if (!stored) return res.status(401).json({ success: false, message: "Refresh session is invalid or expired." });
-    await db.refreshTokens.revoke(tokenHash);
     const user = db.users.shape(stored.user);
     const token = await issueSession(res, user);
     return res.json({ success: true, access_token: token, token_type: "bearer" });

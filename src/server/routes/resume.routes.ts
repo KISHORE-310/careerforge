@@ -144,7 +144,7 @@ export function calculateResumeScore(profile: any) {
   score += certScore;
   breakdown.certifications = certScore;
 
-  const rawPercent = Math.round((score / 80) * 100);
+  const rawPercent = Math.round((score / 96) * 100);
   const normalizedScore = Math.min(Math.max(rawPercent, 0), 98);
   let grade = "Needs Improvement";
   if (normalizedScore >= 90) grade = "Excellent";

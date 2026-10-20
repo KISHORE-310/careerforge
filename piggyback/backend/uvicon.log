@@ -1,0 +1,83 @@
+INFO:     Started server process [20156]
+INFO:     Waiting for application startup.
+2026-09-18 22:20:14,140 INFO piggyback.api simulation started
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8123 (Press CTRL+C to quit)
+[tick 0001] misplaced_now=1 recovering=0 recovered=0 events=1
+[tick 0002] misplaced_now=4 recovering=0 recovered=0 events=4
+[tick 0004] misplaced_now=7 recovering=0 recovered=0 events=7
+[tick 0005] misplaced_now=9 recovering=0 recovered=0 events=9
+[tick 0006] misplaced_now=11 recovering=0 recovered=0 events=11
+2026-09-18 22:20:20,600 INFO piggyback.api request
+INFO:     127.0.0.1:51694 - "GET /api/v1/metrics HTTP/1.1" 200 OK
+2026-09-18 22:20:20,810 INFO piggyback.api request
+INFO:     127.0.0.1:51695 - "GET /api/v1/insights HTTP/1.1" 200 OK
+[tick 0007] misplaced_now=12 recovering=0 recovered=0 events=12
+[tick 0008] misplaced_now=14 recovering=0 recovered=0 events=14
+[tick 0010] misplaced_now=15 recovering=0 recovered=0 events=15
+[tick 0016] misplaced_now=16 recovering=0 recovered=0 events=16
+[tick 0018] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0020] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0030] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0040] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0050] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0060] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0070] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0080] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0090] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0100] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0110] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0120] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0130] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0140] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0150] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0160] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0170] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0180] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0190] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0200] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0210] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0220] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0230] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0240] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0250] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0260] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0270] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0280] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0290] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0300] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0310] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0320] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0330] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0340] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0350] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0360] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0370] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0380] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0390] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0400] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0410] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0420] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0430] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0440] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0450] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0460] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0470] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0480] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0490] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0500] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0510] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0520] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0530] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0540] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0550] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0560] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0570] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0580] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0590] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0600] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0610] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0620] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0630] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0640] misplaced_now=17 recovering=0 recovered=0 events=17
+[tick 0650] misplaced_now=17 recovering=0 recovered=0 events=17

@@ -43,7 +43,7 @@ applicationsRouter.get("/", authenticateToken, async (req: Request, res: Respons
       job_id: a.jobId,
       match_score: calculateApplicationMatchScore(a.job, userSkillNames),
       notes: a.notes || "",
-      next_step: a.nextStep || "Application Review",
+      next_step: a.nextStep || "",
     }));
 
     res.json({ success: true, count: formatted.length, applications: formatted });

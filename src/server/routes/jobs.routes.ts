@@ -107,8 +107,13 @@ jobsRouter.get("/:id", optionalAuth, async (req: Request, res: Response) => {
 
     const matched = skillsReq.filter((s) => userSkills.includes(s.toLowerCase()));
     const missing = skillsReq.filter((s) => !userSkills.includes(s.toLowerCase()));
-    const skillsMatchPct = skillsReq.length > 0 ? Math.round((matched.length / skillsReq.length) * 100) : 75;
-    const overallScore = Math.min(Math.max(skillsMatchPct, 40), 96);
+    // Anonymous visitors receive null scores — no profile means no meaningful match.
+    const skillsMatchPct = !userId
+      ? null
+      : skillsReq.length > 0
+        ? Math.round((matched.length / skillsReq.length) * 100)
+        : null;
+    const overallScore = skillsMatchPct !== null ? Math.min(Math.max(skillsMatchPct, 40), 96) : null;
 
     res.json({
       success: true,
@@ -127,15 +132,17 @@ jobsRouter.get("/:id", optionalAuth, async (req: Request, res: Response) => {
         source_url: job.sourceUrl,
         match_score: overallScore,
       },
-      fit_analysis: {
-        overall_match: overallScore,
-        skills_match: skillsMatchPct,
-        experience_alignment: "Evaluated against candidate experience records",
-        matched_skills: matched,
-        missing_skills: missing,
-        key_strengths: matched.length > 0 ? matched.map((s) => `Demonstrated proficiency in ${s}`) : ["Transferable software engineering foundation"],
-        recommended_action: missing.length > 0 ? `Target hands-on practice with ${missing.slice(0, 3).join(", ")} to maximize job match score.` : "High technical alignment; prepare tailored cover letter and STAR stories.",
-      },
+      fit_analysis: userId
+        ? {
+            overall_match: overallScore,
+            skills_match: skillsMatchPct,
+            experience_alignment: "Evaluated against candidate experience records",
+            matched_skills: matched,
+            missing_skills: missing,
+            key_strengths: matched.length > 0 ? matched.map((s) => `Demonstrated proficiency in ${s}`) : ["Transferable software engineering foundation"],
+            recommended_action: missing.length > 0 ? `Target hands-on practice with ${missing.slice(0, 3).join(", ")} to maximize job match score.` : "High technical alignment; prepare tailored cover letter and STAR stories.",
+          }
+        : { message: "Sign in to see your personalised job fit analysis." },
     });
   } catch (error: any) {
     res.status(500).json({ success: false, message: "Failed to evaluate job fit." });
