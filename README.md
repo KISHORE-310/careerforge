@@ -67,7 +67,8 @@ The platform is designed as a unified, high-throughput, full-stack TypeScript ap
 
 ```text
 careerforge/
-├── server.ts                 # Production server entrypoint (Express API + Vite SPA)
+├── start.ts                  # Runtime entrypoint — binds port, loads Vite (dev) or serves dist/ (prod)
+├── server.ts                 # Express app factory — registers all routes and middleware (no port binding)
 ├── vite.config.js            # Vite configuration with Windows cache locking fix
 ├── vitest.config.ts          # Vitest test runner configuration
 ├── package.json              # Project dependencies, build, and test scripts
@@ -174,7 +175,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 The codebase includes comprehensive unit and integration test coverage:
 
 ```bash
-# Run the complete test suite (44 tests, 5 test suites)
+# Run the complete test suite (45 tests, 5 test suites)
 npm test
 
 # Run tests in watch mode during development
@@ -186,6 +187,32 @@ npm run typecheck
 # Verify frontend and backend production build
 npm run build
 ```
+
+---
+
+## Production Build & Launch
+
+```bash
+# 1. Build frontend (Vite) + server bundle (esbuild)
+npm run build
+
+# 2. Apply pending migrations to production database
+npx prisma migrate deploy
+
+# 3. Start production server (reads NODE_ENV, DATABASE_URL, JWT_SECRET, etc. from environment)
+npm start
+
+# 4. Smoke-test health endpoints
+curl http://localhost:3000/health   # → { "status": "ok", "database": "connected" }
+curl http://localhost:3000/ready    # → { "status": "ready" }
+
+# 5. Verify /metrics is locked (should return 401 without token)
+curl http://localhost:3000/metrics
+# Authenticated access:
+curl -H "Authorization: Bearer $METRICS_TOKEN" http://localhost:3000/metrics
+```
+
+> **Server architecture:** `start.ts` is the runtime entrypoint — it dynamically loads the Vite dev middleware in development and serves the pre-built `dist/` in production. `server.ts` is the pure Express app factory (no port binding) and is safe to import in tests without spawning Vite.
 
 ---
 
