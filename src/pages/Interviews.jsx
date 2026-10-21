@@ -19,6 +19,7 @@ import {
   ShieldCheck,
   Zap,
   Radio,
+  AlertCircle,
 } from "lucide-react";
 import {
   getInterviews,
@@ -221,10 +222,14 @@ function Interviews() {
     try {
       const res = await respondInterview(activeSession.id, answerText);
       const replyText =
-        res.reply ||
-        res.interviewer_response ||
-        res.response ||
-        "That is a sound approach. How would you handle automated rollback and data integrity in case of unexpected deployment faults?";
+        res?.reply ||
+        res?.interviewer_response ||
+        res?.response;
+
+      if (!replyText) {
+        throw new Error(res?.message || res?.error || "AI interviewer did not return a valid reply. Please verify your AI service configuration.");
+      }
+
       const aiMsg = {
         sender: "interviewer",
         text: replyText,
@@ -242,6 +247,16 @@ function Interviews() {
       }
     } catch (err) {
       console.error("Error responding to interview:", err);
+      const errorMsg = {
+        sender: "system",
+        isError: true,
+        text: `Interviewer AI Service Error: ${err?.message || "Failed to generate interviewer reply."}`,
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      };
+      setActiveSession((prev) => ({
+        ...prev,
+        messages: [...(prev?.messages || withCandidate), errorMsg],
+      }));
     } finally {
       setLoading(false);
     }
@@ -486,14 +501,21 @@ function Interviews() {
                     key={i}
                     className={`flex gap-3 ${msg.sender === "candidate" ? "justify-end" : "justify-start"}`}
                   >
-                    {msg.sender === "interviewer" && (
+                    {msg.isError && (
+                      <div className="w-7 h-7 rounded-lg bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400 shrink-0 mt-0.5">
+                        <AlertCircle size={14} />
+                      </div>
+                    )}
+                    {msg.sender === "interviewer" && !msg.isError && (
                       <div className="w-7 h-7 rounded-lg bg-[#d4af37]/20 border border-[#d4af37]/40 flex items-center justify-center text-[#f5d77f] shrink-0 mt-0.5">
                         <Bot size={14} />
                       </div>
                     )}
                     <div
                       className={`max-w-[85%] rounded-xl p-3.5 text-xs leading-relaxed ${
-                        msg.sender === "candidate"
+                        msg.isError
+                          ? "bg-rose-950/50 border border-rose-800 text-rose-200"
+                          : msg.sender === "candidate"
                           ? "bg-[#d4af37] text-black font-medium"
                           : "bg-[#161616] border border-stone-800 text-stone-200"
                       }`}

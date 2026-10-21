@@ -20,7 +20,7 @@ function formatPostedDaysAgo(fetchedAt: Date): string {
 // GET /api/jobs
 jobsRouter.get("/", optionalAuth, async (req: Request, res: Response) => {
   try {
-    const { query, role, type } = req.query;
+    const { query, role, type, min_match, minMatch } = req.query;
     const jobs = await db.jobs.list({
       search: (query as string) || (role as string),
       type: type as string,
@@ -80,7 +80,12 @@ jobsRouter.get("/", optionalAuth, async (req: Request, res: Response) => {
       };
     });
 
-    res.json({ success: true, count: formatted.length, jobs: formatted });
+    const minScore = Number(min_match ?? minMatch);
+    const filtered = !isNaN(minScore) && minScore > 0
+      ? formatted.filter((j) => typeof j.match_score === "number" && j.match_score >= minScore)
+      : formatted;
+
+    res.json({ success: true, count: filtered.length, jobs: filtered });
   } catch (error: any) {
     res.status(500).json({ success: false, message: "Failed to retrieve job listings." });
   }

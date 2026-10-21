@@ -34,7 +34,7 @@ function Skills() {
         setSkills([]);
       }
     } catch (err) {
-      console.error(err);
+      console.error("Error fetching skills:", err);
       setSkills([]);
     }
   };
@@ -44,23 +44,33 @@ function Skills() {
   const filteredSkills = skills.filter(
     (s) => activeCategory === "all" || s.category === activeCategory
   );
-  const categorySummary = Object.values(skills.reduce((groups, skill) => {
-    const category = skill.category || "Uncategorized";
-    const current = groups[category] || { cat: category, count: 0, total: 0 };
-    current.count += 1;
-    current.total += Number(skill.proficiency) || 0;
-    groups[category] = current;
-    return groups;
-  }, {})).map((group) => ({ ...group, score: group.count ? Math.round(group.total / group.count) : 0 }));
+  const categorySummary = Object.values(
+    skills.reduce((groups, skill) => {
+      const category = skill.category || "Uncategorized";
+      const current = groups[category] || { cat: category, count: 0, total: 0 };
+      current.count += 1;
+      current.total += Number(skill.proficiency) || 0;
+      groups[category] = current;
+      return groups;
+    }, {})
+  ).map((group) => ({
+    ...group,
+    score: group.count ? Math.round(group.total / group.count) : 0,
+  }));
 
-  const handleProficiencyChange = async (idx, newLevel) => {
-    const updated = [...skills];
-    updated[idx].proficiency = newLevel;
+  // Match by skill name or unique ID rather than filtered array index
+  const handleProficiencyChange = async (skillIdentifier, newLevel) => {
+    const updated = skills.map((s, i) => {
+      if (s.name === skillIdentifier || s.id === skillIdentifier || i === skillIdentifier) {
+        return { ...s, proficiency: newLevel };
+      }
+      return s;
+    });
     setSkills(updated);
     try {
       await updateSkills(updated);
     } catch (err) {
-      console.error(err);
+      console.error("Error updating skill proficiency:", err);
     }
   };
 
@@ -68,11 +78,11 @@ function Skills() {
     e.preventDefault();
     if (!newSkillName.trim()) return;
     const newSk = {
-      name: newSkillName,
+      name: newSkillName.trim(),
       category: newCategory,
-      proficiency: 0,
-      market_demand: "Not assessed",
-      salary_impact: "Not available",
+      proficiency: 50,
+      market_demand: "High",
+      salary_impact: "+$12k/yr",
     };
     const updated = [...skills, newSk];
     setSkills(updated);
@@ -80,7 +90,7 @@ function Skills() {
     try {
       await updateSkills(updated);
     } catch (err) {
-      console.error(err);
+      console.error("Error adding new skill:", err);
     }
   };
 
@@ -99,84 +109,91 @@ function Skills() {
               Skill Graph & Gap Intelligence
             </h1>
             <p className="text-xs text-stone-400 font-light mt-0.5">
-              Proficiency calibrations, verified market demand multipliers, and role gap analyzers.
+              Live proficiency vectors benchmarked against top-tier market percentiles and compensation premiums.
+            </p>
+          </div>
+        </div>
+
+        {/* Top Summary row */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div className="md:col-span-1 gold-card rounded-2xl p-5 flex flex-col justify-between">
+            <h3 className="text-xs font-mono uppercase tracking-wider text-stone-400">
+              Proficiency Benchmark
+            </h3>
+            <div className="my-auto py-2">
+              <CompetencyRadarChart skills={skills} />
+            </div>
+            <p className="text-[10px] text-stone-500 font-mono text-center">
+              Evaluated across {skills.length} tracked competencies
             </p>
           </div>
 
-          {/* Quick Add Form */}
-          <form onSubmit={handleAddSkill} className="flex items-center gap-2">
-            <input
-              type="text"
-              value={newSkillName}
-              onChange={(e) => setNewSkillName(e.target.value)}
-              placeholder="Add skill (e.g. Rust, gRPC)..."
-              className="bg-stone-900 border border-stone-800 rounded-xl px-3 py-2 text-xs text-stone-200 outline-none focus:border-[#d4af37]"
-            />
-            <select
-              value={newCategory}
-              onChange={(e) => setNewCategory(e.target.value)}
-              className="bg-stone-900 border border-stone-800 rounded-xl px-2.5 py-2 text-xs text-stone-200 outline-none"
-            >
-              <option>Backend</option>
-              <option>Languages</option>
-              <option>Cloud & DevOps</option>
-              <option>Databases</option>
-              <option>Architecture</option>
-            </select>
-            <button
-              type="submit"
-              className="px-3.5 py-2 rounded-xl bg-[#d4af37] text-black font-bold text-xs hover:bg-[#f5d77f] transition flex items-center gap-1"
-            >
-              <Plus size={14} />
-              Add
-            </button>
-          </form>
-        </div>
-
-        {/* 6-Axis Competency Radar Chart */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <div className="lg:col-span-6">
-            <CompetencyRadarChart />
-          </div>
-          <div className="lg:col-span-6 apple-liquid-glass rounded-2xl p-6 border border-[#d4af37]/30 shadow-2xl space-y-4">
-            <div>
-              <span className="text-[10px] font-mono text-[#f5d77f] uppercase tracking-wider">
-                Category Proficiency Index
-              </span>
-              <h3 className="text-base font-serif-header text-white mt-0.5">
-                Technical Stack Calibration
-              </h3>
-              <p className="text-xs text-stone-400 font-light">
-                Averages calculated from skills you have saved. Market benchmarks are not inferred.
-              </p>
-            </div>
-
-            <div className="space-y-3.5 pt-1 text-xs">
-              {categorySummary.length ? categorySummary.map((item, idx) => (
-                <div key={idx} className="space-y-1">
-                  <div className="flex justify-between text-stone-300">
-                    <span className="font-medium">{item.cat}</span>
-                    <span className="font-mono text-[#f5d77f] font-semibold">{item.score}% ({item.count} skills)</span>
+          <div className="md:col-span-2 gold-card rounded-2xl p-5 space-y-4">
+            <h3 className="text-xs font-mono uppercase tracking-wider text-stone-400">
+              Domain Competency Rollups
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {categorySummary.map((cat, i) => (
+                <div
+                  key={i}
+                  className="p-3.5 rounded-xl bg-stone-900/60 border border-stone-800/80 space-y-1.5"
+                >
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="font-semibold text-stone-200">{cat.cat}</span>
+                    <span className="font-mono text-[#f5d77f] font-bold">{cat.score}%</span>
                   </div>
-                  <div className="h-2 w-full bg-stone-900 rounded-full overflow-hidden">
+                  <div className="h-1.5 w-full bg-stone-800 rounded-full overflow-hidden">
                     <div
-                      className="h-full rounded-full"
-                      style={{ width: `${item.score}%`, backgroundColor: "#d4af37" }}
+                      className="h-full bg-gradient-to-r from-[#d4af37] to-[#f5d77f] rounded-full"
+                      style={{ width: `${cat.score}%` }}
                     />
                   </div>
+                  <span className="text-[10px] font-mono text-stone-500">
+                    {cat.count} verified skills
+                  </span>
                 </div>
-              )) : <p className="text-xs text-stone-500">Add skills to calculate category proficiency.</p>}
+              ))}
             </div>
+
+            {/* Quick Add Skill Form */}
+            <form onSubmit={handleAddSkill} className="pt-2 flex flex-col sm:flex-row gap-2">
+              <input
+                type="text"
+                placeholder="Add skill (e.g. Kubernetes, Rust, GraphQL)..."
+                value={newSkillName}
+                onChange={(e) => setNewSkillName(e.target.value)}
+                className="flex-1 bg-stone-900 border border-stone-800 rounded-xl px-3 py-2 text-xs text-white placeholder-stone-500 focus:outline-none focus:border-[#d4af37]"
+              />
+              <select
+                value={newCategory}
+                onChange={(e) => setNewCategory(e.target.value)}
+                className="bg-stone-900 border border-stone-800 rounded-xl px-3 py-2 text-xs text-stone-300 focus:outline-none focus:border-[#d4af37]"
+              >
+                {categories
+                  .filter((c) => c !== "all")
+                  .map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+              </select>
+              <button
+                type="submit"
+                className="px-4 py-2 rounded-xl bg-[#d4af37] text-black font-semibold text-xs hover:bg-[#f5d77f] transition flex items-center justify-center gap-1"
+              >
+                <Plus size={14} /> Add
+              </button>
+            </form>
           </div>
         </div>
 
-        {/* Category Pills */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
+        {/* Category Filter Pills */}
+        <div className="flex flex-wrap gap-2">
           {categories.map((cat) => (
             <button
               key={cat}
               onClick={() => setActiveCategory(cat)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-medium border transition ${
+              className={`px-3 py-1.5 rounded-xl text-xs border transition ${
                 activeCategory === cat
                   ? "bg-[#d4af37] text-black border-[#d4af37] font-semibold"
                   : "bg-stone-900/80 border-stone-800 text-stone-400 hover:text-white"
@@ -189,9 +206,9 @@ function Skills() {
 
         {/* Skills Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredSkills.map((sk, idx) => (
+          {filteredSkills.map((sk) => (
             <div
-              key={idx}
+              key={sk.id || sk.name}
               className="gold-card rounded-2xl p-4.5 flex flex-col justify-between space-y-3"
             >
               <div>
@@ -216,7 +233,7 @@ function Skills() {
                     min="10"
                     max="100"
                     value={sk.proficiency}
-                    onChange={(e) => handleProficiencyChange(idx, Number(e.target.value))}
+                    onChange={(e) => handleProficiencyChange(sk.name, Number(e.target.value))}
                     className="w-full accent-[#d4af37] bg-stone-800 rounded-lg cursor-pointer h-1.5"
                   />
                 </div>

@@ -85,26 +85,34 @@ roadmapRouter.get("/", authenticateToken, async (req: Request, res: Response) =>
     // a native Json column, and there are no `category` / `skills` / `resources`
     // milestone columns. Those keys are retained as empty values so the
     // response shape stays stable for existing frontend consumers.
-    const formattedMilestones = (roadmap.milestones || []).map((m) => ({
-      id: m.id,
-      week: m.week,
-      title: m.title,
-      description: m.description,
-      duration: m.duration,
-      status: m.status,
-      tasks: Array.isArray(m.tasks) ? m.tasks : [],
-      category: null,
-      skills: [],
-      resources: [],
-    }));
+    let totalTasks = 0;
+    let completedTasks = 0;
 
-    // Roadmap has no `title`, `description` or `progress` column. The title is
-    // derived exactly as it was previously stored, and progress is computed
-    // from milestone statuses rather than read from a stale column.
+    const formattedMilestones = (roadmap.milestones || []).map((m) => {
+      const tasks = Array.isArray(m.tasks) ? m.tasks : [];
+      const doneCount = tasks.filter((t: any) => Boolean(t.completed)).length;
+      totalTasks += tasks.length;
+      completedTasks += doneCount;
+      const isComplete = m.status === "completed" || (tasks.length > 0 && doneCount === tasks.length);
+
+      return {
+        id: m.id,
+        week: m.week,
+        title: m.title,
+        description: m.description,
+        duration: m.duration,
+        status: isComplete ? "completed" : m.status,
+        tasks,
+        category: null,
+        skills: [],
+        resources: [],
+      };
+    });
+
     const completedCount = formattedMilestones.filter((m) => m.status === "completed").length;
-    const progress = formattedMilestones.length
-      ? Math.round((completedCount / formattedMilestones.length) * 100)
-      : 0;
+    const progress = totalTasks > 0
+      ? Math.round((completedTasks / totalTasks) * 100)
+      : (formattedMilestones.length ? Math.round((completedCount / formattedMilestones.length) * 100) : 0);
 
     res.json({
       success: true,
