@@ -87,6 +87,7 @@ app.get(["/health", "/api/health"], async (_req: Request, res: Response) => {
 app.get(["/ready", "/api/ready"], async (_req: Request, res: Response) => {
   try {
     await prisma.$queryRaw`SELECT 1`;
+    res.status(200).json({ status: "ready" });
   } catch {
     res.status(503).json({ status: "not_ready" });
   }
