@@ -18,6 +18,7 @@
   },
   "include": [
     "server.ts",
+    "start.ts",
     "src/server/**/*.ts",
     "src/db/**/*.ts",
     "prisma/seed.ts"
@@ -28,7 +29,6 @@
     "src/components",
     "src/pages",
     "src/hooks",
-    "src/data",
     "src/services"
   ]
 }

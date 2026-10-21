@@ -1,7 +1,5 @@
 import express, { Request, Response } from "express";
-import path from "path";
 import { randomUUID } from "crypto";
-import { createServer as createViteServer } from "vite";
 
 import { config } from "./src/server/config";
 import {
@@ -29,12 +27,10 @@ import { analyticsRouter } from "./src/server/routes/analytics.routes";
 import { settingsRouter } from "./src/server/routes/settings.routes";
 
 export const app = express();
-const PORT = config.PORT;
+export const PORT = config.PORT;
 
 // Lightweight observability counters for uptime monitors and log-based alerting.
-// In-memory only: resets on process restart, per-instance (fine for a single
-// Cloud Run instance; aggregate via logs for multi-instance deployments).
-const apiMetrics = {
+export const apiMetrics = {
   startedAt: new Date().toISOString(),
   requests_total: 0,
   errors_5xx_total: 0,
@@ -91,18 +87,24 @@ app.get(["/health", "/api/health"], async (_req: Request, res: Response) => {
 app.get(["/ready", "/api/ready"], async (_req: Request, res: Response) => {
   try {
     await prisma.$queryRaw`SELECT 1`;
-    res.json({ status: "ready" });
   } catch {
     res.status(503).json({ status: "not_ready" });
   }
 });
 
 app.get(["/metrics", "/api/metrics"], (req: Request, res: Response) => {
-  // Restrict to internal network / monitoring agents only.
-  // Set METRICS_TOKEN to a strong secret; monitors send it via
-  // "Authorization: Bearer <token>" or the X-Metrics-Token header.
+  // Lock down /metrics in production:
+  // An unauthenticated request must ALWAYS return 401 in production.
+  // When METRICS_TOKEN is configured, require "Authorization: Bearer <METRICS_TOKEN>"
+  // or "X-Metrics-Token: <METRICS_TOKEN>".
   const metricsToken = process.env.METRICS_TOKEN;
-  if (metricsToken) {
+  const isProduction = config.NODE_ENV === "production";
+
+  if (isProduction && !metricsToken) {
+    return res.status(401).json({ error: "Metrics access requires METRICS_TOKEN in production." });
+  }
+
+  if (metricsToken || isProduction) {
     const provided =
       req.header("x-metrics-token") ||
       req.header("authorization")?.replace(/^bearer\s+/i, "");
@@ -110,6 +112,7 @@ app.get(["/metrics", "/api/metrics"], (req: Request, res: Response) => {
       return res.status(401).json({ error: "Metrics access requires a valid token." });
     }
   }
+
   res.json({
     status: "ok",
     uptime_seconds: Math.floor(process.uptime()),
@@ -159,30 +162,3 @@ app.all("/api/*", (req: Request, res: Response) => {
 
 // 7. Global Sanitized Error Handler (Prevents leaking stack traces or credentials)
 app.use(globalErrorHandler);
-
-// 7. Vite Middleware & Static Serving
-async function startServer() {
-  if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true, hmr: false },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
-    app.get("*", (_req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
-    });
-  }
-
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`CareerForge AI Server running securely on http://0.0.0.0:${PORT}`);
-  });
-}
-
-// Tests import the configured Express application directly; they must not
-// bind a TCP port or initialize Vite's development middleware.
-if (!process.env.VITEST) {
-  startServer();
-}
